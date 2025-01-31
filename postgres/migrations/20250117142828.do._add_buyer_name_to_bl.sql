@@ -1,0 +1,1 @@
+ALTER TABLE public."buyer_lead" ADD COLUMN company_name VARCHAR(255) DEFAULT NULL;

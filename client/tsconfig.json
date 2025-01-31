@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "types": [
+      "node",
+      "react",
+      "react-dom",
+    ]
+  },
+  "include": ["./vite.config.ts", "./**/*.tsx", "./**/*.ts", "./**/*.json", "./**/*.css"],
+  "exclude": [ "../node_modules", "server"]
+}

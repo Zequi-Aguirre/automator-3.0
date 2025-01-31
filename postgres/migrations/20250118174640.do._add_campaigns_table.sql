@@ -1,0 +1,10 @@
+CREATE TABLE public."campaigns" (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    external_id VARCHAR(255) DEFAULT NULL,
+    name VARCHAR(255) DEFAULT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    modified TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    CONSTRAINT campaigns_pkey PRIMARY KEY (id)
+);

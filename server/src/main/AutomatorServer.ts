@@ -1,0 +1,90 @@
+import "reflect-metadata";
+import dotenv from 'dotenv';
+import express, { Express } from "express";
+import { appConfig } from "./config";
+import { DependencyContainer } from "tsyringe";
+import { EnvConfig } from "./config/envConfig";
+import LeadResource from "./resources/leadResource";
+import LeadPingPostResource from "./resources/leadPingPostResource.ts";
+import InjectionToken from "tsyringe/dist/typings/providers/injection-token";
+import AuthenticateResource from "./resources/authenticateResource";
+import { Authenticator } from "./middleware/authenticator";
+import UserResource from "./resources/userResource";
+import CampaignResource from "./resources/campaignResource";
+import SettingsResource from "./resources/settingsResource.ts";
+import { Worker } from './worker/Worker';
+import JobResource from "./resources/jobResource.ts";
+
+dotenv.config();
+
+export class AutomatorServer {
+    private readonly app: Express;
+    private worker: Worker | null = null;
+
+    constructor(
+        private readonly container: DependencyContainer,
+        private readonly config: EnvConfig
+    ) {
+        this.container = container;
+        this.config = config;
+        this.app = express();
+    }
+
+    async setup(): Promise<AutomatorServer> {
+        appConfig(this.app);
+        const cont = this.container;
+        this.registerIfNot(cont, EnvConfig, this.config);
+
+        // Register the Worker with the container
+        cont.registerSingleton(Worker);
+
+        const authenticator = cont.resolve(Authenticator);
+        const authFunc = authenticator.authenticateFunc();
+
+        // Set up routes
+        this.app.use("/api/authenticate", cont.resolve(AuthenticateResource).routes());
+        this.app.use("/api/campaigns", authFunc, cont.resolve(CampaignResource).routes());
+        this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
+        this.app.use("/api/leads", cont.resolve(LeadPingPostResource).routes());
+        this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());
+        this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
+        this.app.use("/api/settings", cont.resolve(SettingsResource).routes());
+        this.app.use('/static', express.static('public'));
+
+        // Initialize worker if IS_WORKER is true
+        if (process.env.USE_WORKER && process.env.USE_WORKER === 'true') {
+            console.log('Initializing worker');
+            this.worker = cont.resolve(Worker);
+            await this.worker.initialize();
+        }
+
+        // catch all unhandled errors in the application
+        process
+            .on('unhandledRejection', (reason, p) => {
+                console.error('Unhandled Rejection at:', p, '\nReason:', reason);
+            })
+            .on('uncaughtException', (error: Error) => {
+                console.error(`Caught exception: ${error}\n` + `Exception origin: ${error.stack}`);
+            });
+
+        return this;
+    }
+
+    private registerIfNot<T>(container: DependencyContainer, thingToken: InjectionToken<T>, thing: T) {
+        if (!container.isRegistered(thingToken)) {
+            container.registerInstance(thingToken, thing);
+        }
+    }
+
+    getApp() {
+        return this.app;
+    }
+
+    // Optional: Add method to stop worker when needed
+    async stop() {
+        if (this.worker) {
+            await this.worker.stop();
+            this.worker = null;
+        }
+    }
+}

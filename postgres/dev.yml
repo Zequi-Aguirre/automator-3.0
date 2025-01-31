@@ -1,0 +1,16 @@
+version: '3'
+services:
+  postgres:
+    image: docker.io/library/postgres:16
+    container_name: automator-dev
+    environment:
+      POSTGRES_USER: automator
+      POSTGRES_PASSWORD: automator
+      POSTGRES_SSL: on
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5424:5432"  # Keep original Automator port
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+volumes:
+  automator_postgres_data:  # Unique volume name for Automator

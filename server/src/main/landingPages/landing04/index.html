@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8"/>
+    <script>if (navigator.userAgent.match(/MSIE|Internet Explorer/i) || navigator.userAgent.match(/Trident\/7\..*?rv:11/i)) {
+        var href = document.location.href;
+        if (!href.match(/[?&]nowprocket/)) {
+            if (href.indexOf("?") == -1) {
+                if (href.indexOf("#") == -1) {
+                    document.location.href = href + "?nowprocket=1"
+                } else {
+                    document.location.href = href.replace("#", "?nowprocket=1#")
+                }
+            } else {
+                if (href.indexOf("#") == -1) {
+                    document.location.href = href + "&nowprocket=1"
+                } else {
+                    document.location.href = href.replace("#", "&nowprocket=1#")
+                }
+            }
+        }
+    }</script>
+    <script>class RocketLazyLoadScripts {
+        constructor() {
+            this.v = "1.2.3", this.triggerEvents = ["keydown", "mousedown", "mousemove", "touchmove", "touchstart", "touchend", "wheel"], this.userEventHandler = this._triggerListener.bind(this), this.touchStartHandler = this._onTouchStart.bind(this), this.touchMoveHandler = this._onTouchMove.bind(this), this.touchEndHandler = this._onTouchEnd.bind(this), this.clickHandler = this._onClick.bind(this), this.interceptedClicks = [], window.addEventListener("pageshow", t => {
+                this.persisted = t.persisted
+            }), window.addEventListener("DOMContentLoaded", () => {
+                this._preconnect3rdParties()
+            }), this.delayedScripts = {normal: [], async: [], defer: []}, this.trash = [], this.allJQueries = []
+        }
+
+        _addUserInteractionListener(t) {
+            if (document.hidden) {
+                t._triggerListener();
+                return
+            }
+            this.triggerEvents.forEach(e => window.addEventListener(e, t.userEventHandler, {passive: !0})), window.addEventListener("touchstart", t.touchStartHandler, {passive: !0}), window.addEventListener("mousedown", t.touchStartHandler), document.addEventListener("visibilitychange", t.userEventHandler)
+        }
+
+        _removeUserInteractionListener() {
+            this.triggerEvents.forEach(t => window.removeEventListener(t, this.userEventHandler, {passive: !0})), document.removeEventListener("visibilitychange", this.userEventHandler)
+        }
+
+        _onTouchStart(t) {
+            "HTML" !== t.target.tagName && (window.addEventListener("touchend", this.touchEndHandler), window.addEventListener("mouseup", this.touchEndHandler), window.addEventListener("touchmove", this.touchMoveHandler, {passive: !0}), window.addEventListener("mousemove", this.touchMoveHandler), t.target.addEventListener("click", this.clickHandler), this._renameDOMAttribute(t.target, "onclick", "rocket-onclick"), this._pendingClickStarted())
+        }
+
+        _onTouchMove(t) {
+            window.removeEventListener("touchend", this.touchEndHandler), window.removeEventListener("mouseup", this.touchEndHandler), window.removeEventListener("touchmove", this.touchMoveHandler, {passive: !0}), window.removeEventListener("mousemove", this.touchMoveHandler), t.target.removeEventListener("click", this.clickHandler), this._renameDOMAttribute(t.target, "rocket-onclick", "onclick"), this._pendingClickFinished()
+        }
+
+        _onTouchEnd(t) {
+            window.removeEventListener("touchend", this.touchEndHandler), window.removeEventListener("mouseup", this.touchEndHandler), window.removeEventListener("touchmove", this.touchMoveHandler, {passive: !0}), window.removeEventListener("mousemove", this.touchMoveHandler)
+        }
+
+        _onClick(t) {
+            t.target.removeEventListener("click", this.clickHandler), this._renameDOMAttribute(t.target, "rocket-onclick", "onclick"), this.interceptedClicks.push(t), t.preventDefault(), t.stopPropagation(), t.stopImmediatePropagation(), this._pendingClickFinished()
+        }
+
+        _replayClicks() {
+            window.removeEventListener("touchstart", this.touchStartHandler, {passive: !0}), window.removeEventListener("mousedown", this.touchStartHandler), this.interceptedClicks.forEach(t => {
+                t.target.dispatchEvent(new MouseEvent("click", {view: t.view, bubbles: !0, cancelable: !0}))
+            })
+        }
+
+        _waitForPendingClicks() {
+            return new Promise(t => {
+                this._isClickPending ? this._pendingClickFinished = t : t()
+            })
+        }
+
+        _pendingClickStarted() {
+            this._isClickPending = !0
+        }
+
+        _pendingClickFinished() {
+            this._isClickPending = !1
+        }
+
+        _renameDOMAttribute(t, e, r) {
+            t.hasAttribute && t.hasAttribute(e) && (event.target.setAttribute(r, event.target.getAttribute(e)), event.target.removeAttribute(e))
+        }
+
+        _triggerListener() {
+            this._removeUserInteractionListener(this), "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", this._loadEverythingNow.bind(this)) : this._loadEverythingNow()
+        }
+
+        _preconnect3rdParties() {
+            let t = [];
+            document.querySelectorAll("script[type=rocketlazyloadscript]").forEach(e => {
+                if (e.hasAttribute("src")) {
+                    let r = new URL(e.src).origin;
+                    r !== location.origin && t.push({
+                        src: r,
+                        crossOrigin: e.crossOrigin || "module" === e.getAttribute("data-rocket-type")
+                    })
+                }
+            }), t = [...new Map(t.map(t => [JSON.stringify(t), t])).values()], this._batchInjectResourceHints(t, "preconnect")
+        }
+
+        async _loadEverythingNow() {
+            this.lastBreath = Date.now(), this._delayEventListeners(this), this._delayJQueryReady(this), this._handleDocumentWrite(), this._registerAllDelayedScripts(), this._preloadAllScripts(), await this._loadScriptsFromList(this.delayedScripts.normal), await this._loadScriptsFromList(this.delayedScripts.defer), await this._loadScriptsFromList(this.delayedScripts.async);
+            try {
+                await this._triggerDOMContentLoaded(), await this._triggerWindowLoad()
+            } catch (t) {
+                console.error(t)
+            }
+            window.dispatchEvent(new Event("rocket-allScriptsLoaded")), this._waitForPendingClicks().then(() => {
+                this._replayClicks()
+            }), this._emptyTrash()
+        }
+
+        _registerAllDelayedScripts() {
+            document.querySelectorAll("script[type=rocketlazyloadscript]").forEach(t => {
+                t.hasAttribute("data-rocket-src") ? t.hasAttribute("async") && !1 !== t.async ? this.delayedScripts.async.push(t) : t.hasAttribute("defer") && !1 !== t.defer || "module" === t.getAttribute("data-rocket-type") ? this.delayedScripts.defer.push(t) : this.delayedScripts.normal.push(t) : this.delayedScripts.normal.push(t)
+            })
+        }
+
+        async _transformScript(t) {
+            return new Promise((await this._littleBreath(), navigator.userAgent.indexOf("Firefox/") > 0 || "" === navigator.vendor) ? e => {
+                let r = document.createElement("script");
+                [...t.attributes].forEach(t => {
+                    let e = t.nodeName;
+                    "type" !== e && ("data-rocket-type" === e && (e = "type"), "data-rocket-src" === e && (e = "src"), r.setAttribute(e, t.nodeValue))
+                }), t.text && (r.text = t.text), r.hasAttribute("src") ? (r.addEventListener("load", e), r.addEventListener("error", e)) : (r.text = t.text, e());
+                try {
+                    t.parentNode.replaceChild(r, t)
+                } catch (i) {
+                    e()
+                }
+            } : async e => {
+                function r() {
+                    t.setAttribute("data-rocket-status", "failed"), e()
+                }
+
+                try {
+                    let i = t.getAttribute("data-rocket-type"), n = t.getAttribute("data-rocket-src");
+                    t.text, i ? (t.type = i, t.removeAttribute("data-rocket-type")) : t.removeAttribute("type"), t.addEventListener("load", function r() {
+                        t.setAttribute("data-rocket-status", "executed"), e()
+                    }), t.addEventListener("error", r), n ? (t.removeAttribute("data-rocket-src"), t.src = n) : t.src = "data:text/javascript;base64," + window.btoa(unescape(encodeURIComponent(t.text)))
+                } catch (s) {
+                    r()
+                }
+            })
+        }
+
+        async _loadScriptsFromList(t) {
+            let e = t.shift();
+            return e && e.isConnected ? (await this._transformScript(e), this._loadScriptsFromList(t)) : Promise.resolve()
+        }
+
+        _preloadAllScripts() {
+            this._batchInjectResourceHints([...this.delayedScripts.normal, ...this.delayedScripts.defer, ...this.delayedScripts.async], "preload")
+        }
+
+        _batchInjectResourceHints(t, e) {
+            var r = document.createDocumentFragment();
+            t.forEach(t => {
+                let i = t.getAttribute && t.getAttribute("data-rocket-src") || t.src;
+                if (i) {
+                    let n = document.createElement("link");
+                    n.href = i, n.rel = e, "preconnect" !== e && (n.as = "script"), t.getAttribute && "module" === t.getAttribute("data-rocket-type") && (n.crossOrigin = !0), t.crossOrigin && (n.crossOrigin = t.crossOrigin), t.integrity && (n.integrity = t.integrity), r.appendChild(n), this.trash.push(n)
+                }
+            }), document.head.appendChild(r)
+        }
+
+        _delayEventListeners(t) {
+            let e = {};
+
+            function r(t, r) {
+                !function t(r) {
+                    !e[r] && (e[r] = {
+                        originalFunctions: {add: r.addEventListener, remove: r.removeEventListener},
+                        eventsToRewrite: []
+                    }, r.addEventListener = function () {
+                        arguments[0] = i(arguments[0]), e[r].originalFunctions.add.apply(r, arguments)
+                    }, r.removeEventListener = function () {
+                        arguments[0] = i(arguments[0]), e[r].originalFunctions.remove.apply(r, arguments)
+                    });
+
+                    function i(t) {
+                        return e[r].eventsToRewrite.indexOf(t) >= 0 ? "rocket-" + t : t
+                    }
+                }(t), e[t].eventsToRewrite.push(r)
+            }
+
+            function i(t, e) {
+                let r = t[e];
+                Object.defineProperty(t, e, {
+                    get: () => r || function () {
+                    }, set(i) {
+                        t["rocket" + e] = r = i
+                    }
+                })
+            }
+
+            r(document, "DOMContentLoaded"), r(window, "DOMContentLoaded"), r(window, "load"), r(window, "pageshow"), r(document, "readystatechange"), i(document, "onreadystatechange"), i(window, "onload"), i(window, "onpageshow")
+        }
+
+        _delayJQueryReady(t) {
+            let e;
+
+            function r(r) {
+                if (r && r.fn && !t.allJQueries.includes(r)) {
+                    r.fn.ready = r.fn.init.prototype.ready = function (e) {
+                        return t.domReadyFired ? e.bind(document)(r) : document.addEventListener("rocket-DOMContentLoaded", () => e.bind(document)(r)), r([])
+                    };
+                    let i = r.fn.on;
+                    r.fn.on = r.fn.init.prototype.on = function () {
+                        if (this[0] === window) {
+                            function t(t) {
+                                return t.split(" ").map(t => "load" === t || 0 === t.indexOf("load.") ? "rocket-jquery-load" : t).join(" ")
+                            }
+
+                            "string" == typeof arguments[0] || arguments[0] instanceof String ? arguments[0] = t(arguments[0]) : "object" == typeof arguments[0] && Object.keys(arguments[0]).forEach(e => {
+                                let r = arguments[0][e];
+                                delete arguments[0][e], arguments[0][t(e)] = r
+                            })
+                        }
+                        return i.apply(this, arguments), this
+                    }, t.allJQueries.push(r)
+                }
+                e = r
+            }
+
+            r(window.jQuery), Object.defineProperty(window, "jQuery", {
+                get: () => e, set(t) {
+                    r(t)
+                }
+            })
+        }
+
+        async _triggerDOMContentLoaded() {
+            this.domReadyFired = !0, await this._littleBreath(), document.dispatchEvent(new Event("rocket-DOMContentLoaded")), await this._littleBreath(), window.dispatchEvent(new Event("rocket-DOMContentLoaded")), await this._littleBreath(), document.dispatchEvent(new Event("rocket-readystatechange")), await this._littleBreath(), document.rocketonreadystatechange && document.rocketonreadystatechange()
+        }
+
+        async _triggerWindowLoad() {
+            await this._littleBreath(), window.dispatchEvent(new Event("rocket-load")), await this._littleBreath(), window.rocketonload && window.rocketonload(), await this._littleBreath(), this.allJQueries.forEach(t => t(window).trigger("rocket-jquery-load")), await this._littleBreath();
+            let t = new Event("rocket-pageshow");
+            t.persisted = this.persisted, window.dispatchEvent(t), await this._littleBreath(), window.rocketonpageshow && window.rocketonpageshow({persisted: this.persisted})
+        }
+
+        _handleDocumentWrite() {
+            let t = new Map;
+            document.write = document.writeln = function (e) {
+                let r = document.currentScript;
+                r || console.error("WPRocket unable to document.write this: " + e);
+                let i = document.createRange(), n = r.parentElement, s = t.get(r);
+                void 0 === s && (s = r.nextSibling, t.set(r, s));
+                let a = document.createDocumentFragment();
+                i.setStart(a, 0), a.appendChild(i.createContextualFragment(e)), n.insertBefore(a, s)
+            }
+        }
+
+        async _littleBreath() {
+            Date.now() - this.lastBreath > 45 && (await this._requestAnimFrame(), this.lastBreath = Date.now())
+        }
+
+        async _requestAnimFrame() {
+            return document.hidden ? new Promise(t => setTimeout(t)) : new Promise(t => requestAnimationFrame(t))
+        }
+
+        _emptyTrash() {
+            this.trash.forEach(t => t.remove())
+        }
+
+        static run() {
+            let t = new RocketLazyLoadScripts;
+            t._addUserInteractionListener(t)
+        }
+    }
+
+    RocketLazyLoadScripts.run();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <script data-minify="1" async
+            src='https://rapidsaletoday.com/wp-content/cache/min/1/monitor/stat.js?ver=1738002308'>
+    </script>
+    <meta name='robots' content='index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'/>
+    <style>img:is([sizes="auto" i], [sizes^="auto," i]) {
+        contain-intrinsic-size: 3000px 1500px
+    }</style>
+    <!-- This site is optimized with the Yoast SEO plugin v24.0 - https://yoast.com/wordpress/plugins/seo/ -->
+    <link rel="canonical" href="https://rapidsaletoday.com/3-2/"/>
+    <script type="application/ld+json" class="yoast-schema-graph">{
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebPage",
+                "@id": "https://rapidsaletoday.com/3-2/",
+                "url": "https://rapidsaletoday.com/3-2/",
+                "name": "Get A Cash Offer For Your Home 3 - Rapid Sale Today",
+                "isPartOf": {
+                    "@id": "https://rapidsaletoday.com/#website"
+                },
+                "primaryImageOfPage": {
+                    "@id": "https://rapidsaletoday.com/3-2/#primaryimage"
+                },
+                "image": {
+                    "@id": "https://rapidsaletoday.com/3-2/#primaryimage"
+                },
+                "thumbnailUrl": "https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg",
+                "datePublished": "2022-10-17T14:12:56+00:00",
+                "dateModified": "2025-01-16T17:54:08+00:00",
+                "breadcrumb": {
+                    "@id": "https://rapidsaletoday.com/3-2/#breadcrumb"
+                },
+                "inLanguage": "en-US",
+                "potentialAction": [
+                    {
+                        "@type": "ReadAction",
+                        "target": [
+                            "https://rapidsaletoday.com/3-2/"
+                        ]
+                    }
+                ]
+            },
+            {
+                "@type": "ImageObject",
+                "inLanguage": "en-US",
+                "@id": "https://rapidsaletoday.com/3-2/#primaryimage",
+                "url": "https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg",
+                "contentUrl": "https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg"
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": "https://rapidsaletoday.com/3-2/#breadcrumb",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://rapidsaletoday.com/"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Get A Cash Offer For Your Home 3"
+                    }
+                ]
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://rapidsaletoday.com/#website",
+                "url": "https://rapidsaletoday.com/",
+                "name": "Rapid Sale Today",
+                "description": "",
+                "potentialAction": [
+                    {
+                        "@type": "SearchAction",
+                        "target": {
+                            "@type": "EntryPoint",
+                            "urlTemplate": "https://rapidsaletoday.com/?s={search_term_string}"
+                        },
+                        "query-input": {
+                            "@type": "PropertyValueSpecification",
+                            "valueRequired": true,
+                            "valueName": "search_term_string"
+                        }
+                    }
+                ],
+                "inLanguage": "en-US"
+            }
+        ]
+    }</script>
+    <title>Get A Cash Offer For Your Home 3 - Rapid Sale Today</title>
+    <link rel="preload" as="style"
+          href="https://fonts.googleapis.com/css?family=Roboto%3A100%2C100italic%2C200%2C200italic%2C300%2C300italic%2C400%2C400italic%2C500%2C500italic%2C600%2C600italic%2C700%2C700italic%2C800%2C800italic%2C900%2C900italic%7CRoboto%20Slab%3A100%2C100italic%2C200%2C200italic%2C300%2C300italic%2C400%2C400italic%2C500%2C500italic%2C600%2C600italic%2C700%2C700italic%2C800%2C800italic%2C900%2C900italic%7CMerriweather%3A700%2C500%2Cregular&#038;display=swap"/>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css?family=Roboto%3A100%2C100italic%2C200%2C200italic%2C300%2C300italic%2C400%2C400italic%2C500%2C500italic%2C600%2C600italic%2C700%2C700italic%2C800%2C800italic%2C900%2C900italic%7CRoboto%20Slab%3A100%2C100italic%2C200%2C200italic%2C300%2C300italic%2C400%2C400italic%2C500%2C500italic%2C600%2C600italic%2C700%2C700italic%2C800%2C800italic%2C900%2C900italic%7CMerriweather%3A700%2C500%2Cregular&#038;display=swap"
+          media="print" onload="this.media='all'"/>
+    <noscript>
+        <link rel="stylesheet"
+              href="https://fonts.googleapis.com/css?family=Roboto%3A100%2C100italic%2C200%2C200italic%2C300%2C300italic%2C400%2C400italic%2C500%2C500italic%2C600%2C600italic%2C700%2C700italic%2C800%2C800italic%2C900%2C900italic%7CRoboto%20Slab%3A100%2C100italic%2C200%2C200italic%2C300%2C300italic%2C400%2C400italic%2C500%2C500italic%2C600%2C600italic%2C700%2C700italic%2C800%2C800italic%2C900%2C900italic%7CMerriweather%3A700%2C500%2Cregular&#038;display=swap"/>
+    </noscript>
+    <link rel="preload" as="font"
+          href="https://rapidsaletoday.com/wp-content/themes/twentytwentytwo/assets/fonts/source-serif-pro/SourceSerif4Variable-Roman.ttf.woff2"
+          crossorigin>
+    <link href='https://fonts.gstatic.com' crossorigin rel='preconnect'/>
+    <link rel="alternate" type="application/rss+xml" title="Rapid Sale Today &raquo; Feed"
+          href="https://rapidsaletoday.com/feed/"/>
+    <link rel="alternate" type="application/rss+xml" title="Rapid Sale Today &raquo; Comments Feed"
+          href="https://rapidsaletoday.com/comments/feed/"/>
+    <link rel='stylesheet' id='gravity_forms_theme_foundation-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/gravityforms/assets/css/dist/gravity-forms-theme-foundation.min.css?ver=2.7.16'
+          media='all'/>
+    <link rel='stylesheet' id='gravity_forms_theme_reset-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/gravityforms/assets/css/dist/gravity-forms-theme-reset.min.css?ver=2.7.16'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='gravity_forms_theme_framework-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/gravityforms/assets/css/dist/gravity-forms-theme-framework.min.css?ver=1738002308'
+          media='all'/>
+    <link rel='stylesheet' id='gravity_forms_orbital_theme-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/gravityforms/assets/css/dist/gravity-forms-orbital-theme.min.css?ver=2.7.16'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='embed-pdf-viewer-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/embed-pdf-viewer/css/embed-pdf-viewer.css?ver=1738002307'
+          media='screen'/>
+    <style id='wp-block-button-inline-css'>
+        .wp-block-button__link {
+            box-sizing: border-box;
+            cursor: pointer;
+            display: inline-block;
+            text-align: center;
+            word-break: break-word
+        }
+
+        .wp-block-button__link.aligncenter {
+            text-align: center
+        }
+
+        :where(.wp-block-button__link) {
+            border-radius: 9999px;
+            box-shadow: none;
+            padding: calc(.667em + 2px) calc(1.333em + 2px);
+            text-decoration: none
+        }
+
+        .wp-block-button[style*=text-decoration] .wp-block-button__link {
+            text-decoration: inherit
+        }
+
+        .wp-block-buttons > .wp-block-button.has-custom-width .wp-block-button__link {
+            width: 100%
+        }
+
+        .wp-block-buttons > .wp-block-button.has-custom-font-size .wp-block-button__link {
+            font-size: inherit
+        }
+    </style>
+    <style id='wp-block-buttons-inline-css'>
+        .wp-block-buttons.is-vertical > .wp-block-button:last-child {
+            margin-bottom: 0
+        }
+
+        .wp-block-buttons > .wp-block-button {
+            display: inline-block;
+            margin: 0
+        }
+
+        .wp-block-buttons.is-content-justification-right {
+            justify-content: flex-end
+        }
+
+        .wp-block-buttons.aligncenter {
+            text-align: center
+        }
+
+        .wp-block-buttons[style*=text-decoration] .wp-block-button, .wp-block-buttons[style*=text-decoration] .wp-block-button__link {
+            text-decoration: inherit
+        }
+
+        .wp-block-buttons.has-custom-font-size .wp-block-button__link {
+            font-size: inherit
+        }
+
+        .wp-block-button.aligncenter {
+            text-align: center
+        }
+    </style>
+    <link rel='stylesheet' id='wp-color-picker-css'
+          href='https://rapidsaletoday.com/wp-admin/css/color-picker.min.css?ver=2f9e9e6c11bb791949db167f08e8b1cb'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='gfaa-admin-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/auto-advance-for-gravity-forms/css/gfaa-admin.css?ver=1738002307'
+          media='all'/>
+    <link rel='stylesheet' id='gp-advanced-phone-field-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/gp-advanced-phone-field/styles/frontend.min.css?ver=1.1.3'
+          media='all'/>
+    <style id='wp-block-columns-inline-css'>
+        .wp-block-columns {
+            align-items: normal !important;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: wrap !important
+        }
+
+        @media (min-width: 782px) {
+            .wp-block-columns {
+                flex-wrap: nowrap !important
+            }
+        }
+
+        .wp-block-columns.is-not-stacked-on-mobile > .wp-block-column {
+            flex-basis: 0;
+            flex-grow: 1
+        }
+
+        .wp-block-columns.is-not-stacked-on-mobile > .wp-block-column[style*=flex-basis] {
+            flex-grow: 0
+        }
+
+        :where(.wp-block-columns) {
+            margin-bottom: 1.75em
+        }
+
+        .wp-block-column {
+            flex-grow: 1;
+            min-width: 0;
+            overflow-wrap: break-word;
+            word-break: break-word
+        }
+
+        .wp-block-column.is-vertically-aligned-top {
+            align-self: flex-start
+        }
+
+        .wp-block-column.is-vertically-aligned-center {
+            align-self: center
+        }
+    </style>
+    <link rel='stylesheet' id='wp-block-cover-css'
+          href='https://rapidsaletoday.com/wp-includes/blocks/cover/style.min.css?ver=2f9e9e6c11bb791949db167f08e8b1cb'
+          media='all'/>
+    <style id='wp-block-paragraph-inline-css'>
+        p.has-text-align-left[style*="writing-mode:vertical-lr"], p.has-text-align-right[style*="writing-mode:vertical-rl"] {
+            rotate: 180deg
+        }
+    </style>
+    <style id='wp-block-spacer-inline-css'>
+        .wp-block-spacer {
+            clear: both
+        }
+    </style>
+    <style id='wp-block-group-inline-css'>
+        .wp-block-group {
+            box-sizing: border-box
+        }
+    </style>
+    <style id='wp-block-group-theme-inline-css'>
+    </style>
+    <style id='wp-block-post-content-inline-css'>
+        .wp-block-post-content {
+            display: flow-root
+        }
+    </style>
+    <style id='wp-block-library-inline-css'>
+        :root {
+            --wp-admin-theme-color: #007cba;
+            --wp-admin-theme-color--rgb: 0, 124, 186;
+            --wp-admin-theme-color-darker-10: #006ba1;
+            --wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
+            --wp-admin-theme-color-darker-20: #005a87;
+            --wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
+            --wp-admin-border-width-focus: 2px;
+            --wp-block-synced-color: #7a00df;
+            --wp-block-synced-color--rgb: 122, 0, 223;
+            --wp-bound-block-color: var(--wp-block-synced-color)
+        }
+
+        @media (min-resolution: 192dpi) {
+            :root {
+                --wp-admin-border-width-focus: 1.5px
+            }
+        }
+
+        .wp-element-button {
+            cursor: pointer
+        }
+
+        :root {
+            --wp--preset--font-size--normal: 16px;
+            --wp--preset--font-size--huge: 42px
+        }
+
+        .has-text-align-center {
+            text-align: center
+        }
+
+        .has-text-align-left {
+            text-align: left
+        }
+
+        .has-text-align-right {
+            text-align: right
+        }
+
+        .aligncenter {
+            clear: both
+        }
+
+        html :where([style*=border-top-color]) {
+            border-top-style: solid
+        }
+
+        html :where([style*=border-right-color]) {
+            border-right-style: solid
+        }
+
+        html :where([style*=border-bottom-color]) {
+            border-bottom-style: solid
+        }
+
+        html :where([style*=border-left-color]) {
+            border-left-style: solid
+        }
+
+        html :where([style*=border-width]) {
+            border-style: solid
+        }
+
+        html :where([style*=border-top-width]) {
+            border-top-style: solid
+        }
+
+        html :where([style*=border-right-width]) {
+            border-right-style: solid
+        }
+
+        html :where([style*=border-bottom-width]) {
+            border-bottom-style: solid
+        }
+
+        html :where([style*=border-left-width]) {
+            border-left-style: solid
+        }
+
+        :where(figure) {
+            margin: 0 0 1em
+        }
+    </style>
+    <style id='global-styles-inline-css'>
+        :root {
+            --wp--preset--aspect-ratio--square: 1;
+            --wp--preset--aspect-ratio--4-3: 4/3;
+            --wp--preset--aspect-ratio--3-4: 3/4;
+            --wp--preset--aspect-ratio--3-2: 3/2;
+            --wp--preset--aspect-ratio--2-3: 2/3;
+            --wp--preset--aspect-ratio--16-9: 16/9;
+            --wp--preset--aspect-ratio--9-16: 9/16;
+            --wp--preset--color--black: #000000;
+            --wp--preset--color--cyan-bluish-gray: #abb8c3;
+            --wp--preset--color--white: #ffffff;
+            --wp--preset--color--pale-pink: #f78da7;
+            --wp--preset--color--vivid-red: #cf2e2e;
+            --wp--preset--color--luminous-vivid-orange: #ff6900;
+            --wp--preset--color--luminous-vivid-amber: #fcb900;
+            --wp--preset--color--light-green-cyan: #7bdcb5;
+            --wp--preset--color--vivid-green-cyan: #00d084;
+            --wp--preset--color--pale-cyan-blue: #8ed1fc;
+            --wp--preset--color--vivid-cyan-blue: #0693e3;
+            --wp--preset--color--vivid-purple: #9b51e0;
+            --wp--preset--color--foreground: #000000;
+            --wp--preset--color--background: #ffffff;
+            --wp--preset--color--primary: #1a4548;
+            --wp--preset--color--secondary: #ffe2c7;
+            --wp--preset--color--tertiary: #F6F6F6;
+            --wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg, rgba(6, 147, 227, 1) 0%, rgb(155, 81, 224) 100%);
+            --wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg, rgb(122, 220, 180) 0%, rgb(0, 208, 130) 100%);
+            --wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg, rgba(252, 185, 0, 1) 0%, rgba(255, 105, 0, 1) 100%);
+            --wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg, rgba(255, 105, 0, 1) 0%, rgb(207, 46, 46) 100%);
+            --wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg, rgb(238, 238, 238) 0%, rgb(169, 184, 195) 100%);
+            --wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg, rgb(74, 234, 220) 0%, rgb(151, 120, 209) 20%, rgb(207, 42, 186) 40%, rgb(238, 44, 130) 60%, rgb(251, 105, 98) 80%, rgb(254, 248, 76) 100%);
+            --wp--preset--gradient--blush-light-purple: linear-gradient(135deg, rgb(255, 206, 236) 0%, rgb(152, 150, 240) 100%);
+            --wp--preset--gradient--blush-bordeaux: linear-gradient(135deg, rgb(254, 205, 165) 0%, rgb(254, 45, 45) 50%, rgb(107, 0, 62) 100%);
+            --wp--preset--gradient--luminous-dusk: linear-gradient(135deg, rgb(255, 203, 112) 0%, rgb(199, 81, 192) 50%, rgb(65, 88, 208) 100%);
+            --wp--preset--gradient--pale-ocean: linear-gradient(135deg, rgb(255, 245, 203) 0%, rgb(182, 227, 212) 50%, rgb(51, 167, 181) 100%);
+            --wp--preset--gradient--electric-grass: linear-gradient(135deg, rgb(202, 248, 128) 0%, rgb(113, 206, 126) 100%);
+            --wp--preset--gradient--midnight: linear-gradient(135deg, rgb(2, 3, 129) 0%, rgb(40, 116, 252) 100%);
+            --wp--preset--gradient--vertical-secondary-to-tertiary: linear-gradient(to bottom, var(--wp--preset--color--secondary) 0%, var(--wp--preset--color--tertiary) 100%);
+            --wp--preset--gradient--vertical-secondary-to-background: linear-gradient(to bottom, var(--wp--preset--color--secondary) 0%, var(--wp--preset--color--background) 100%);
+            --wp--preset--gradient--vertical-tertiary-to-background: linear-gradient(to bottom, var(--wp--preset--color--tertiary) 0%, var(--wp--preset--color--background) 100%);
+            --wp--preset--gradient--diagonal-primary-to-foreground: linear-gradient(to bottom right, var(--wp--preset--color--primary) 0%, var(--wp--preset--color--foreground) 100%);
+            --wp--preset--gradient--diagonal-secondary-to-background: linear-gradient(to bottom right, var(--wp--preset--color--secondary) 50%, var(--wp--preset--color--background) 50%);
+            --wp--preset--gradient--diagonal-background-to-secondary: linear-gradient(to bottom right, var(--wp--preset--color--background) 50%, var(--wp--preset--color--secondary) 50%);
+            --wp--preset--gradient--diagonal-tertiary-to-background: linear-gradient(to bottom right, var(--wp--preset--color--tertiary) 50%, var(--wp--preset--color--background) 50%);
+            --wp--preset--gradient--diagonal-background-to-tertiary: linear-gradient(to bottom right, var(--wp--preset--color--background) 50%, var(--wp--preset--color--tertiary) 50%);
+            --wp--preset--font-size--small: 1rem;
+            --wp--preset--font-size--medium: 1.125rem;
+            --wp--preset--font-size--large: 1.75rem;
+            --wp--preset--font-size--x-large: clamp(1.75rem, 3vw, 2.25rem);
+            --wp--preset--font-family--system-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            --wp--preset--font-family--source-serif-pro: "Source Serif Pro", serif;
+            --wp--preset--spacing--20: 0.44rem;
+            --wp--preset--spacing--30: 0.67rem;
+            --wp--preset--spacing--40: 1rem;
+            --wp--preset--spacing--50: 1.5rem;
+            --wp--preset--spacing--60: 2.25rem;
+            --wp--preset--spacing--70: 3.38rem;
+            --wp--preset--spacing--80: 5.06rem;
+            --wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);
+            --wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);
+            --wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);
+            --wp--preset--shadow--outlined: 6px 6px 0px -3px rgba(255, 255, 255, 1), 6px 6px rgba(0, 0, 0, 1);
+            --wp--preset--shadow--crisp: 6px 6px 0px rgba(0, 0, 0, 1);
+            --wp--custom--spacing--small: max(1.25rem, 5vw);
+            --wp--custom--spacing--medium: clamp(2rem, 8vw, calc(4 * var(--wp--style--block-gap)));
+            --wp--custom--spacing--large: clamp(4rem, 10vw, 8rem);
+            --wp--custom--spacing--outer: var(--wp--custom--spacing--small, 1.25rem);
+            --wp--custom--typography--font-size--huge: clamp(2.25rem, 4vw, 2.75rem);
+            --wp--custom--typography--font-size--gigantic: clamp(2.75rem, 6vw, 3.25rem);
+            --wp--custom--typography--font-size--colossal: clamp(3.25rem, 8vw, 6.25rem);
+            --wp--custom--typography--line-height--tiny: 1.15;
+            --wp--custom--typography--line-height--small: 1.2;
+            --wp--custom--typography--line-height--medium: 1.4;
+            --wp--custom--typography--line-height--normal: 1.6;
+        }
+
+        :root {
+            --wp--style--global--content-size: 650px;
+            --wp--style--global--wide-size: 1000px;
+        }
+
+        :where(body) {
+            margin: 0;
+        }
+
+        .wp-site-blocks > .alignleft {
+            float: left;
+            margin-right: 2em;
+        }
+
+        .wp-site-blocks > .aligncenter {
+            justify-content: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        :root {
+            --wp--style--block-gap: 1.5rem;
+        }
+
+        :root :where(.is-layout-flex) {
+            gap: 1.5rem;
+        }
+
+        .is-layout-flow > .alignleft {
+            float: left;
+            margin-inline-start: 0;
+            margin-inline-end: 2em;
+        }
+
+        .is-layout-flow > .aligncenter {
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+
+        .is-layout-constrained > .alignleft {
+            float: left;
+            margin-inline-start: 0;
+            margin-inline-end: 2em;
+        }
+
+        .is-layout-constrained > .aligncenter {
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+
+        .is-layout-constrained > .alignwide {
+            max-width: var(--wp--style--global--wide-size);
+        }
+
+        body .is-layout-flex {
+            display: flex;
+        }
+
+        .is-layout-flex {
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .is-layout-flex > :is(*, div) {
+            margin: 0;
+        }
+
+        .is-layout-grid > :is(*, div) {
+            margin: 0;
+        }
+
+        body {
+            background-color: var(--wp--preset--color--background);
+            color: var(--wp--preset--color--foreground);
+            font-family: var(--wp--preset--font-family--system-font);
+            font-size: var(--wp--preset--font-size--medium);
+            line-height: var(--wp--custom--typography--line-height--normal);
+            padding-top: 0;
+            padding-right: 0;
+            padding-bottom: 0;
+            padding-left: 0;
+        }
+
+        a:where(:not(.wp-element-button)) {
+            color: var(--wp--preset--color--foreground);
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-family: var(--wp--preset--font-family--source-serif-pro);
+            font-size: var(--wp--custom--typography--font-size--colossal);
+            font-weight: 300;
+            line-height: var(--wp--custom--typography--line-height--tiny);
+        }
+
+        h2 {
+            font-family: var(--wp--preset--font-family--source-serif-pro);
+            font-size: var(--wp--custom--typography--font-size--gigantic);
+            font-weight: 300;
+            line-height: var(--wp--custom--typography--line-height--small);
+        }
+
+        h3 {
+            font-family: var(--wp--preset--font-family--source-serif-pro);
+            font-size: var(--wp--custom--typography--font-size--huge);
+            font-weight: 300;
+            line-height: var(--wp--custom--typography--line-height--tiny);
+        }
+
+        h4 {
+            font-family: var(--wp--preset--font-family--source-serif-pro);
+            font-size: var(--wp--preset--font-size--x-large);
+            font-weight: 300;
+            line-height: var(--wp--custom--typography--line-height--tiny);
+        }
+
+        h5 {
+            font-family: var(--wp--preset--font-family--system-font);
+            font-size: var(--wp--preset--font-size--medium);
+            font-weight: 700;
+            line-height: var(--wp--custom--typography--line-height--normal);
+            text-transform: uppercase;
+        }
+
+        h6 {
+            font-family: var(--wp--preset--font-family--system-font);
+            font-size: var(--wp--preset--font-size--medium);
+            font-weight: 400;
+            line-height: var(--wp--custom--typography--line-height--normal);
+            text-transform: uppercase;
+        }
+
+        :root :where(.wp-element-button, .wp-block-button__link) {
+            background-color: #32373c;
+            border-width: 0;
+            color: #fff;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+            padding: calc(0.667em + 2px) calc(1.333em + 2px);
+            text-decoration: none;
+        }
+
+        .has-background-color {
+            color: var(--wp--preset--color--background) !important;
+        }
+
+        .has-foreground-background-color {
+            background-color: var(--wp--preset--color--foreground) !important;
+        }
+
+        .has-medium-font-size {
+            font-size: var(--wp--preset--font-size--medium) !important;
+        }
+
+        .header-right .mail-link span {
+            font-size: 0.89rem;
+        }
+
+        .page51 .gfield--type-address input, .gfield--type-address select {
+            font-family: 'Poppins';
+            color: #757575;
+            border-radius: 5px;
+            height: 60px;
+        }
+
+        .agree-check input {
+            width: 20px;
+            height: 20px;
+            float: left;
+            max-height: 100%;
+        }
+
+        .agree-check label {
+            padding-left: 15px;
+            text-align: left;
+        }
+
+        .page-id-1069 .wp-block-cover.alignfull.is-light {
+            border-bottom: 5px solid #008148;
+        }
+
+        .overlay {
+            width: 128px;
+            height: 126px;
+            text-align: center;
+            margin: 0 auto;
+
+        }
+
+        .cashofferform .button, .green-btn {
+            border-style: none;
+            border-radius: 4px;
+            z-index: 8;
+            height: 57px;
+            padding: 0 62px;
+            background: rgba(82, 180, 15, 1);
+            box-shadow: none;
+            text-shadow: none;
+            color: #fff;
+            font-size: 24px;
+            line-height: 29px;
+            font-weight: 500;
+            font-family: Hind Vadodara;
+            font-style: normal;
+            text-align: center;
+            background-repeat: no-repeat;
+            cursor: pointer;
+        }
+
+        .cashofferform .button:hover, .green-btn:hover {
+            background: rgba(28, 124, 230, 1);
+            box-shadow: none;
+            color: #fff;
+        }
+
+        .overlay img {
+            top: 24px;
+            position: relative;
+        }
+
+        .No-Hassle {
+            margin-top: 0;
+        }
+
+        .twolistcol {
+            margin-left: 2em;
+        }
+
+        .twolistcol img {
+            margin-top: 0;
+        }
+
+        .btitle {
+            color: #008148;
+            font-size: 2.5rem;
+            font-family: 'Merriweather';
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        .agree-check a {
+            color: white;
+        }
+
+        @media (max-width: 1200px) {
+            .wp-block-columns {
+                flex-wrap: wrap !important;
+                justify-content: center;
+            }
+        }
+
+        :root :where(.wp-block-button .wp-block-button__link) {
+            background-color: var(--wp--preset--color--primary);
+            border-radius: 0;
+            color: var(--wp--preset--color--background);
+            font-size: var(--wp--preset--font-size--medium);
+        }
+    </style>
+    <style id='core-block-supports-inline-css'>
+        .wp-container-core-buttons-is-layout-1 {
+            justify-content: flex-end;
+        }
+
+        .wp-container-core-columns-is-layout-1 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-cover-is-layout-1 > * {
+            margin-block-start: 0;
+            margin-block-end: 0;
+        }
+
+        .wp-container-core-cover-is-layout-1 > * + * {
+            margin-block-start: 0;
+            margin-block-end: 0;
+        }
+
+        .wp-container-core-columns-is-layout-2 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-columns-is-layout-3 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-columns-is-layout-4 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-columns-is-layout-5 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-columns-is-layout-6 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-columns-is-layout-7 {
+            flex-wrap: nowrap;
+        }
+
+        .wp-container-core-group-is-layout-1 {
+            justify-content: space-between;
+        }
+
+        .wp-container-core-group-is-layout-3 {
+            justify-content: space-between;
+        }
+    </style>
+    <link data-minify="1" rel='stylesheet' id='eeb-css-frontend-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/email-encoder-bundle/core/includes/assets/css/style.css?ver=1738002307'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='video_popup_close_icon-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/video-popup/css/vp-close-icon/close-button-icon.css?ver=1738002307'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='twentytwentytwo-style-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/themes/twentytwentytwo/style.css?ver=1738002307'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='elementor-icons-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/elementor/assets/lib/eicons/css/elementor-icons.min.css?ver=1738002307'
+          media='all'/>
+    <link rel='stylesheet' id='elementor-frontend-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/elementor/assets/css/frontend.min.css?ver=3.25.10'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='swiper-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/elementor/assets/lib/swiper/v8/css/swiper.min.css?ver=1738002307'
+          media='all'/>
+    <link rel='stylesheet' id='e-swiper-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/elementor/assets/css/conditionals/e-swiper.min.css?ver=3.25.10'
+          media='all'/>
+    <link rel='stylesheet' id='elementor-post-5-css'
+          href='https://rapidsaletoday.com/wp-content/uploads/elementor/css/post-5.css?ver=1733245664' media='all'/>
+    <link rel='stylesheet' id='elementor-pro-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/elementor-pro/assets/css/frontend.min.css?ver=3.11.2'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='font-awesome-5-all-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/elementor/assets/lib/font-awesome/css/all.min.css?ver=1738002307'
+          media='all'/>
+    <link rel='stylesheet' id='font-awesome-4-shim-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/elementor/assets/lib/font-awesome/css/v4-shims.min.css?ver=3.25.10'
+          media='all'/>
+    <link rel='stylesheet' id='gfaa-animate-css'
+          href='https://rapidsaletoday.com/wp-content/plugins/auto-advance-for-gravity-forms/css/animate.min.css?ver=1738099164'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='gfaa-conversational-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/auto-advance-for-gravity-forms/css/conversational.css?ver=1738002307'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='gfaa-main-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/auto-advance-for-gravity-forms/css/aafg_styles.css?ver=1738002307'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='bdt-uikit-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/bdthemes-element-pack-lite/assets/css/bdt-uikit.css?ver=1738002307'
+          media='all'/>
+    <link data-minify="1" rel='stylesheet' id='ep-helper-css'
+          href='https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/bdthemes-element-pack-lite/assets/css/ep-helper.css?ver=1738002307'
+          media='all'/>
+
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
+    <script src="https://rapidsaletoday.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1" id="jquery-core-js"></script>
+    <script src="https://rapidsaletoday.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1"
+            id="jquery-migrate-js"></script>
+    <script src="https://rapidsaletoday.com/wp-content/plugins/elementor/assets/lib/font-awesome/js/v4-shims.min.js?ver=3.25.10"
+            id="font-awesome-4-shim-js"></script>
+    <link rel="https://api.w.org/" href="https://rapidsaletoday.com/wp-json/"/>
+    <link rel="alternate" title="JSON" type="application/json"
+          href="https://rapidsaletoday.com/wp-json/wp/v2/pages/1069"/>
+    <link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://rapidsaletoday.com/xmlrpc.php?rsd"/>
+    <link rel='shortlink' href='https://rapidsaletoday.com/?p=1069'/>
+    <link rel="alternate" title="oEmbed (JSON)" type="application/json+oembed"
+          href="https://rapidsaletoday.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Frapidsaletoday.com%2F3-2%2F"/>
+    <link rel="alternate" title="oEmbed (XML)" type="text/xml+oembed"
+          href="https://rapidsaletoday.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Frapidsaletoday.com%2F3-2%2F&#038;format=xml"/>
+    <script type="rocketlazyloadscript" data-rocket-type='text/javascript'>
+        var video_popup_unprm_general_settings = {
+            'unprm_r_border': ''
+        };
+    </script>
+    <meta name="generator"
+          content="Elementor 3.25.10; features: additional_custom_breakpoints, e_optimized_control_loading; settings: css_print_method-external, google_font-enabled, font_display-auto">
+    <style class='wp-fonts-local'>
+        @font-face {
+            font-family: "Source Serif Pro";
+            font-style: normal;
+            font-weight: 200 900;
+            font-display: fallback;
+            src: url('https://rapidsaletoday.com/wp-content/themes/twentytwentytwo/assets/fonts/source-serif-pro/SourceSerif4Variable-Roman.ttf.woff2') format('woff2');
+            font-stretch: normal;
+        }
+
+        @font-face {
+            font-family: "Source Serif Pro";
+            font-style: italic;
+            font-weight: 200 900;
+            font-display: fallback;
+            src: url('https://rapidsaletoday.com/wp-content/themes/twentytwentytwo/assets/fonts/source-serif-pro/SourceSerif4Variable-Italic.ttf.woff2') format('woff2');
+            font-stretch: normal;
+        }
+    </style>
+    <script>
+        // Declare the topFunction to scroll to the top
+        function topFunction() {
+            // Smoothly scroll to the top of the page
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth' // Add smooth scrolling
+            });
+        }
+    </script>
+    <link rel="icon" href="https://rapidsaletoday.com/wp-content/uploads/2024/01/cropped-house-308978_640-32x32.png"
+          sizes="32x32"/>
+    <link rel="icon" href="https://rapidsaletoday.com/wp-content/uploads/2024/01/cropped-house-308978_640-192x192.png"
+          sizes="192x192"/>
+    <link rel="apple-touch-icon"
+          href="https://rapidsaletoday.com/wp-content/uploads/2024/01/cropped-house-308978_640-180x180.png"/>
+    <meta name="msapplication-TileImage"
+          content="https://rapidsaletoday.com/wp-content/uploads/2024/01/cropped-house-308978_640-270x270.png"/>
+</head>
+<body class="page-template page-template-blank page page-id-1069 wp-embed-responsive elementor-default elementor-kit-5 elementor-page-3486">
+<div class="wp-site-blocks">
+    <div class="entry-content wp-block-post-content is-layout-constrained wp-block-post-content-is-layout-constrained">
+        <div class="wp-block-cover alignfull is-light"
+             style="margin-top:0;margin-bottom:0;padding-top:0;padding-bottom:0;min-height:600px;aspect-ratio:unset;">
+            <span aria-hidden="true"
+                  class="wp-block-cover__background has-foreground-background-color has-background-dim"></span>
+            <picture fetchpriority="high" decoding="async">
+                <source type="image/webp"
+                        data-lazy-srcset="https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg.webp 1920w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-300x169.jpg.webp 300w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-1024x578.jpg.webp 1024w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-768x434.jpg.webp 768w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-1536x867.jpg.webp 1536w"
+                        sizes="(max-width: 1920px) 100vw, 1920px"/>
+                <img fetchpriority="high" decoding="async" width="1920" height="1084"
+                     class="wp-block-cover__image-background wp-image-1013" alt=""
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201920%201084'%3E%3C/svg%3E"
+                     data-object-fit="cover"
+                     data-lazy-srcset="https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg 1920w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-300x169.jpg 300w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-1024x578.jpg 1024w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-768x434.jpg 768w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-1536x867.jpg 1536w"
+                     data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg"/>
+                <noscript>
+                    <img fetchpriority="high" decoding="async" width="1920" height="1084"
+                         class="wp-block-cover__image-background wp-image-1013" alt=""
+                         src="https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg"
+                         data-object-fit="cover"
+                         srcset="https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt.jpg 1920w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-300x169.jpg 300w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-1024x578.jpg 1024w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-768x434.jpg 768w, https://rapidsaletoday.com/wp-content/uploads/2022/09/house-2-opt-1536x867.jpg 1536w"
+                         sizes="(max-width: 1920px) 100vw, 1920px"/>
+                </noscript>
+            </picture>
+            <div class="wp-block-cover__inner-container is-layout-flow wp-container-core-cover-is-layout-1 wp-block-cover-is-layout-flow">
+                <div class="wp-block-columns is-layout-flex wp-container-core-columns-is-layout-1 wp-block-columns-is-layout-flex">
+                    <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow"
+                         style="flex-basis:33%"></div>
+                    <!-- INSERT FUNNEL HERE-->
+                    <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow"
+                         style="flex-basis:33%"></div>
+                </div>
+            </div>
+        </div>
+        <p class="has-text-align-center"><strong>Need to sell your house quickly? We can buy your home for cash and help
+            with just about any situation including stopping foreclosure, and really almost any distressed home
+            sale.</strong></p>
+        <div class="wp-block-columns alignfull has-background is-layout-flex wp-container-core-columns-is-layout-2 wp-block-columns-is-layout-flex"
+             style="background-color:#f5f5f5f5">
+            <div class="wp-block-column is-vertically-aligned-top is-layout-flow wp-block-column-is-layout-flow"
+                 style="flex-basis:50%"></div>
+            <div class="wp-block-column is-vertically-aligned-top is-layout-flow wp-block-column-is-layout-flow"
+                 style="flex-basis:95%">
+                <p style="text-align: center;"><span class="btitle">Sell Your Home For Cash In 3 Easy Steps</span></p>
+                <p style="line-height: 38px; text-align: center;"><span
+                        style="font-weight: 400; font-family: 'Merriweather'; font-size: 18px; color: #555555; font-style: normal;"><span
+                        style="font-weight: 400; font-family: 'Merriweather'; font-size: 18px; color: #555555; font-style: normal;">Our real estate experts use an innovative process to get you a fair cash offer and fast closing. We buy homes in any condition, and you’ll never pay any commission or be surprised by hidden fees. You can even choose your move-out day! See your no-obligation cash offer today! </span></span>
+                </p>
+            </div>
+            <div class="wp-block-column is-vertically-aligned-top is-layout-flow wp-block-column-is-layout-flow"
+                 style="flex-basis:50%"></div>
+        </div>
+        <div class="wp-block-columns alignfull No-Hassle has-background is-layout-flex wp-container-core-columns-is-layout-3 wp-block-columns-is-layout-flex"
+             style="background-color:#f5f5f5;padding-top:50px;padding-right:20%;padding-bottom:50px;padding-left:20%">
+            <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow">
+                <div class="overlay"><img decoding="async" class="size-full wp-image-1092 aligncenter"
+                                          src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2080%2080'%3E%3C/svg%3E"
+                                          alt="" width="80" height="80"
+                                          data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-contact-us-80.png">
+                    <noscript><img decoding="async" class="size-full wp-image-1092 aligncenter"
+                                   src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-contact-us-80.png"
+                                   alt="" width="80" height="80"></noscript>
+                </div>
+                <p style="text-align: center;">&nbsp;<strong>Step 1</strong></p>
+                <p style="text-align: center;"><b>Contact Us</b><br/><span style="font-weight: 400;">Fill out the form or call us to start your property evaluation.</span>
+                </p>
+            </div>
+            <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow">
+                <div class="overlay"><img decoding="async" class="alignnone size-full wp-image-1094"
+                                          src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2080%2080'%3E%3C/svg%3E"
+                                          alt="" width="80" height="80"
+                                          data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-cash-in-hand-80.png">
+                    <noscript><img decoding="async" class="alignnone size-full wp-image-1094"
+                                   src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-cash-in-hand-80.png"
+                                   alt="" width="80" height="80"></noscript>
+                </div>
+                <p style="text-align: center;"><strong
+                        style="font-size: revert; color: var(--wp--preset--color--foreground); font-family: var(--wp--preset--font-family--system-font);">Step
+                    2</strong></p>
+                <p style="text-align: center;"><b>See Your Cash Offer&nbsp;</b><br/><span style="font-weight: 400;">Review your fair cash offer with no obligation.</span>
+                </p>
+            </div>
+            <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow">
+                <div class="overlay"><img decoding="async" class="alignnone size-full wp-image-1093"
+                                          src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2080%2080'%3E%3C/svg%3E"
+                                          alt="" width="80" height="80"
+                                          data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-rent-80-1.png">
+                    <noscript><img loading="lazy" loading="lazy" decoding="async"
+                                   class="alignnone size-full wp-image-1093"
+                                   src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-rent-80-1.png"
+                                   alt="" width="80" height="80"></noscript>
+                </div>
+                <p style="text-align: center;"><strong>Step 3</strong></p>
+                <p style="text-align: center;"><b>Sell Your Home!&nbsp;</b><br/><span style="font-weight: 400;">Close on the sale of your house as soon as </span><i><span
+                        style="font-weight: 400;">7 days</span></i><span style="font-weight: 400;"> after accepting our written offer.</span>
+                </p>
+            </div>
+        </div>
+        <div class="wp-block-cover alignfull is-light No-Hassle" style="min-height:641px;aspect-ratio:unset;"><span
+                aria-hidden="true" class="wp-block-cover__background has-background-dim"></span>
+            <picture loading="lazy" decoding="async">
+                <source type="image/webp"
+                        data-lazy-srcset="https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920.jpg.webp 1920w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-300x233.jpg.webp 300w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-1024x796.jpg.webp 1024w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-768x597.jpg.webp 768w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-1536x1194.jpg.webp 1536w"
+                        sizes="auto, (max-width: 1920px) 100vw, 1920px"/>
+                <img decoding="async" width="1920" height="1492" class="wp-block-cover__image-background wp-image-1265"
+                     alt=""
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201920%201492'%3E%3C/svg%3E"
+                     style="object-position:51% 100%" data-object-fit="cover" data-object-position="51% 100%"
+                     data-lazy-srcset="https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920.jpg 1920w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-300x233.jpg 300w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-1024x796.jpg 1024w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-768x597.jpg 768w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-1536x1194.jpg 1536w"
+                     data-lazy-sizes="auto, (max-width: 1920px) 100vw, 1920px"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920.jpg"/>
+                <noscript><img loading="lazy" decoding="async" width="1920" height="1492"
+                               class="wp-block-cover__image-background wp-image-1265" alt=""
+                               src="https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920.jpg"
+                               style="object-position:51% 100%" data-object-fit="cover" data-object-position="51% 100%"
+                               srcset="https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920.jpg 1920w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-300x233.jpg 300w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-1024x796.jpg 1024w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-768x597.jpg 768w, https://rapidsaletoday.com/wp-content/uploads/2022/10/house-g3cab6ce96_1920-1536x1194.jpg 1536w"
+                               sizes="auto, (max-width: 1920px) 100vw, 1920px"/></noscript>
+            </picture>
+            <div class="wp-block-cover__inner-container is-layout-flow wp-block-cover-is-layout-flow">
+                <p class="btitle has-text-align-center has-background-color has-text-color">Sell Your Home Quickly And
+                    Easily When You Work Directly With Us</p>
+                <p style="text-align: center;"><span style="color: #ffffff; font-size: 1.5rem;">We’ve helped 200 homeowners like you sell their homes for cash.</span>
+                </p>
+                <p>&nbsp;</p>
+                <p style="text-align: center;"><input onclick="topFunction()" class="green-btn button"
+                                                      type="button" value="Get Your Cash Offer"></p>
+            </div>
+        </div>
+        <div class="wp-block-columns is-layout-flex wp-container-core-columns-is-layout-4 wp-block-columns-is-layout-flex">
+            <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow">
+                <p style="text-align: center;"><span class="btitle">What You Can Expect By Working With Us</span></p>
+                <p>&nbsp;</p>
+            </div>
+        </div>
+
+
+        <div class="wp-block-columns is-layout-flex wp-container-core-columns-is-layout-5 wp-block-columns-is-layout-flex" style="flex-basis:100%; margin-left:auto; margin-right:auto; max-width:1200px; display:flex; justify-content:center;">
+            <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow" style="flex-basis:50%">
+                <img decoding="async" class="size-full wp-image-1163 alignleft"
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3C/svg%3E"
+                     alt="" width="60" height="60"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png">
+                <noscript><img loading="lazy" loading="lazy" decoding="async"
+                               class="size-full wp-image-1163 alignleft"
+                               src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png"
+                               alt="" width="60" height="60"></noscript>
+                <strong style="font-size: revert; background-color: var(--wp--preset--color--background); color: var(--wp--preset--color--foreground); font-family: var(--wp--preset--font-family--system-font);">No
+                    fees, commissions, or closing costs to take away from your offer</strong>
+                <p>&nbsp;</p>
+                <img decoding="async" class="size-full wp-image-1163 alignleft"
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3C/svg%3E"
+                     alt="" width="60" height="60"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png">
+                <noscript><img loading="lazy" loading="lazy" decoding="async"
+                               class="size-full wp-image-1163 alignleft"
+                               src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png"
+                               alt="" width="60" height="60"></noscript>
+                <strong>Work only with real estate experts with 10+ years of experience</strong>
+                <p>&nbsp;</p>
+                <img decoding="async" class="size-full wp-image-1163 alignleft"
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3C/svg%3E"
+                     alt="" width="60" height="60"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png">
+                <noscript><img loading="lazy" loading="lazy" decoding="async"
+                               class="size-full wp-image-1163 alignleft"
+                               src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png"
+                               alt="" width="60" height="60"></noscript>
+                <strong>Our guarantee for a fast, stress-free closing</strong>
+            </div>
+
+
+            <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow" style="flex-basis:50%">
+                <img decoding="async" class="size-full wp-image-1163 alignleft"
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3C/svg%3E"
+                     alt="" width="60" height="60"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png">
+                <noscript><img loading="lazy" loading="lazy" decoding="async"
+                               class="size-full wp-image-1163 alignleft"
+                               src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png"
+                               alt="" width="60" height="60"></noscript>
+                <strong>No need to repair, clean, or upgrade anything (we buy your home AS IS)</strong>
+                <p>&nbsp;</p>
+                <img decoding="async" class="size-full wp-image-1163 alignleft"
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3C/svg%3E"
+                     alt="" width="60" height="60"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png">
+                <noscript><img loading="lazy" loading="lazy" decoding="async"
+                               class="size-full wp-image-1163 alignleft"
+                               src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png"
+                               alt="" width="60" height="60"></noscript>
+                <strong> Receive CASH for your property on the day of closing</strong>
+                <p>&nbsp;</p>
+                <img decoding="async" class="size-full wp-image-1163 alignleft"
+                     src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3C/svg%3E"
+                     alt="" width="60" height="60"
+                     data-lazy-src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png">
+                <noscript><img loading="lazy" loading="lazy" decoding="async"
+                               class="size-full wp-image-1163 alignleft"
+                               src="https://rapidsaletoday.com/wp-content/uploads/2023/03/icons8-done-80.png"
+                               alt="" width="60" height="60"></noscript>
+                <strong>No stressful paperwork (we handle it all for you!)</strong>
+            </div>
+        </div>
+
+
+        <div style="height:55px" aria-hidden="true" class="wp-block-spacer"></div>
+
+
+        <div class="wp-block-cover alignfull" style="min-height:225px;aspect-ratio:unset;"><span aria-hidden="true"
+                                                                                                 class="wp-block-cover__background has-background-dim-100 has-background-dim"
+                                                                                                 style="background-color:#008148"></span>
+            <div class="wp-block-cover__inner-container is-layout-flow wp-block-cover-is-layout-flow">
+                <p class="has-text-align-center" style="font-size:2rem"><strong>We’re ready to help you get a <em>fair
+                    and fast</em> cash offer on your home!&nbsp;</strong></p>
+                <p style="text-align: center;"><input onclick="topFunction()" class="green-btn button"
+                                                      type="button" value="Get Your Offer Now"></p>
+            </div>
+        </div>
+    </div>
+</div>
+<div style="height: 300px;">
+</div>
+<script src="https://rapidsaletoday.com/wp-includes/js/dist/dom-ready.min.js?ver=f77871ff7694fffea381"
+        id="wp-dom-ready-js"></script>
+<script src="https://rapidsaletoday.com/wp-includes/js/dist/hooks.min.js?ver=4d63a3d491d11ffd8ac6"
+        id="wp-hooks-js"></script>
+<script src="https://rapidsaletoday.com/wp-includes/js/dist/i18n.min.js?ver=5e580eb46a90c2b997e6"
+        id="wp-i18n-js"></script>
+<script src="https://rapidsaletoday.com/wp-includes/js/dist/a11y.min.js?ver=3156534cc54473497e14"
+        id="wp-a11y-js"></script>
+<script data-minify="1" defer='defer'
+        src="https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/gp-advanced-phone-field/js/built/gp-advanced-phone-field.js?ver=1738002308"
+        id="gp-advanced-phone-field-js"></script>
+<script data-minify="1"
+        src="https://rapidsaletoday.com/wp-content/cache/min/1/wp-content/plugins/auto-advance-for-gravity-forms/js/aafg_script.js?ver=1738002308"
+        id="gfaa-basic-js"></script>
+<script src="https://rapidsaletoday.com/wp-content/plugins/bdthemes-element-pack-lite/assets/js/bdt-uikit.min.js?ver=3.21.7"
+        id="bdt-uikit-js"></script>
+<script src="https://rapidsaletoday.com/wp-content/plugins/elementor/assets/js/webpack.runtime.min.js?ver=3.25.10"
+        id="elementor-webpack-runtime-js"></script>
+<script src="https://rapidsaletoday.com/wp-content/plugins/elementor/assets/js/frontend-modules.min.js?ver=3.25.10"
+        id="elementor-frontend-modules-js"></script>
+<script src="https://rapidsaletoday.com/wp-includes/js/jquery/ui/core.min.js?ver=1.13.3"
+        id="jquery-ui-core-js"></script>
+<script src="https://rapidsaletoday.com/wp-content/plugins/elementor/assets/js/frontend.min.js?ver=3.25.10"
+        id="elementor-frontend-js"></script>
+<script src="https://rapidsaletoday.com/wp-content/plugins/bdthemes-element-pack-lite/assets/js/common/helper.min.js?ver=5.10.11"
+        id="element-pack-helper-js"></script>
+<script>
+    window.lazyLoadOptions = [{
+        elements_selector: "img[data-lazy-src],.rocket-lazyload",
+        data_src: "lazy-src",
+        data_srcset: "lazy-srcset",
+        data_sizes: "lazy-sizes",
+        class_loading: "lazyloading",
+        class_loaded: "lazyloaded",
+        threshold: 300,
+        callback_loaded: function (element) {
+            if (element.tagName === "IFRAME" && element.dataset.rocketLazyload == "fitvidscompatible") {
+                if (element.classList.contains("lazyloaded")) {
+                    if (typeof window.jQuery != "undefined") {
+                        if (jQuery.fn.fitVids) {
+                            jQuery(element).parent().fitVids()
+                        }
+                    }
+                }
+            }
+        }
+    }, {
+        elements_selector: ".rocket-lazyload",
+        data_src: "lazy-src",
+        data_srcset: "lazy-srcset",
+        data_sizes: "lazy-sizes",
+        class_loading: "lazyloading",
+        class_loaded: "lazyloaded",
+        threshold: 300,
+    }];
+    window.addEventListener('LazyLoad::Initialized', function (e) {
+        var lazyLoadInstance = e.detail.instance;
+        if (window.MutationObserver) {
+            var observer = new MutationObserver(function (mutations) {
+                var image_count = 0;
+                var iframe_count = 0;
+                var rocketlazy_count = 0;
+                mutations.forEach(function (mutation) {
+                    for (var i = 0; i < mutation.addedNodes.length; i++) {
+                        if (typeof mutation.addedNodes[i].getElementsByTagName !== 'function') {
+                            continue
+                        }
+                        if (typeof mutation.addedNodes[i].getElementsByClassName !== 'function') {
+                            continue
+                        }
+                        images = mutation.addedNodes[i].getElementsByTagName('img');
+                        is_image = mutation.addedNodes[i].tagName == "IMG";
+                        iframes = mutation.addedNodes[i].getElementsByTagName('iframe');
+                        is_iframe = mutation.addedNodes[i].tagName == "IFRAME";
+                        rocket_lazy = mutation.addedNodes[i].getElementsByClassName('rocket-lazyload');
+                        image_count += images.length;
+                        iframe_count += iframes.length;
+                        rocketlazy_count += rocket_lazy.length;
+                        if (is_image) {
+                            image_count += 1
+                        }
+                        if (is_iframe) {
+                            iframe_count += 1
+                        }
+                    }
+                });
+                if (image_count > 0 || iframe_count > 0 || rocketlazy_count > 0) {
+                    lazyLoadInstance.update()
+                }
+            });
+            var b = document.getElementsByTagName("body")[0];
+            var config = {childList: !0, subtree: !0};
+            observer.observe(b, config)
+        }
+    }, !1)</script>
+<script data-no-minify="1" async src="https://rapidsaletoday.com/wp-content/plugins/wp-rocket/assets/js/lazyload/17.8.3/lazyload.min.js"></script>
+<script>class RocketElementorAnimation {
+    constructor() {
+        this.deviceMode = document.createElement("span"), this.deviceMode.id = "elementor-device-mode", this.deviceMode.setAttribute("class", "elementor-screen-only"), document.body.appendChild(this.deviceMode)
+    }
+
+    _detectAnimations() {
+        let t = getComputedStyle(this.deviceMode, ":after").content.replace(/"/g, "");
+        this.animationSettingKeys = this._listAnimationSettingsKeys(t), document.querySelectorAll(".elementor-invisible[data-settings]").forEach(t => {
+            const e = t.getBoundingClientRect();
+            if (e.bottom >= 0 && e.top <= window.innerHeight) try {
+                this._animateElement(t)
+            } catch (t) {
+            }
+        })
+    }
+
+    _animateElement(t) {
+        const e = JSON.parse(t.dataset.settings), i = e._animation_delay || e.animation_delay || 0,
+            n = e[this.animationSettingKeys.find(t => e[t])];
+        if ("none" === n) return void t.classList.remove("elementor-invisible");
+        t.classList.remove(n), this.currentAnimation && t.classList.remove(this.currentAnimation), this.currentAnimation = n;
+        let s = setTimeout(() => {
+            t.classList.remove("elementor-invisible"), t.classList.add("animated", n), this._removeAnimationSettings(t, e)
+        }, i);
+        window.addEventListener("rocket-startLoading", function () {
+            clearTimeout(s)
+        })
+    }
+
+    _listAnimationSettingsKeys(t = "mobile") {
+        const e = [""];
+        switch (t) {
+            case"mobile":
+                e.unshift("_mobile");
+            case"tablet":
+                e.unshift("_tablet");
+            case"desktop":
+                e.unshift("_desktop")
+        }
+        const i = [];
+        return ["animation", "_animation"].forEach(t => {
+            e.forEach(e => {
+                i.push(t + e)
+            })
+        }), i
+    }
+
+    _removeAnimationSettings(t, e) {
+        this._listAnimationSettingsKeys().forEach(t => delete e[t]), t.dataset.settings = JSON.stringify(e)
+    }
+
+    static run() {
+        const t = new RocketElementorAnimation;
+        requestAnimationFrame(t._detectAnimations.bind(t))
+    }
+}
+
+document.addEventListener("DOMContentLoaded", RocketElementorAnimation.run);</script>
+</body>
+</html>
+
+<!-- This website is like a Rocket, isn't it? Performance optimized by WP Rocket. Learn more: https://wp-rocket.me -->
