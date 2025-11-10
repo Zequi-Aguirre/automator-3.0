@@ -12,8 +12,6 @@ type DataContextType = {
     setSession: React.Dispatch<React.SetStateAction<Session | null>>;
     loggedInUser: User | null;
     setLoggedInUser: React.Dispatch<React.SetStateAction<User | null>>;
-    oldDatabase: boolean;
-    setOldDatabase: React.Dispatch<React.SetStateAction<boolean>>;
     role: string;
     setRole: React.Dispatch<React.SetStateAction<string>>;
     loginRecord: LoginRecord;
@@ -55,8 +53,6 @@ const DataContext = createContext<DataContextType>({
     setSession: () => {},
     loggedInUser: null,
     setLoggedInUser: () => {},
-    oldDatabase: false,
-    setOldDatabase: () => {},
     role: '',
     setRole: () => {},
     loginRecord: { email: '', password: '' },
@@ -75,7 +71,6 @@ export const AppProps = ({ children }: Props) => {
     const [loggedInUser, setLoggedInUser] = useState<User | null>(initialState.loggedInUser);
     const [role, setRole] = useState<string>(initialState.role);
     const [loginRecord, setLoginRecord] = useState<LoginRecord>({ email: '', password: '' });
-    const [oldDatabase, setOldDatabase] = useState<boolean>(initialState.oldDatabase);
     const [allowLogin, setAllowLogin] = useState<boolean>(initialState.allowLogin);
 
     // Use useEffect to save state to local storage whenever it changes
@@ -84,7 +79,6 @@ export const AppProps = ({ children }: Props) => {
             session,
             loggedInUser,
             role,
-            oldDatabase,
             allowLogin,
             version: CURRENT_VERSION,
         };
@@ -94,7 +88,7 @@ export const AppProps = ({ children }: Props) => {
         } catch (error) {
             console.error("Error saving data to local storage:", error);
         }
-    }, [session, loggedInUser, role, oldDatabase, allowLogin]);
+    }, [session, loggedInUser, role, allowLogin]);
 
     return (
         <DataContext.Provider
@@ -107,8 +101,6 @@ export const AppProps = ({ children }: Props) => {
                 setRole,
                 loginRecord,
                 setLoginRecord,
-                oldDatabase,
-                setOldDatabase,
                 allowLogin,
                 setAllowLogin,
             }}

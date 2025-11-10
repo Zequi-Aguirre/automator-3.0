@@ -8,10 +8,9 @@ import {useState} from "react";
 interface LeadsTableProps {
     leads: Lead[];
     setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
-    oldDatabase: boolean;
 }
 
-const AdminLeadsTable = ({leads, setLeads, oldDatabase}: LeadsTableProps) => {
+const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
     const navigate = useNavigate();
     const [loadingLeads, setLoadingLeads] = useState<Record<string, boolean>>({});
     const [snackbar, setSnackbar] = useState({open: false, message: '', severity: 'success' as 'success' | 'error'});
@@ -31,7 +30,7 @@ const AdminLeadsTable = ({leads, setLeads, oldDatabase}: LeadsTableProps) => {
     const handleTrashLead = async (leadId: string) => {
         try {
             // Pass oldDatabase flag to trashLead service
-            const leadDeleted = await leadsService.trashLead(leadId, oldDatabase);
+            const leadDeleted = await leadsService.trashLead(leadId);
             setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadDeleted.id));
             showNotification('Lead moved to trash successfully', 'success');
         } catch (error) {
@@ -45,7 +44,7 @@ const AdminLeadsTable = ({leads, setLeads, oldDatabase}: LeadsTableProps) => {
 
         try {
             // Pass oldDatabase flag to sendLead service
-            const sendLeadResponse = await leadsService.sendLead(leadId, oldDatabase);
+            const sendLeadResponse = await leadsService.sendLead(leadId);
             if (sendLeadResponse.success) {
                 setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
                 showNotification('Lead sent successfully', 'success');
@@ -63,7 +62,7 @@ const AdminLeadsTable = ({leads, setLeads, oldDatabase}: LeadsTableProps) => {
 
     const handleRowClick = (params: Lead) => {
         // Include oldDatabase parameter in navigation
-        navigate(`/a/leads/${params.id}?oldDatabase=${oldDatabase}`);
+        navigate(`/a/leads/${params.id}`);
     };
 
     const rows = leads.map((lead) => ({
@@ -107,7 +106,9 @@ const AdminLeadsTable = ({leads, setLeads, oldDatabase}: LeadsTableProps) => {
                 <Typography
                     className="cursor-pointer hover:underline"
                     color="primary"
-                    onClick={() => handleRowClick(params.row)}
+                    onClick={() => {
+                        handleRowClick(params.row)
+                    }}
                 >
                     {params.value}
                 </Typography>
@@ -210,26 +211,28 @@ const AdminLeadsTable = ({leads, setLeads, oldDatabase}: LeadsTableProps) => {
             renderCell: (params) => (
                 <div className="flex gap-2">
                     <Button
+                        component={Link}
+                        to={`/a/leads/${params.row.id}`}
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                        }}
+                    >
+                        Details
+                    </Button>
+                    <Button
                         variant="contained"
                         color="error"
                         size="small"
+                        sx={{marginLeft: '20px'}}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleTrashLead(params.row.id);
                         }}
                     >
                         Trash
-                    </Button>
-                    <Button
-                        component={Link}
-                        to={`/a/leads/${params.row.id}?oldDatabase=${oldDatabase}`}
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        sx={{marginLeft: '20px'}}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        Details
                     </Button>
                 </div>
             )

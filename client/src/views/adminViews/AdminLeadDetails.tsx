@@ -1,4 +1,4 @@
-import {useCallback, useContext, useEffect, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {
     Box,
@@ -24,11 +24,9 @@ import {
 import {ArrowBack, Edit, Save, Cancel} from '@mui/icons-material';
 import leadsService from '../../services/lead.service';
 import {Lead} from '../../types/leadTypes';
-import DataContext from "../../context/DataContext";
 
 const AdminLeadDetails = () => {
     const {id} = useParams<{ id: string }>();
-    const {oldDatabase} = useContext(DataContext);
     const navigate = useNavigate();
 
     const [lead, setLead] = useState<Lead | null>(null);
@@ -36,7 +34,6 @@ const AdminLeadDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [migrateDialogOpen, setMigrateDialogOpen] = useState(false);
     const [editedContact, setEditedContact] = useState({
         first_name: '',
         last_name: '',
@@ -65,7 +62,7 @@ const AdminLeadDetails = () => {
         try {
             if (!id) return;
             setLoading(true);
-            const response = await leadsService.getLeadById(id, oldDatabase);
+            const response = await leadsService.getLeadById(id);
             setLead(response);
             setEditedContact({
                 first_name: response.first_name,
@@ -83,7 +80,7 @@ const AdminLeadDetails = () => {
         } finally {
             setLoading(false);
         }
-    }, [id, oldDatabase]);
+    }, [id]);
 
     useEffect(() => {
         fetchLead();
@@ -93,28 +90,11 @@ const AdminLeadDetails = () => {
         setEditMode(true);
     };
 
-    const handleMigrateLead = async () => {
-        try {
-            if (!id) return;
-            setLoading(true);
-            const newLeadId = await leadsService.migrateLead(id);
-            showNotification('Lead migrated successfully', 'success');
-            // Navigate to the new lead ID in the new database context
-            navigate(`/a/leads/${newLeadId}`);
-        } catch (error) {
-            showNotification('Failed to migrate lead', 'error');
-            console.error("Error migrating the lead:", error);
-        } finally {
-            setLoading(false);
-            setMigrateDialogOpen(false);
-        }
-    };
-
     const handleTrashLead = async () => {
         try {
             if (!id) return;
-            await leadsService.trashLead(id, oldDatabase);
-            navigate('/a/leads');
+            await leadsService.trashLead(id);
+            navigate('/a/dashboard');
             showNotification('Lead moved to trash successfully', 'success');
         } catch (error) {
             showNotification('Failed to trash lead', 'error');
@@ -152,7 +132,7 @@ const AdminLeadDetails = () => {
             await leadsService.updateLead(id, {
                 ...lead,
                 ...editedContact
-            }, oldDatabase);
+            });
             setEditMode(false);
             await fetchLead();
             showNotification('Lead information updated successfully', 'success');
@@ -190,27 +170,19 @@ const AdminLeadDetails = () => {
                     variant="contained"
                     color="error"
                     sx={{mr: 1}}
-                    onClick={() => setConfirmDialogOpen(true)}
+                    onClick={() => {
+                        setConfirmDialogOpen(true)
+                    }}
                 >
                     Trash
                 </Button>
-                {oldDatabase ? (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => setMigrateDialogOpen(true)}
-                    >
-                        Migrate to New Database
-                    </Button>
-                ) : (
-                    <Button
-                        startIcon={<Edit/>}
-                        variant="contained"
-                        onClick={handleEditClick}
-                    >
-                        Edit
-                    </Button>
-                )}
+                <Button
+                    startIcon={<Edit/>}
+                    variant="contained"
+                    onClick={handleEditClick}
+                >
+                    Edit
+                </Button>
             </>
         );
     };
@@ -223,7 +195,7 @@ const AdminLeadDetails = () => {
         );
     }
 
-    if (error || !lead) {
+    if (error ?? !lead) {
         return (
             <Box sx={{p: 3}}>
                 <Alert severity="error">{error ?? 'Lead not found'}</Alert>
@@ -236,7 +208,9 @@ const AdminLeadDetails = () => {
             <Box sx={{py: 4}}>
                 <Stack spacing={3}>
                     <Stack direction="row" alignItems="center" spacing={2}>
-                        <IconButton onClick={() => navigate('/a/leads')} size="large">
+                        <IconButton onClick={() => {
+                            navigate('/a/dashboard')
+                        }} size="large">
                             <ArrowBack/>
                         </IconButton>
                         <Typography variant="h4">Lead Details</Typography>
@@ -327,7 +301,9 @@ const AdminLeadDetails = () => {
             {/* Confirmation Dialog for Trash */}
             <Dialog
                 open={confirmDialogOpen}
-                onClose={() => setConfirmDialogOpen(false)}
+                onClose={() => {
+                    setConfirmDialogOpen(false)
+                }}
             >
                 <DialogTitle>Confirm Action</DialogTitle>
                 <DialogContent>
@@ -337,41 +313,27 @@ const AdminLeadDetails = () => {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={() => {
+                        setConfirmDialogOpen(false)
+                    }}>Cancel</Button>
                     <Button onClick={handleTrashLead} color="error" variant="contained">
                         Move to Trash
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Confirmation Dialog for Migration */}
-            <Dialog
-                open={migrateDialogOpen}
-                onClose={() => setMigrateDialogOpen(false)}
-            >
-                <DialogTitle>Confirm Migration</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Are you sure you want to migrate this lead to the new database? This action cannot be undone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setMigrateDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleMigrateLead} color="primary" variant="contained">
-                        Migrate Lead
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
             {/* Snackbar for notifications */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
-                onClose={() => setSnackbar(prev => ({...prev, open: false}))}
+                onClose={() => {
+                    setSnackbar(prev => ({...prev, open: false}))
+                }}
                 anchorOrigin={{vertical: 'top', horizontal: 'right'}}
             >
                 <Alert
-                    onClose={() => setSnackbar(prev => ({...prev, open: false}))}
+                    onClose={() => {
+                        setSnackbar(prev => ({...prev, open: false}))
+                    }}
                     severity={snackbar.severity}
                     variant="filled"
                 >

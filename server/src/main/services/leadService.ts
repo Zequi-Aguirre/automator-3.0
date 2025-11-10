@@ -1,9 +1,6 @@
 import { injectable } from "tsyringe";
 import moment from 'moment-timezone';
-import { v4 as uuidv4 } from "uuid";
 import LeadDAO from "../data/leadDAO";
-import BuyerIAO from "../vendor/buyerIAO.ts";
-import BuyerDAO from "../data/buyerDAO";
 import BuyerLeadDAO from "../data/buyerLeadDAO";
 import { FlatLead, Lead, LeadDateField, LeadFilters } from "../types/leadTypes";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
@@ -11,10 +8,8 @@ import { BuyerLead } from "../types/buyerLeadTypes.ts";
 import CampaignService from "./campaignService.ts";
 import { EnvConfig } from "../config/envConfig.ts";
 import { PostResponse } from "../types/apiResponseTypes.ts";
-import MongoDAO from "../data/mongoDAO.ts";
-import { CountiesSingletonFactory } from "../data/countiesSingleton.ts";
 import { levenshteinDistance } from "../controllers/validateLeads.ts";
-import { Buyer } from "../types/buyerTypes.ts";
+import BuyerIAO from "../vendor/buyerIAO.ts";
 
 // Interfaces
 interface SendLeadResponse {
@@ -38,11 +33,8 @@ export default class LeadService {
     constructor(
         private readonly leadDAO: LeadDAO,
         private readonly buyerIAO: BuyerIAO,
-        private readonly buyerDAO: BuyerDAO,
         private readonly buyerLeadDAO: BuyerLeadDAO,
         private readonly campaignsService: CampaignService,
-        private readonly countiesSingletonFactory: CountiesSingletonFactory,
-        private readonly mongoDAO: MongoDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly config: EnvConfig
     ) {
@@ -60,34 +52,6 @@ export default class LeadService {
                         oldDatabase ? 'MongoDB' : 'PostgreSQL'
                     }`
                 );
-            }
-
-            // For MongoDB operations
-            if (oldDatabase) {
-                // MongoDB requires a specific ID format - we'll handle this safely
-                let mongoLead = null;
-                try {
-                    mongoLead = await this.mongoDAO.getLeadById(leadId);
-                } catch (mongoError) {
-                    // Log the specific MongoDB error in test environments
-                    if (this.isTestEnvironment) {
-                        console.error('MongoDB fetch attempt failed:', mongoError);
-                    }
-                    return null;
-                }
-
-                // If we found a lead in MongoDB, check if it's active
-                if (mongoLead) {
-                    if (this.isTestEnvironment) {
-                        console.log('Successfully retrieved lead from MongoDB:', {
-                            id: mongoLead.id,
-                            state: mongoLead.state,
-                            city: mongoLead.city
-                        });
-                    }
-                    return mongoLead;
-                }
-                return null;
             }
 
             // For PostgreSQL operations, use the existing implementation
@@ -125,20 +89,6 @@ export default class LeadService {
             if (this.isTestEnvironment) {
                 console.log(`${this.config.environment.toUpperCase()}: Fetching all leads from ${oldDatabase ? 'MongoDB' : 'PostgreSQL'}`);
             }
-
-            // Route the request based on database selection
-            if (oldDatabase) {
-                // When using MongoDB, make sure we only get active leads
-                const { leads } = await this.mongoDAO.getMany({
-                    page: 1, // Get first page
-                    limit: 1000 // Set a reasonable limit for bulk fetching
-                });
-
-                // MongoDB fetching is already filtered for non-trashed,
-                // non-sent leads in the DAO layer
-                return leads;
-            }
-
             // Use the existing PostgreSQL implementation
             return await this.leadDAO.getAll();
         } catch (error) {
@@ -168,199 +118,18 @@ export default class LeadService {
         return closestCounty;
     }
 
-    async migrateLead(mongoLeadId: string): Promise<Lead> {
-        try {
-            if (this.isTestEnvironment) {
-                console.log(`${this.config.environment.toUpperCase()}: Starting lead migration process for ID: ${mongoLeadId}`);
-            }
-
-            // Get the lead from MongoDB
-            const mongoLead = await this.mongoDAO.getLeadById(mongoLeadId);
-            if (!mongoLead) {
-                throw new Error('Lead not found in MongoDB');
-            }
-
-            const attachLeadsToCountyId = async (leads: Lead[]): Promise<Partial<Lead>[]> => {
-                const singleton = await this.countiesSingletonFactory.singleton();
-                const counties = singleton.getAllCountiesOrderedByState();
-                const linkedLeads: Partial<Lead>[] = [];
-
-                leads.forEach(lead => {
-                    const normalizedLeadCounty = this.countiesSingletonFactory.normalizeCountyName(lead.county)
-                    const stateCounties = counties[lead.state.toUpperCase()];
-                    if (!stateCounties) return []
-                    const closestCounty = this.findClosestCounty(stateCounties, lead.state, normalizedLeadCounty);
-                    console.log('Lead:', lead.county);
-                    console.log('Closest county:', closestCounty);
-
-                    if (closestCounty) {
-                        lead.county = closestCounty.name;
-                        linkedLeads.push({ ...lead, county_id: closestCounty.id, county: closestCounty.name });
-                    } else {
-                        console.log('County not found:', lead.county);
-                        console.log('// TODO trash in mongo')
-                    }
-                });
-
-                return linkedLeads as Partial<Lead>[];
-            };
-
-            console.log('Mongo lead:', mongoLead);
-            const leadWithCounty = await attachLeadsToCountyId([mongoLead]) as Lead[];
-            console.log('Lead with county:', leadWithCounty);
-            console.log('// TODO this has to be handled better')
-
-            // Create in new database
-            const newLead = await this.leadDAO.createLead({
-                ...leadWithCounty[0],
-                is_test: this.isTestEnvironment
-            });
-
-            // Mark as migrated in MongoDB based on environment
-            if (this.isTestEnvironment) {
-                if (this.config.environment === 'local') {
-                    console.log('MOCK: Would mark MongoDB lead as migrated:', {
-                        oldId: mongoLeadId,
-                        newId: newLead.id
-                    });
-                } else {
-                    console.log('TEST: Simulating MongoDB lead migration');
-                }
-            } else {
-                await this.mongoDAO.markLeadAsSent(mongoLeadId, `Migrated to PostgreSQL ID: ${newLead.id}`);
-            }
-
-            return newLead;
-        } catch (error) {
-            console.error('Error during lead migration:', error);
-            throw new Error(`Failed to migrate lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
     async updateLead(leadId: string, leadData: Partial<Lead>): Promise<Lead> {
         return await this.leadDAO.updateLead(leadId, leadData);
     }
 
     // services/leadService.ts
-    async trashLead(leadId: string, oldDatabase: boolean = false): Promise<Lead> {
+    async trashLead(leadId: string): Promise<Lead> {
         try {
             // If using new database, proceed normally
-            if (!oldDatabase) {
                 return await this.leadDAO.trashLead(leadId);
-            }
-
-            // For old database, first get the lead
-            const mongoLead = await this.mongoDAO.getLeadById(leadId);
-            if (!mongoLead) {
-                throw new Error('Lead not found in MongoDB');
-            }
-
-            // Import to new database
-            const newLead = await this.migrateLead(mongoLead.id);
-
-            // Handle MongoDB operations based on environment
-            if (this.isTestEnvironment) {
-                if (this.config.environment === 'local') {
-                    console.log('MOCK: Would delete lead from MongoDB:', leadId);
-                    console.log('MOCK: MongoDB lead data:', mongoLead);
-                } else {
-                    // Staging environment
-                    console.log('TEST: Would mark lead as trash in MongoDB:', leadId);
-                }
-            } else {
-                // Production - actually perform MongoDB operation
-                console.log('PRODUCTION: Marking lead as trash in MongoDB:', leadId);
-                await this.mongoDAO.markLeadAsTrash(leadId);
-            }
-
-            // Always perform PostgreSQL operation since it's our new system
-            return await this.leadDAO.trashLead(newLead.id);
         } catch (error) {
             console.error('Error during lead trash process:', error);
             throw new Error(`Failed to trash lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    async pingLead(campaignKey: string, leadData: {
-        address: string;
-        city: string;
-        state: string;
-        zipcode: string;
-    }): Promise<{ ping_id: string; company_name: string }> {
-        console.log("Pinging lead with data:", leadData);
-        // TODO add address validation
-        console.log('// TODO: Add address validation. hardcoded county id used.');
-        const county_id = '123e4567-e89a-12d3-b456-226600001106'
-        // Step 1: Create the lead in the database
-        const lead = await this.leadDAO.createBasicLead({
-            ...leadData,
-            county_id,
-            is_test: this.isTestEnvironment,
-        });
-
-        const campaignFromDB = await this.campaignsService.getByExternalId(campaignKey);
-
-        // Step 2: Pre-create the BuyerLead record with default values
-        const initialBuyerLead = await this.buyerLeadDAO.createBuyerLead({
-            lead_id: lead.id,
-            status: "pending",
-            campaign_id: campaignFromDB.id,
-        });
-
-        try {
-            // Step 3: Ping NTSMHF API
-            const pingResponse = await this.buyerIAO.pingLead(campaignKey, {
-                address: lead.address,
-                city: lead.city,
-                state: lead.state,
-                zipcode: lead.zipcode,
-            });
-
-            // Update BuyerLead record based on ping response
-            const buyerLeadStatus = pingResponse.duplicate ? "duplicate" : pingResponse.result === "success" ? "accepted" : "rejected";
-
-            await this.buyerLeadDAO.updateBuyerLead(initialBuyerLead.id, {
-                ping_id: pingResponse.ping_id,
-                payout: pingResponse.payout || null,
-                status: buyerLeadStatus,
-                ping_result: pingResponse.result,
-                ping_message: pingResponse.message,
-                company_name: pingResponse.company_name,
-                error_message: null,
-            });
-
-            if (pingResponse.result === "success" && !pingResponse.duplicate) {
-                // Lead is accepted, return ping_id and buyer
-                return {
-                    ping_id: pingResponse.ping_id,
-                    company_name: pingResponse.company_name,
-                };
-            }
-
-            // Handle duplicate or rejected leads
-            console.log(
-                pingResponse.duplicate
-                    ? "Duplicate lead detected, fetching mock buyer..."
-                    : "Lead rejected, fetching mock buyer..."
-            );
-
-            // TODO get this buyers from the DB
-            return await this.handleMockResponse(lead);
-
-        } catch (error: unknown) {
-            console.error("Error pinging NTSMHF:", error);
-            const error_message = `Error pinging NTSMHF: ${error instanceof Error ? error.message : 'no error message'}`;
-
-            // Update BuyerLead with error details
-            await this.buyerLeadDAO.updateBuyerLead(initialBuyerLead.id, {
-                status: "error",
-                ping_result: "failed",
-                error_message,
-            });
-
-            // Fallback to mock API on error
-            // TODO get this buyers from the DB
-            return await this.handleMockResponse(lead);
         }
     }
 
@@ -415,41 +184,13 @@ export default class LeadService {
     }
 
     // Lead Processing Methods
-    async sendLeadWithDelay(leadId: string, userId: string, oldDatabase: boolean = false): Promise<{ success: boolean; message: string }> {
+    async sendLeadWithDelay(leadId: string, userId: string): Promise<{ success: boolean; message: string }> {
         try {
-            if (!oldDatabase) {
                 const lead = await this.leadDAO.getById(leadId);
                 if (!lead) {
-                    throw new Error('Lead not found in PostgreSQL');
+                    throw new Error(`Lead with ID ${leadId} not found`);
                 }
                 return await this.processSendLead(lead, userId);
-            }
-
-            // Handle MongoDB lead
-            const mongoLead = await this.mongoDAO.getLeadById(leadId);
-            if (!mongoLead) {
-                throw new Error('Lead not found in MongoDB');
-            }
-
-            // Import to new database
-            const importedLead = await this.migrateLead(mongoLead.id);
-
-            // Handle MongoDB operations based on environment
-            if (this.isTestEnvironment) {
-                if (this.config.environment === 'local') {
-                    console.log('MOCK: Would mark lead as sent in MongoDB:', leadId);
-                    console.log('MOCK: MongoDB lead data:', mongoLead);
-                } else {
-                    // Staging environment
-                    console.log('TEST: Would mark lead as sent in MongoDB:', leadId);
-                }
-            } else {
-                // Production - actually perform MongoDB operation
-                console.log('PRODUCTION: Marking lead as sent in MongoDB:', leadId);
-                await this.mongoDAO.markLeadAsSent(leadId, 'Migrated and sent through new system');
-            }
-
-            return await this.processSendLead(importedLead, userId);
         } catch (error) {
             console.error('Error during lead send process:', error);
             throw new Error(`Failed to send lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -458,6 +199,7 @@ export default class LeadService {
 
     // Helper method to process the actual send operation
     private async processSendLead(lead: Lead, userId: string): Promise<{ success: boolean; message: string }> {
+        console.log(`Processing lead ID: `, lead);
         // Get active campaigns and select one randomly
         const activeCampaigns = await this.campaignsService.getActive();
         if (!activeCampaigns.length) {
@@ -607,19 +349,6 @@ export default class LeadService {
         try {
             const page = Math.max(1, filters.page || 1);
             const limit = Math.max(1, Math.min(filters.limit || 10, 100));
-
-            // MongoDB operations are read-only, so we don't need to mock them
-            if (filters.oldDatabase) {
-                const mongoResult = await this.mongoDAO.getMany({ page, limit });
-
-                // Log the operation for monitoring
-                if (this.isTestEnvironment) {
-                    console.log(`${this.config.environment.toUpperCase()}: Reading from MongoDB - Page: ${page}, Limit: ${limit}`);
-                }
-
-                return mongoResult;
-            }
-
             // Always perform PostgreSQL operations normally
             return await this.leadDAO.getMany({ page, limit });
         } catch (error) {
@@ -807,47 +536,6 @@ export default class LeadService {
         endTime.year(localTime.year()).month(localTime.month()).date(localTime.date());
 
         return localTime.isBetween(startTime, endTime, 'minute', '[)');
-    }
-
-    // Mock Response Handling
-    private async handleMockResponse(lead: Lead): Promise<{ ping_id: string; company_name: string }> {
-        // TODO get this buyers from the DB
-        console.log("Handling mock response for lead:", lead);
-        const mockBuyer = await this.getRandomMockBuyer();
-        console.log("Selected mock buyer:", mockBuyer);
-        const pingId = uuidv4();
-
-        await this.createMockBuyerLead(lead, mockBuyer, pingId);
-
-        return {
-            ping_id: pingId,
-            company_name: mockBuyer.name,
-        };
-    }
-
-    private async getRandomMockBuyer(): Promise<Buyer> {
-        const allMockedBuyers = await this.buyerDAO.getAllMocked();
-        if (!allMockedBuyers.length) {
-            throw new Error("No mock buyers found, please contact support");
-        }
-
-        return allMockedBuyers[Math.floor(Math.random() * allMockedBuyers.length)];
-    }
-
-    private async createMockBuyerLead(lead: Lead, mockBuyer: Buyer, pingId: string): Promise<void> {
-        // TODO rename this functionality to to use alternative buyers wording not mock.
-        await this.buyerLeadDAO.createBuyerLead({
-            lead_id: lead.id,
-            buyer_id: mockBuyer.id,
-            ping_id: pingId,
-            payout: '0',
-            status: "mock",
-            ping_result: "success",
-            ping_message: "Mock data used",
-            company_name: mockBuyer.name,
-            ping_date: new Date(),
-            campaign_id: '123e4567-e89b-12d3-b456-226600000401',
-        });
     }
 
     private async flatToNestedLead(flatLead: FlatLead): Promise<Lead> {

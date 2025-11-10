@@ -12,19 +12,6 @@ export default class LeadPingPostResource {
     }
 
     private initializeRoutes() {
-        // Ping a lead
-        this.router.post("/ping", async (req: Request, res: Response) => {
-            // TODO check for campaign_key if not reject sometimes. figure it out. lol
-            const leadData = {
-                address: req.body.address,
-                city: req.body.city,
-                state: req.body.state,
-                zipcode: req.body.zipcode,
-            };
-            const response = await this.leadService.pingLead(req.body.campaign_key, leadData);
-            res.status(200).send(response);
-        });
-
         // Post a lead
         this.router.post("/post/:ping_id", async (req: Request, res: Response) => {
             const pingId = req.params.ping_id;

@@ -87,10 +87,9 @@ export default class LeadResource {
         this.router.patch("/admin/send/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const oldDatabase = req.query.oldDatabase === 'true';
-                const userId = req.user.id;  // Assuming user is attached to request by auth middleware
+                const userId = req.user.id; // Assuming user is attached to request by auth middleware
 
-                const response = await this.leadService.sendLeadWithDelay(leadId, userId, oldDatabase);
+                const response = await this.leadService.sendLeadWithDelay(leadId, userId);
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error sending lead:', error);
@@ -105,32 +104,12 @@ export default class LeadResource {
         this.router.patch("/admin/trash/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const oldDatabase = req.query.oldDatabase === 'true';
-
-                const response = await this.leadService.trashLead(leadId, oldDatabase);
+                const response = await this.leadService.trashLead(leadId);
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error trashing lead:', error);
                 return res.status(500).send({
                     message: 'Failed to trash lead',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
-            }
-        });
-
-        // Migrate lead from old database to new
-        this.router.post("/admin/migrate/:leadId", async (req: Request, res: Response) => {
-            try {
-                const leadId = req.params.leadId;
-                const newLead = await this.leadService.migrateLead(leadId);
-                return res.status(200).send({
-                    message: 'Lead migrated successfully',
-                    newId: newLead.id // Assuming the migrated lead returns an ID
-                });
-            } catch (error) {
-                console.error('Error migrating lead:', error);
-                return res.status(500).send({
-                    message: 'Failed to migrate lead',
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }
