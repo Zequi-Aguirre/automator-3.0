@@ -63,19 +63,3 @@ INSERT INTO public."campaigns" (id, external_id, name, is_active)
 VALUES
     ('123e4567-e89b-12d3-b456-226600000402', '2338c3d4d7', 'An Phan', true)
 ON CONFLICT (id) DO NOTHING;
-
--- add a tamble called enviroment_settings and start with 1 column allow_login
-CREATE TABLE env_settings (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    name varchar NOT NULL,
-    allow_login boolean NOT NULL DEFAULT TRUE,
-    created timestamp with time zone DEFAULT now() NOT NULL,
-    modified timestamp with time zone DEFAULT now() NOT NULL,
-    deleted timestamp with time zone
-);
-
--- insert a row into the enviroment_settings table
-INSERT INTO env_settings (id, allow_login, name)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000402', true, 'Env Settings 1.0')
-ON CONFLICT (id) DO NOTHING;
