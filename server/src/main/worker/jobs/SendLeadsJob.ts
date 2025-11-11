@@ -1,12 +1,12 @@
 import { injectable } from 'tsyringe';
-import LeadService from "../../services/leadService.ts";
+// import LeadService from "../../services/leadService.ts";
 import SettingsService from "../../services/settingsService.ts";
 
 // Update SendLeadsJob to use workerSend
 @injectable()
 export default class SendLeadsJob {
     constructor(
-        private readonly leadService: LeadService,
+        // private readonly leadService: LeadService,
         private readonly workerSettingsService: SettingsService
     ) {}
 
@@ -20,9 +20,10 @@ export default class SendLeadsJob {
             return;
         }
         const workerId = await this.workerSettingsService.getWorkerId();
-        const leads = await this.leadService.getLeadsToSendByWorker();
+        const leads: never[] = [] // await this.leadService.getLeadsToSendByWorker();
+        // TODO: Uncomment the line above and implement getLeadsToSendByWorker in LeadService
         for (const lead of leads) {
-            console.log(`----- SendLeadsJob: Sending lead with id ${lead.id}`);
+            console.log(`----- SendLeadsJob: Sending lead with id ${lead}`);
             console.log(`----- SendLeadsJob: Using worker id ${workerId}`);
             // await this.leadService.sendLead(lead.id, workerId);
         }

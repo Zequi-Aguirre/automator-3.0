@@ -11,9 +11,7 @@ class LeadService {
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
             '/api/leads/admin/get-many',
-            {
-                params: filters
-            }
+            { params: filters }
         );
         return response.data;
     }
@@ -49,8 +47,23 @@ class LeadService {
         const response = await this.api.getApi().patch(`/api/leads/admin/trash/${leadId}`);
         return response.data;
     }
+
+    // 🚀 Import leads from CSV
+    async importLeads(formData: FormData): Promise<{
+        imported: number;
+        rejected?: number;
+        errors?: string[];
+    }> {
+        const response = await this.api.getApi().post(
+            '/api/leads/admin/import',
+            formData,
+            {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            }
+        );
+        return response.data;
+    }
 }
 
 const leadsService = new LeadService(authProvider);
-
 export default leadsService;

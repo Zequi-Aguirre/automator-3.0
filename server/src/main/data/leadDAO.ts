@@ -1,10 +1,10 @@
 import { injectable } from "tsyringe";
 import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
-import { FlatLead, Lead, LeadDateField, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
+import { FlatLead, Lead, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
 import { County } from "../types/countyType.ts";
-import {parsedLeadFromCSV} from "../controllers/validateLeads.ts";
+import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
 
 type CreateLeadDTO = Pick<Lead, 'address' | 'city' | 'state' | 'zipcode' | 'is_test' | 'county_id' >;
 
@@ -48,25 +48,21 @@ export default class LeadDAO {
                 city,
                 state,
                 zipcode,
-                county_id,
                 first_name,
                 last_name,
                 phone,
                 email,
-                is_test,
-                vendor_lead_id
+                county
             ) VALUES (
                 $(address),
                 $(city),
                 $(state),
                 $(zipcode),
-                $(county_id),
                 $(first_name),
                 $(last_name),
                 $(phone),
                 $(email),
-                $(is_test),
-                $(vendor_lead_id)
+                $(county)
             )
             RETURNING *;
         `;
@@ -136,8 +132,6 @@ export default class LeadDAO {
             last_name: updates.last_name ?? existingLead.last_name,
             phone: updates.phone ?? existingLead.phone,
             email: updates.email ?? existingLead.email,
-            is_test: updates.is_test ?? existingLead.is_test,
-            vendor_lead_id: updates.vendor_lead_id ?? existingLead.vendor_lead_id,
         };
     }
 
@@ -229,14 +223,11 @@ export default class LeadDAO {
 
     async getNotBlacklistedLeads(
         blacklistedStates: string[],
-        blacklistedCounties: string[],
         limit: number = 1000
     ): Promise<Lead[]> {
-        console.log(blacklistedCounties);
         console.log(blacklistedStates);
         console.log('// TODO AU2-61 set black listed to empty array');
         blacklistedStates = [];
-        blacklistedCounties = [];
         const query = `
             SELECT l.*, c.timezone
             FROM leads l
@@ -258,8 +249,7 @@ export default class LeadDAO {
 
         return await this.db.manyOrNone<Lead>(query, {
             blacklistedStates,
-            blacklistedCounties,
-            limit
+            limit,
         });
     }
 

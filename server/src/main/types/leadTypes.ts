@@ -18,27 +18,6 @@ export type Lead = {
     vendor_lead_id: string;
 }
 
-export type MongoLead = {
-    _id: string;  // MongoDB's default _id
-    zb_id: string;
-    name: string;
-    emailAddress: string;
-    phoneNumber: string;
-    address: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    county: string;
-    sent: boolean;
-    returned: boolean;
-    returnedReason: string;
-    timeSent: Date;
-    trash: boolean;
-    campaignSentTo: string; // ObjectId as string
-    createdAt: Date;
-    updatedAt: Date;
-}
-
 export type LeadUpdateAllowedFieldsType = {
     address: string;
     city: string;
@@ -48,8 +27,6 @@ export type LeadUpdateAllowedFieldsType = {
     last_name: string;
     phone: string;
     email: string;
-    is_test: boolean;
-    vendor_lead_id: string;
 };
 
 export type LeadFilters = {
