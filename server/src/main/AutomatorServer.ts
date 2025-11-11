@@ -5,7 +5,6 @@ import { appConfig } from "./config";
 import { DependencyContainer } from "tsyringe";
 import { EnvConfig } from "./config/envConfig";
 import LeadResource from "./resources/leadResource";
-import LeadPingPostResource from "./resources/leadPingPostResource.ts";
 import InjectionToken from "tsyringe/dist/typings/providers/injection-token";
 import AuthenticateResource from "./resources/authenticateResource";
 import { Authenticator } from "./middleware/authenticator";
@@ -45,7 +44,6 @@ export class AutomatorServer {
         this.app.use("/api/authenticate", cont.resolve(AuthenticateResource).routes());
         this.app.use("/api/campaigns", authFunc, cont.resolve(CampaignResource).routes());
         this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
-        this.app.use("/api/leads", cont.resolve(LeadPingPostResource).routes());
         this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
         this.app.use("/api/settings", cont.resolve(SettingsResource).routes());

@@ -1,30 +1,26 @@
 import { injectable } from "tsyringe";
 import moment from 'moment-timezone';
 import LeadDAO from "../data/leadDAO";
-import BuyerLeadDAO from "../data/buyerLeadDAO";
 import { FlatLead, Lead, LeadDateField, LeadFilters } from "../types/leadTypes";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 import { BuyerLead } from "../types/buyerLeadTypes.ts";
-import CampaignService from "./campaignService.ts";
 import { EnvConfig } from "../config/envConfig.ts";
-import { PostResponse } from "../types/apiResponseTypes.ts";
-import { levenshteinDistance } from "../controllers/validateLeads.ts";
-import BuyerIAO from "../vendor/buyerIAO.ts";
+import { levenshteinDistance, parsedLeadFromCSV } from "../controllers/validateLeads.ts";
+import { CountiesSingletonFactory } from "../data/countiesSingleton.ts";
 
-// Interfaces
-interface SendLeadResponse {
-    success: boolean;
-    message: string;
-}
-
-interface PingResponse {
-    ping_id: string;
-    result: string;
-    duplicate?: boolean;
-    payout?: string;
-    message?: string;
-    company_name: string;
-}
+type LeadFromCSV = {
+    Name: string;
+    'Phone Number': string;
+    'Email Address': string;
+    Address: string;
+    City: string;
+    State: string;
+    'Zip Code': string;
+    County: string;
+    'Private Notes': string;
+    'Buyer Notes'?: string;
+    Category?: string;
+};
 
 @injectable()
 export default class LeadService {
@@ -32,10 +28,8 @@ export default class LeadService {
 
     constructor(
         private readonly leadDAO: LeadDAO,
-        private readonly buyerIAO: BuyerIAO,
-        private readonly buyerLeadDAO: BuyerLeadDAO,
-        private readonly campaignsService: CampaignService,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
+        private readonly countiesSingletonFactory: CountiesSingletonFactory,
         private readonly config: EnvConfig
     ) {
         this.config = config;
@@ -43,17 +37,8 @@ export default class LeadService {
     }
 
     // Lead Management Methods
-    async getLeadById(leadId: string, oldDatabase: boolean): Promise<Lead | null> {
+    async getLeadById(leadId: string): Promise<Lead | null> {
         try {
-            // Log which database we're querying in test environments
-            if (this.isTestEnvironment) {
-                console.log(
-                    `${this.config.environment.toUpperCase()}: Fetching lead ${leadId} from ${
-                        oldDatabase ? 'MongoDB' : 'PostgreSQL'
-                    }`
-                );
-            }
-
             // For PostgreSQL operations, use the existing implementation
             const pgLead = await this.leadDAO.getById(leadId);
 
@@ -71,30 +56,134 @@ export default class LeadService {
             // Provide detailed error logging while maintaining security
             console.error('Error fetching lead by ID:', {
                 leadId,
-                database: oldDatabase ? 'MongoDB' : 'PostgreSQL',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
 
             throw new Error(
-                `Failed to fetch lead ${leadId} from ${
-                    oldDatabase ? 'MongoDB' : 'PostgreSQL'
-                }: ${error instanceof Error ? error.message : 'Unknown error'}`
+                `Failed to fetch lead ${leadId}: ${error instanceof Error ? error.message : 'Unknown error'}`
             );
         }
     }
 
-    async getAllLeads(oldDatabase: boolean = false): Promise<Lead[]> {
-        try {
-            // Log the operation in test environments
-            if (this.isTestEnvironment) {
-                console.log(`${this.config.environment.toUpperCase()}: Fetching all leads from ${oldDatabase ? 'MongoDB' : 'PostgreSQL'}`);
-            }
-            // Use the existing PostgreSQL implementation
-            return await this.leadDAO.getAll();
-        } catch (error) {
-            console.error('Error fetching all leads:', error);
-            throw new Error(`Failed to fetch all leads: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    async insertManyLeads(
+        csvLeads: string[],
+        adminId: string,
+    ): Promise<{
+        status: number;
+        data: {
+            invalidLeads: parsedLeadFromCSV[],
+            postedLeads: Lead[],
+            duplicatedLeads: Partial<Lead>[],
+            failedParsingLeads: string[]
         }
+    }> {
+
+        // Get category configuration
+        const csvLeadsWithoutDoubleQuotes = csvLeads.map(e => {
+            return e.replace(/"/g, '')
+        })
+
+        const parseAndTransformCSV = (dataString: string): { leads: parsedLeadFromCSV[], failedParsingLeads: string[] } => {
+            let leadsArray = dataString.split('\n')
+            leadsArray = leadsArray.filter(line => line.trim() !== ''); // this removes empty lines with filter
+            const keys = leadsArray[0].split(',').map((key) => key.trim());
+            const leads: parsedLeadFromCSV[] = [];
+            const failedParsingLeads: string[] = [];
+
+            for (let i = 1; i <= leadsArray.length -1; i++) {
+                try {
+                    const leadValues = leadsArray[i].split(',');
+                    const leadObject: Partial<LeadFromCSV> = {};
+                    keys?.forEach((key, index) => {
+                        leadObject[key as keyof LeadFromCSV] = leadValues[index].trim();
+                    });
+
+                    const transformedLead: parsedLeadFromCSV = {
+                        name: leadObject.Name ?? '',
+                        phone: leadObject['Phone Number'] ?? '',
+                        email: leadObject['Email Address'] ?? '',
+                        address: leadObject.Address ?? '',
+                        city: leadObject.City ?? '',
+                        state: leadObject.State ?? '',
+                        zip_code: leadObject['Zip Code'] ?? '',
+                        county: leadObject.County ?? '',
+                    };
+
+                    leads.push(transformedLead);
+                } catch (e) {
+                    console.warn('Lead parsing failed', { error: e,lead: leadsArray[i] });
+                    failedParsingLeads.push(leadsArray[i]);
+                }
+            }
+
+            return { leads, failedParsingLeads };
+        }
+
+        // Function to normalize county names by removing apostrophes, replacing "St." with "Saint", and removing "Parish"
+        const leads = parseAndTransformCSV(csvLeadsWithoutDoubleQuotes[0]);
+        const { invalidLeads, validLeads } = this.validateLeads(leads.leads);
+
+        const normalizeCountyName = (name: string): string => {
+            // TODO remove unnecessary function
+            return this.countiesSingletonFactory.normalizeCountyName(name)
+        }
+
+        const attachLeadsToCountyId = async (leads: parsedLeadFromCSV[]): Promise<parsedLeadFromCSV[]> => {
+            const singleton = await this.countiesSingletonFactory.singleton();
+            const counties = singleton.getAllCountiesOrderedByState();
+            const linkedLeads: parsedLeadFromCSV[] = [];
+
+            leads.forEach(lead => {
+                const normalizedLeadCounty = normalizeCountyName(lead.county);
+                const stateCounties = counties[lead.state.toUpperCase()];
+                if (!stateCounties) { return invalidLeads.push(lead); }
+                const closestCounty = this.findClosestCounty(stateCounties, lead.state, normalizedLeadCounty);
+
+                if (closestCounty !== undefined) {
+                    lead.county = closestCounty.name;
+                    linkedLeads.push({ ...lead, county_id: closestCounty.id, county: closestCounty.name });
+                } else {
+                    invalidLeads.push(lead);
+                }
+            });
+
+            return linkedLeads;
+        };
+
+        const postedLeads: Lead[] = [];
+        const duplicatedLeads: Partial<Lead>[] = [];
+        const attachedLeads = await attachLeadsToCountyId(validLeads);
+
+        const results = await this.leadDAO.createLeads(
+            attachedLeads,
+            adminId
+        );
+
+        results.forEach(result => {
+            if (result.success) {
+                postedLeads.push(result.lead!);
+            } else {
+                const failedLead = result.failedLead!;
+                delete failedLead.county_id;
+
+                console.warn(`lead failed to be created: ${result.error}`, { lead: failedLead });
+                if ((result.error?.toLowerCase()?.includes('duplicate lead')) === true) {
+                    duplicatedLeads.push(failedLead);
+                } else {
+                    invalidLeads.push(failedLead)
+                }
+            }
+        });
+
+        return {
+            status: 200,
+            data: {
+                invalidLeads,
+                postedLeads,
+                duplicatedLeads,
+                failedParsingLeads: leads.failedParsingLeads
+            }
+        };
     }
 
     findClosestCounty(counties: { state: string; name: string, normalizedName: string; id: string }[], leadState: string, normalizedLeadCounty: string): { name: string; id: string } | undefined {
@@ -133,110 +222,53 @@ export default class LeadService {
         }
     }
 
-    async postLead(
-        pingId: string,
-        contactData: { first_name: string; last_name: string; phone: string; email: string }
-    ): Promise<{ success: boolean }> {
-        // Step 1: Find the BuyerLead by pingId
-        const buyerLead = await this.buyerLeadDAO.getBuyerLeadByPingId(pingId);
-        if (!buyerLead) {
-            throw new Error(`BuyerLead not found for ping_id: ${pingId}`);
-        }
-
-        // Step 2: Find the associated Lead by lead_id from BuyerLead
-        const lead = await this.leadDAO.getById(buyerLead.lead_id);
-        if (!lead) {
-            throw new Error(`Lead not found for lead_id: ${buyerLead.lead_id}`);
-        }
-
-        // Step 3: Update the Lead with contact information
-        await this.leadDAO.updateLead(
-            lead.id,
-            contactData
-        );
-
-        if (buyerLead.status === "mock") {
-            await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 3000) + 1000));
-            return { success: true };
-        }
-
-        try {
-            // Step 4: Post the lead to the external API
-            // TODO update buyer lead record after post
-            await this.buyerIAO.postLead({
-                ping_id: pingId,
-                address: lead.address,
-                city: lead.city,
-                state: lead.state,
-                zipcode: lead.zipcode,
-                first_name: contactData.first_name,
-                last_name: contactData.last_name,
-                phone: contactData.phone,
-                email: contactData.email,
-            });
-
-            return { success: true };
-        } catch (error) {
-            console.error("Error posting lead: " + (error instanceof Error ? error.message : 'no error message'));
-            throw new Error("Failed to post lead");
-            // update buyer lead with error message
-        }
-    }
-
-    // Lead Processing Methods
-    async sendLeadWithDelay(leadId: string, userId: string): Promise<{ success: boolean; message: string }> {
-        try {
-                const lead = await this.leadDAO.getById(leadId);
-                if (!lead) {
-                    throw new Error(`Lead with ID ${leadId} not found`);
-                }
-                return await this.processSendLead(lead, userId);
-        } catch (error) {
-            console.error('Error during lead send process:', error);
-            throw new Error(`Failed to send lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    // Helper method to process the actual send operation
-    private async processSendLead(lead: Lead, userId: string): Promise<{ success: boolean; message: string }> {
-        console.log(`Processing lead ID: `, lead);
-        // Get active campaigns and select one randomly
-        const activeCampaigns = await this.campaignsService.getActive();
-        if (!activeCampaigns.length) {
-            throw new Error('No active campaigns available');
-        }
-        const nextCampaign = activeCampaigns[Math.floor(Math.random() * activeCampaigns.length)];
-
-        // Create initial buyer lead
-        const buyerLead = await this.createInitialBuyerLead(lead.id, userId, nextCampaign.id);
-
-        // Perform ping and handle result
-        const pingResult = await this.handlePingAndUpdate(lead, buyerLead.id, nextCampaign.external_id);
-        if (!pingResult.success) {
-            return pingResult;
-        }
-
-        // Update worker settings with next lead timing
-        const send_next_lead_at = new Date();
-        const { minutes_range_start, minutes_range_end } = await this.workerSettingsDAO.getCurrentSettings();
-        const randomMinutes = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-        send_next_lead_at.setMinutes(send_next_lead_at.getMinutes() + randomMinutes(minutes_range_start, minutes_range_end));
-        await this.workerSettingsDAO.updateSettings({ send_next_lead_at });
-
-        // Post the lead with delay
-        return await this.postLeadWithDelay(lead, pingResult.pingResponse!, buyerLead, userId);
-    }
-
-// Helper methods for status determination
-    private isPingSuccessful(pingResponse: PingResponse): boolean {
-        return pingResponse.result === 'success' && !pingResponse.duplicate;
-    }
-
     private getRandomLead(leads: Lead[]): Lead | null {
         if (!leads.length) {
             return null;
         }
         return leads[Math.floor(Math.random() * leads.length)];
+    }
+
+    private async flatToNestedLead(flatLead: FlatLead): Promise<Lead> {
+        const buyerLead: BuyerLead | null = flatLead['buyer_lead.id']
+            ? {
+                id: flatLead['buyer_lead.id'],
+                buyer_id: flatLead['buyer_lead.buyer_id'],
+                campaign_id: flatLead['buyer_lead.campaign_id'],
+                company_name: flatLead['buyer_lead.company_name'],
+                error_message: flatLead['buyer_lead.error_message'],
+                lead_id: flatLead.id,
+                payout: flatLead['buyer_lead.payout'],
+                ping_date: flatLead['buyer_lead.ping_date'] ? flatLead['buyer_lead.ping_date'] : null,
+                ping_id: flatLead['buyer_lead.ping_id'],
+                ping_message: flatLead['buyer_lead.ping_message'],
+                ping_result: flatLead['buyer_lead.ping_result'],
+                post_date: flatLead['buyer_lead.post_date'] ? flatLead['buyer_lead.post_date'] : null,
+                post_message: flatLead['buyer_lead.post_message'],
+                post_result: flatLead['buyer_lead.post_result'],
+                sent_by_user_id: flatLead['buyer_lead.sent_by_user_id'],
+                status: flatLead['buyer_lead.status']
+            } as BuyerLead
+            : null;
+
+        return {
+            id: flatLead.id,
+            address: flatLead.address,
+            city: flatLead.city,
+            state: flatLead.state,
+            county: flatLead.county ?? '',
+            county_id: flatLead.county_id,
+            zipcode: flatLead.zipcode,
+            first_name: flatLead.first_name,
+            last_name: flatLead.last_name,
+            phone: flatLead.phone,
+            email: flatLead.email,
+            is_test: flatLead.is_test,
+            created: flatLead.created.toISOString(),
+            buyer_lead: buyerLead,
+            vendor_lead_id: flatLead.vendor_lead_id ?? ''
+        };
+
     }
 
     // Worker Lead Selection Methods
@@ -382,146 +414,16 @@ export default class LeadService {
         return blacklistedCounties;
     }
 
-    private async createInitialBuyerLead(leadId: string, userId: string, campaignId: string): Promise<BuyerLead> {
-        return await this.buyerLeadDAO.createBuyerLead({
-            lead_id: leadId,
-            status: "pending",
-            sent_by_user_id: userId,
-            campaign_id: campaignId,
-        });
-    }
-
-    private async handlePingAndUpdate(
-        lead: Lead,
-        buyerLeadId: string,
-        campaignKey: string
-    ): Promise<{ success: boolean; message: string; pingResponse?: PingResponse }> {
-        const pingResponse = await this.buyerIAO.pingLead(campaignKey, {
-            address: lead.address,
-            city: lead.city,
-            state: lead.state,
-            zipcode: lead.zipcode,
-        });
-
-        await this.updateBuyerLeadAfterPing(buyerLeadId, pingResponse);
-
-        if (!this.isPingSuccessful(pingResponse)) {
-            return {
-                success: false,
-                message: this.getPingFailureMessage(pingResponse)
-            };
-        }
-
-        return { success: true, message: "Ping successful", pingResponse };
-    }
-
-    private getPingFailureMessage(pingResponse: PingResponse): string {
-        return pingResponse.duplicate
-            ? "Lead is a duplicate"
-            : pingResponse.message || "Lead was rejected";
-    }
-
-    // Lead Processing Helper Methods
-    private async postLeadWithDelay(
-        lead: Lead,
-        pingResponse: PingResponse,
-        buyerLead: BuyerLead,
-        userId: string
-    ): Promise<SendLeadResponse> {
-        try {
-            // maybe move this out to a separate method
-            await this.addRandomPostDelay();
-
-            const postResponse = await this.buyerIAO.postLead({
-                ping_id: pingResponse.ping_id,
-                ...this.getLeadPostData(lead)
-            });
-
-            await this.updateBuyerLeadAfterPost(buyerLead.id, postResponse);
-            await this.leadDAO.updateLead(lead.id, {
-                vendor_lead_id: postResponse.lead_id
-            });
-
-            return {
-                success: true,
-                message: "Lead successfully sent"
-            };
-        } catch (error) {
-            await this.handlePostError(buyerLead.id, error, userId);
-            throw error;
-        }
-    }
-
-    private getLeadPostData(lead: Lead) {
-        return {
-            address: lead.address,
-            city: lead.city,
-            state: lead.state,
-            zipcode: lead.zipcode,
-            first_name: lead.first_name,
-            last_name: lead.last_name,
-            phone: lead.phone,
-            email: lead.email,
-        };
-    }
-
-    private async addRandomPostDelay(): Promise<void> {
-        const currentSettings = await this.workerSettingsDAO.getCurrentSettings();
-        const minDelay = (currentSettings.min_delay || 15) * 1000;
-        const maxDelay = (currentSettings.max_delay || 30) * 1000;
-        const delayMs = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-
-    private async updateBuyerLeadAfterPing(
-        buyerLeadId: string,
-        pingResponse: PingResponse,
-    ): Promise<void> {
-        const buyerLeadStatus = this.determineBuyerLeadStatus(pingResponse);
-        console.log(`Buyer lead status: ${buyerLeadStatus}`);
-        await this.buyerLeadDAO.updateBuyerLead(buyerLeadId, {
-            ping_id: pingResponse.ping_id,
-            payout: pingResponse.payout,
-            status: buyerLeadStatus,
-            ping_result: pingResponse.result,
-            ping_message: pingResponse.message,
-            company_name: pingResponse.company_name,
-            error_message: null,
-            ping_date: new Date(),
-        });
-    }
-
-    private determineBuyerLeadStatus(pingResponse: PingResponse): string {
-        return pingResponse.duplicate
-            ? "duplicate"
-            : pingResponse.result === "success"
-                ? "accepted"
-                : "rejected";
-    }
-
-    private async updateBuyerLeadAfterPost(buyerLeadId: string, postResponse: PostResponse): Promise<void> {
-        await this.buyerLeadDAO.updateBuyerLead(buyerLeadId, {
-            post_result: postResponse.result,
-            post_message: postResponse.message,
-            post_date: new Date(),
-        });
-    }
-
-    private async handlePostError(
-        buyerLeadId: string,
-        error: unknown,
-        userId: string
-    ): Promise<void> {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        await this.buyerLeadDAO.updateBuyerLead(buyerLeadId, {
-            status: "error",
-            error_message: `Error in sendLead: ${errorMessage}`,
-            post_result: "failed",
-            post_message: errorMessage,
-            post_date: new Date(),
-            sent_by_user_id: userId
-        });
-    }
+    isLeadEmpty = (lead: parsedLeadFromCSV): boolean => {
+        if (lead.name.trim() !== "") return false;
+        if (lead.phone.trim() !== "") return false;
+        if (lead.email.trim() !== "") return false;
+        if (lead.address.trim() !== "") return false;
+        if (lead.city.trim() !== "") return false;
+        if (lead.state.trim() !== "") return false;
+        if (lead.zip_code.trim() !== "") return false;
+        return lead.county.trim() === "";
+    };
 
     private async isWithinBusinessHours(timezone: string): Promise<boolean> {
         const currentSettings = await this.workerSettingsDAO.getCurrentSettings();
@@ -538,45 +440,57 @@ export default class LeadService {
         return localTime.isBetween(startTime, endTime, 'minute', '[)');
     }
 
-    private async flatToNestedLead(flatLead: FlatLead): Promise<Lead> {
-        const buyerLead: BuyerLead | null = flatLead['buyer_lead.id']
-            ? {
-                id: flatLead['buyer_lead.id'],
-                buyer_id: flatLead['buyer_lead.buyer_id'],
-                campaign_id: flatLead['buyer_lead.campaign_id'],
-                company_name: flatLead['buyer_lead.company_name'],
-                error_message: flatLead['buyer_lead.error_message'],
-                lead_id: flatLead.id,
-                payout: flatLead['buyer_lead.payout'],
-                ping_date: flatLead['buyer_lead.ping_date'] ? flatLead['buyer_lead.ping_date'] : null,
-                ping_id: flatLead['buyer_lead.ping_id'],
-                ping_message: flatLead['buyer_lead.ping_message'],
-                ping_result: flatLead['buyer_lead.ping_result'],
-                post_date: flatLead['buyer_lead.post_date'] ? flatLead['buyer_lead.post_date'] : null,
-                post_message: flatLead['buyer_lead.post_message'],
-                post_result: flatLead['buyer_lead.post_result'],
-                sent_by_user_id: flatLead['buyer_lead.sent_by_user_id'],
-                status: flatLead['buyer_lead.status']
-            } as BuyerLead
-            : null;
+    private validateLeads(leads: parsedLeadFromCSV[]): { validLeads: parsedLeadFromCSV[], invalidLeads: parsedLeadFromCSV[] } {
+        const validLeads: parsedLeadFromCSV[] = [];
+        const invalidLeads: parsedLeadFromCSV[] = [];
+
+        // Function to check if a lead is valid
+        function isValidLead(lead: parsedLeadFromCSV): boolean {
+            // Validation rules: Example rules (modify as needed)
+            const isValidName = lead.name.trim() !== '';
+            const isValidPhone = lead.phone.trim() !== '';
+            const isValidEmail = lead.email.trim() !== '' && lead.email.includes('@');
+            const isValidAddress = lead.address.trim() !== '';
+            const hasZipCode = lead.zip_code.trim() !== '';
+
+            // Add more validation rules as required
+
+            // attach reasons for invalid leads
+            if (!isValidName) {
+                lead.reason = 'Invalid name';
+            }
+            if (!isValidPhone) {
+                lead.reason = lead.reason !== undefined ? lead.reason + ', phone ' : 'Invalid phone';
+            }
+            if (!isValidEmail) {
+                lead.reason = lead.reason !== undefined ? lead.reason + ', email ' : 'Invalid email';
+            }
+            if (!isValidAddress) {
+                lead.reason = lead.reason !== undefined ? lead.reason + ', address ' : 'Invalid address';
+            }
+            if (!hasZipCode) {
+                lead.reason = lead.reason !== undefined ? lead.reason + ', zip_code ' : 'Invalid zip_code';
+            }
+
+            return isValidName && isValidPhone && isValidEmail && isValidAddress && hasZipCode; // Add more conditions based on your validation criteria
+        }
+
+        // Iterate through each lead
+        leads.forEach(lead => {
+            // Check if lead is empty
+            if (this.isLeadEmpty(lead)) {
+                return;
+            }
+            if (isValidLead(lead)) {
+                validLeads.push(lead);
+            } else {
+                invalidLeads.push(lead);
+            }
+        });
 
         return {
-            id: flatLead.id,
-            address: flatLead.address,
-            city: flatLead.city,
-            state: flatLead.state,
-            county: flatLead.county ?? '',
-            county_id: flatLead.county_id,
-            zipcode: flatLead.zipcode,
-            first_name: flatLead.first_name,
-            last_name: flatLead.last_name,
-            phone: flatLead.phone,
-            email: flatLead.email,
-            is_test: flatLead.is_test,
-            created: flatLead.created.toISOString(),
-            buyer_lead: buyerLead,
-            vendor_lead_id: flatLead.vendor_lead_id ?? ''
+            validLeads,
+            invalidLeads
         };
-
     }
 }

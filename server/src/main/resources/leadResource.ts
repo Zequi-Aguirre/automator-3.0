@@ -12,21 +12,6 @@ export default class LeadResource {
     }
 
     private initializeRoutes() {
-        // Get all leads with oldDatabase support
-        this.router.get("/admin/get-all", async (req: Request, res: Response) => {
-            try {
-                const oldDatabase = req.query.oldDatabase === 'true';
-                const leads = await this.leadService.getAllLeads(oldDatabase);
-                return res.status(200).send(leads);
-            } catch (error) {
-                console.error('Error in get-all:', error);
-                return res.status(500).send({
-                    message: 'Failed to fetch leads',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
-            }
-        });
-
         // Get many leads with pagination and oldDatabase support
         this.router.get("/admin/get-many", async (req: Request, res: Response) => {
             try {
@@ -50,8 +35,7 @@ export default class LeadResource {
         this.router.get("/admin/get/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const oldDatabase = req.query.oldDatabase === 'true';
-                const lead = await this.leadService.getLeadById(leadId, oldDatabase);
+                const lead = await this.leadService.getLeadById(leadId);
 
                 if (!lead) {
                     return res.status(404).send({ message: 'Lead not found' });
@@ -89,7 +73,7 @@ export default class LeadResource {
                 const leadId = req.params.leadId;
                 const userId = req.user.id; // Assuming user is attached to request by auth middleware
 
-                const response = await this.leadService.sendLeadWithDelay(leadId, userId);
+                const response = `${leadId} - ${userId}` // await this.leadService.sendLeadWithDelay(leadId, userId);
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error sending lead:', error);

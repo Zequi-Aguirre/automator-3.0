@@ -4,6 +4,7 @@ import { DBContainer } from "../config/DBContainer";
 import { FlatLead, Lead, LeadDateField, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
 import { County } from "../types/countyType.ts";
+import {parsedLeadFromCSV} from "../controllers/validateLeads.ts";
 
 type CreateLeadDTO = Pick<Lead, 'address' | 'city' | 'state' | 'zipcode' | 'is_test' | 'county_id' >;
 
@@ -354,5 +355,44 @@ export default class LeadDAO {
             WHERE deleted IS NULL;
         `;
         return await this.db.query<County[]>(query);
+    }
+
+    async createLeads(
+        leads: Array<parsedLeadFromCSV>,
+        adminId: string
+    ): Promise<Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }>> {
+        return this.db.task(async t => {
+            const results: Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }> = [];
+
+            for (const lead of leads) {
+                try {
+                    const postedLead: Lead = await t.one(
+                        `
+          INSERT INTO leads (
+            name, email, phone, address, city, state,
+            zip_code, county, county_id, verified, category_id, uploaded_by_user_id
+          )
+          VALUES (
+            $[name], $[email], $[phone], $[address], $[city], $[state],
+            $[zip_code], $[county], $[county_id], $[verified], $[category_id], $[adminId]
+          )
+          RETURNING *;
+        `,
+                        { ...lead, adminId }
+                    );
+
+                    results.push({ success: true, lead: postedLead });
+                } catch (e) {
+                    const error = e as { message?: string };
+                    results.push({
+                        success: false,
+                        failedLead: lead,
+                        error: error?.message ?? "Unknown error"
+                    });
+                }
+            }
+
+            return results;
+        });
     }
 }

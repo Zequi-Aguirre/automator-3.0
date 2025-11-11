@@ -23,7 +23,8 @@ export default class SendLeadsJob {
         const leads = await this.leadService.getLeadsToSendByWorker();
         for (const lead of leads) {
             console.log(`----- SendLeadsJob: Sending lead with id ${lead.id}`);
-            await this.leadService.sendLeadWithDelay(lead.id, workerId);
+            console.log(`----- SendLeadsJob: Using worker id ${workerId}`);
+            // await this.leadService.sendLead(lead.id, workerId);
         }
         console.log(`----- SendLeadsJob: Processed ${leads.length} leads`);
     }
