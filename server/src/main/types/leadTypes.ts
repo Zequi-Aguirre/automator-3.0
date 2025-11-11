@@ -58,11 +58,6 @@ export type LeadFilters = {
     oldDatabase: boolean;
 };
 
-export enum LeadDateField {
-    PING_DATE = 'ping_date',
-    POST_DATE = 'post_date'
-}
-
 export type FlatLead = {
     id: string;
     address: string;

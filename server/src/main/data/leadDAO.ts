@@ -280,14 +280,11 @@ export default class LeadDAO {
     }
 
     async getLeadsWithBuyerDataByTimeWindow(
-        hours: number,
-        dateField: LeadDateField
+        hours: number
     ): Promise<FlatLead[]> {
         if (hours <= 0) {
             throw new Error("Hours must be a positive number");
         }
-
-        const selectedDateField = dateField === LeadDateField.PING_DATE ? 'bl.ping_date' : 'bl.post_date';
 
         const query = `
             SELECT 
@@ -310,10 +307,7 @@ export default class LeadDAO {
             FROM leads l
             JOIN buyer_lead bl ON l.id = bl.lead_id
             WHERE l.deleted IS NULL
-            AND bl.deleted IS NULL
-            AND ${selectedDateField}::timestamp >= NOW() - INTERVAL '${hours} hours'
-            AND ${selectedDateField} IS NOT NULL
-            ORDER BY ${selectedDateField} DESC;
+            AND bl.deleted IS NULL;
         `;
 
         // Using proper parameterization
@@ -359,7 +353,6 @@ export default class LeadDAO {
 
     async createLeads(
         leads: Array<parsedLeadFromCSV>,
-        adminId: string
     ): Promise<Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }>> {
         return this.db.task(async t => {
             const results: Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }> = [];
@@ -369,16 +362,14 @@ export default class LeadDAO {
                     const postedLead: Lead = await t.one(
                         `
           INSERT INTO leads (
-            name, email, phone, address, city, state,
-            zip_code, county, county_id, verified, category_id, uploaded_by_user_id
+            name, email, phone, address, city, state, zip_code, county, county_id
           )
           VALUES (
-            $[name], $[email], $[phone], $[address], $[city], $[state],
-            $[zip_code], $[county], $[county_id], $[verified], $[category_id], $[adminId]
+            $[name], $[email], $[phone], $[address], $[city], $[state], $[zip_code], $[county], $[county_id]
           )
           RETURNING *;
         `,
-                        { ...lead, adminId }
+                        { ...lead }
                     );
 
                     results.push({ success: true, lead: postedLead });

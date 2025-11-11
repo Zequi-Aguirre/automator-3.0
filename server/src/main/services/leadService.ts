@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import moment from 'moment-timezone';
 import LeadDAO from "../data/leadDAO";
-import { FlatLead, Lead, LeadDateField, LeadFilters } from "../types/leadTypes";
+import { FlatLead, Lead, LeadFilters } from "../types/leadTypes";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 import { BuyerLead } from "../types/buyerLeadTypes.ts";
 import { EnvConfig } from "../config/envConfig.ts";
@@ -119,52 +119,17 @@ export default class LeadService {
             return { leads, failedParsingLeads };
         }
 
-        // Function to normalize county names by removing apostrophes, replacing "St." with "Saint", and removing "Parish"
         const leads = parseAndTransformCSV(csvLeadsWithoutDoubleQuotes[0]);
         const { invalidLeads, validLeads } = this.validateLeads(leads.leads);
-
-        const normalizeCountyName = (name: string): string => {
-            // TODO remove unnecessary function
-            return this.countiesSingletonFactory.normalizeCountyName(name)
-        }
-
-        const attachLeadsToCountyId = async (leads: parsedLeadFromCSV[]): Promise<parsedLeadFromCSV[]> => {
-            const singleton = await this.countiesSingletonFactory.singleton();
-            const counties = singleton.getAllCountiesOrderedByState();
-            const linkedLeads: parsedLeadFromCSV[] = [];
-
-            leads.forEach(lead => {
-                const normalizedLeadCounty = normalizeCountyName(lead.county);
-                const stateCounties = counties[lead.state.toUpperCase()];
-                if (!stateCounties) { return invalidLeads.push(lead); }
-                const closestCounty = this.findClosestCounty(stateCounties, lead.state, normalizedLeadCounty);
-
-                if (closestCounty !== undefined) {
-                    lead.county = closestCounty.name;
-                    linkedLeads.push({ ...lead, county_id: closestCounty.id, county: closestCounty.name });
-                } else {
-                    invalidLeads.push(lead);
-                }
-            });
-
-            return linkedLeads;
-        };
-
         const postedLeads: Lead[] = [];
         const duplicatedLeads: Partial<Lead>[] = [];
-        const attachedLeads = await attachLeadsToCountyId(validLeads);
-
-        const results = await this.leadDAO.createLeads(
-            attachedLeads,
-            adminId
-        );
+        const results = await this.leadDAO.createLeads(validLeads);
 
         results.forEach(result => {
             if (result.success) {
                 postedLeads.push(result.lead!);
             } else {
                 const failedLead = result.failedLead!;
-                delete failedLead.county_id;
 
                 console.warn(`lead failed to be created: ${result.error}`, { lead: failedLead });
                 if ((result.error?.toLowerCase()?.includes('duplicate lead')) === true) {
@@ -281,7 +246,7 @@ export default class LeadService {
         const { delay_same_county: countyDelay, delay_same_state: stateDelay } = currentSettings;
         // Get all leads sent within the maximum delay window
         const maxDelay = Math.max(countyDelay!, stateDelay!);
-        const flatLeadsSent = await this.leadDAO.getLeadsWithBuyerDataByTimeWindow(maxDelay, LeadDateField.PING_DATE);
+        const flatLeadsSent = await this.leadDAO.getLeadsWithBuyerDataByTimeWindow(maxDelay);
 
         // Convert flat leads to nested leads
         const leadsSent = await Promise.all(flatLeadsSent.map(lead => this.flatToNestedLead(lead)));
@@ -387,31 +352,6 @@ export default class LeadService {
             console.error('Error fetching leads:', error);
             throw new Error(`Failed to fetch leads: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-    }
-
-    getBlacklistedCounties(leadsSent: Lead[], countyDelay: number, stateDelay: number) {
-        const blacklistedCounties = new Map<string, Date>();
-
-        leadsSent.forEach(lead => {
-            if (!lead.county_id || !lead.buyer_lead) return;
-
-            const isPingAndPostSuccess = lead.buyer_lead.ping_result === 'success' &&
-                lead.buyer_lead.post_result === 'success';
-
-            if (lead.buyer_lead.ping_date) {
-                this.updateCountyBlacklist(
-                    lead.county_id,
-                    lead.buyer_lead.ping_date,
-                    lead.buyer_lead.post_date,
-                    isPingAndPostSuccess,
-                    countyDelay,
-                    stateDelay,
-                    blacklistedCounties
-                );
-            }
-        });
-
-        return blacklistedCounties;
     }
 
     isLeadEmpty = (lead: parsedLeadFromCSV): boolean => {
