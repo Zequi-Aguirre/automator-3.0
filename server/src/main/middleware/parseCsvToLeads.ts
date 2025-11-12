@@ -5,6 +5,7 @@ type ParsedCsvResult = {
     leads: parsedLeadFromCSV[];
     affiliates: Set<string>;
     campaigns: Set<string>;
+    investors: Set<string>;
 };
 
 function splitName(fullName: string): { first_name: string; last_name: string } {
@@ -83,6 +84,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     }) as Record<string, string>[];
 
     const leads: parsedLeadFromCSV[] = [];
+    const investors = new Set<string>();
     const affiliates = new Set<string>();
     const campaigns = new Set<string>();
 
@@ -97,6 +99,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             Zipcode,
             Dispute,
             Imported,
+            Investor,
             Affiliate,
             Campaign
         } = row;
@@ -106,6 +109,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
         const phone = cleanPhone(Phone);
         const email = Email?.toLowerCase() || "";
         const imported_at = parseDate(Imported);
+        if (Investor) investors.add(Investor.trim());
         if (Affiliate) affiliates.add(Affiliate.trim());
         if (Campaign) campaigns.add(Campaign.trim());
 
@@ -125,10 +129,11 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             county_id: undefined,
             imported_at,
             dispute_status: Dispute,
-            affiliate: Affiliate?.trim() || null,
-            campaign: Campaign?.trim() || null,
+            investor_id: Investor?.trim() || null,
+            affiliate_id: Affiliate?.trim() || null,
+            campaign_id: Campaign?.trim() || null,
         });
     }
 
-    return { leads, affiliates, campaigns };
+    return { leads, investors, affiliates, campaigns };
 }

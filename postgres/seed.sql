@@ -17,16 +17,6 @@ VALUES
     ('123e4567-e89b-12d3-b456-226600000305', '5 Madison Ave', 'New York', 'NY', '10010', 'Robert', 'Johnson', '+1555000005', 'lead5@example.com', '123e4567-e89a-12d3-b456-226600001110', 'New York', now() - interval '1 day')
 ON CONFLICT (id) DO NOTHING;
 
--- INSERT CAMPAIGNS (added buyer_id, using the admin user as the buyer)
-INSERT INTO public."campaigns" (id, external_id, name, is_active)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000401', '123e4567-e89b-12d3-b456-226600000401', 'Campaign A', true),
-    ('123e4567-e89b-12d3-b456-226600000402', '123e4567-e89b-12d3-b456-226600000402', 'Campaign B', true),
-    ('123e4567-e89b-12d3-b456-226600000403', '123e4567-e89b-12d3-b456-226600000403', 'Campaign C', true),
-    ('123e4567-e89b-12d3-b456-226600000404', '123e4567-e89b-12d3-b456-226600000404', 'Campaign D', true),
-    ('123e4567-e89b-12d3-b456-226600000405', '123e4567-e89b-12d3-b456-226600000405', 'Campaign E', true)
-ON CONFLICT (id) DO NOTHING;
-
 INSERT INTO public."worker_settings" ( id, name, business_hours_start, business_hours_end, minutes_range_start, minutes_range_end, delay_same_state, delay_same_county, counties_on_hold, states_on_hold, min_delay, max_delay)
 VALUES
     ('123e4567-e89b-12d3-b456-226600000501', 'Default Worker Settings', '00:01', '23:59', 4, 11, 3, 31, '[]', '[]', '2', '4')

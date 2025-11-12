@@ -2,26 +2,28 @@ import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
 import { Lead, LeadFilters } from "../types/leadTypes";
 import { parseCsvToLeads } from "../middleware/parseCsvToLeads.ts";
-import { County } from "../types/countyType.ts";
 import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
-import CountyDAO from "../data/countyDAO.ts";
+import CountyService from "../services/countyService.ts";
+import CampaignService from "../services/campaignService.ts";
+import AffiliateService from "../services/affiliateService.ts";
+import InvestorService from "../services/investorService.ts";
 
 @injectable()
 export default class LeadService {
 
     constructor(
         private readonly leadDAO: LeadDAO,
-        private readonly countyDAO: CountyDAO
-    ) {
-    }
+        private readonly countyService: CountyService,
+        private readonly campaignService: CampaignService,
+        private readonly affiliateService: AffiliateService,
+        private readonly investorService: InvestorService
+    ) {}
 
     // Lead Management Methods
     async getLeadById(leadId: string): Promise<Lead | null> {
         try {
-            // For PostgreSQL operations, use the existing implementation
             return await this.leadDAO.getById(leadId);
         } catch (error) {
-            // Provide detailed error logging while maintaining security
             console.error('Error fetching lead by ID:', {
                 leadId,
                 error: error instanceof Error ? error.message : 'Unknown error'
@@ -37,11 +39,9 @@ export default class LeadService {
         return await this.leadDAO.updateLead(leadId, leadData);
     }
 
-    // services/leadService.ts
     async trashLead(leadId: string): Promise<Lead> {
         try {
-            // If using new database, proceed normally
-                return await this.leadDAO.trashLead(leadId);
+            return await this.leadDAO.trashLead(leadId);
         } catch (error) {
             console.error('Error during lead trash process:', error);
             throw new Error(`Failed to trash lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -50,7 +50,7 @@ export default class LeadService {
 
     async getMany(filters: LeadFilters): Promise<{ leads: Lead[]; count: number }> {
         try {
-            const { limit, page } = filters
+            const { limit, page } = filters;
             return await this.leadDAO.getMany({ page, limit });
         } catch (error) {
             console.error('Error fetching leads:', error);
@@ -61,40 +61,34 @@ export default class LeadService {
     async importLeads(csvContent: string) {
         console.log('Starting CSV import...');
 
-        // 1. Parse CSV into leads, affiliates, and campaigns
-        const { leads, affiliates, campaigns } = parseCsvToLeads(csvContent);
-        console.log(`Parsed ${leads.length} leads`);
-        console.log(`Detected ${affiliates.size} affiliates, ${campaigns.size} campaigns`);
+        // 1. Parse CSV into leads, affiliates, campaigns, and investors
+        const { leads, affiliates, campaigns, investors } = parseCsvToLeads(csvContent);
 
-        // 2. Fetch existing counties
-        const existingCounties = await this.countyDAO.getAllCounties();
-        const countyMap = new Map<string, County>();
+        // 2. Resolve IDs and maps for all associated entities
+        const investorMap = await this.investorService.loadOrCreateInvestors(investors);
+        const affiliateMap = await this.affiliateService.loadOrCreateAffiliates(affiliates);
+        const campaignMap = await this.campaignService.loadOrCreateCampaigns(campaigns);
+        const countyMap = await this.countyService.loadOrCreateCounties(leads);
 
-        // Build map from normalized key: `${name.toLowerCase()}_${state.toLowerCase()}`
-        for (const county of existingCounties) {
-            const key = `${county.name.toLowerCase()}_${county.state.toLowerCase()}`;
-            countyMap.set(key, county);
-        }
-
-        // 3. Resolve counties: reuse existing or insert new ones
+        // 3. Enrich leads with foreign keys
         const resolvedLeads: parsedLeadFromCSV[] = [];
         for (const lead of leads) {
-            const county_key = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
-            let county = countyMap.get(county_key);
+            const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
+            const county = countyMap.get(countyKey);
+            const investor = investorMap.get(lead.investor_id?.toLowerCase() || '');
+            const affiliate = affiliateMap.get(lead.affiliate_id?.toLowerCase() || '');
+            const campaign = campaignMap.get(lead.campaign_id?.toLowerCase() || '');
 
-            if (!county) {
-                // Insert new county if not found
-                county = await this.countyDAO.insertCounty({
-                    name: lead.county,
-                    state: lead.state,
-                    population: null,
-                    timezone: null
-                });
-
-                countyMap.set(county_key, county); // cache it for next loop
+            if (!county || !investor || !affiliate || !campaign) {
+                console.warn('Missing related entity for lead:', lead);
+                continue; // skip this lead
             }
 
             lead.county_id = county.id;
+            lead.investor_id = investor.id;
+            lead.affiliate_id = affiliate.id;
+            lead.campaign_id = campaign.id;
+
             resolvedLeads.push(lead);
         }
 

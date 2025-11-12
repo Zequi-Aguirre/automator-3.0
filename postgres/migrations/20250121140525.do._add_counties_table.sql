@@ -53,13 +53,3 @@ ADD CONSTRAINT fk_leads_county
 FOREIGN KEY (county_id)
 REFERENCES counties(id)
 ON DELETE RESTRICT;  -- Prevents deletion of a county if leads reference it
-
-INSERT INTO public."campaigns" (id, external_id, name, is_active)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000401', '123e4567-e89b-12d3-b456-226600000401', 'Mock Campaign', true)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public."campaigns" (id, external_id, name, is_active)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000402', '2338c3d4d7', 'An Phan', true)
-ON CONFLICT (id) DO NOTHING;

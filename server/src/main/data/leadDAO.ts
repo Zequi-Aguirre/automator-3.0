@@ -3,7 +3,6 @@ import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
 import { Lead, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import { County } from "../types/countyType.ts";
 import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
 
 @injectable()

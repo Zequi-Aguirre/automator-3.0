@@ -122,10 +122,8 @@ export default class CampaignDAO {
 
         // Return only the updatable fields based on the Campaign type
         return {
-            external_id: updates.external_id ?? existingCampaign.external_id,
             name: updates.name ?? existingCampaign.name,
-            is_active: updates.is_active ?? existingCampaign.is_active
-        };
+        } as Partial<Campaign>;
     }
 
     // Update campaign status
@@ -149,5 +147,25 @@ export default class CampaignDAO {
         `;
 
         await this.db.none(query, { campaignId });
+    }
+
+    async insertCampaign(data: {
+        name: string;
+    }): Promise<Campaign> {
+        const query = `
+            INSERT INTO campaigns (name)
+            VALUES ($[name])
+            RETURNING *;
+        `;
+        return await this.db.one<Campaign>(query, data);
+    }
+
+    async getAllCampaigns(): Promise<Campaign[]> {
+        const query = `
+            SELECT * 
+            FROM campaigns 
+            WHERE deleted IS NULL;
+        `;
+        return await this.db.query<Campaign[]>(query);
     }
 }

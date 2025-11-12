@@ -40,4 +40,23 @@ export default class CampaignService {
     async deleteCampaign(campaignId: string): Promise<void> {
         return this.campaignDAO.deleteCampaign(campaignId);
     }
+
+    async loadOrCreateCampaigns(names: Set<string>): Promise<Map<string, Campaign>> {
+        const all = await this.campaignDAO.getAllCampaigns();
+        const map = new Map<string, Campaign>();
+
+        for (const campaign of all) {
+            map.set(campaign.name.toLowerCase(), campaign);
+        }
+
+        for (const name of names) {
+            const key = name.toLowerCase();
+            if (!map.has(key)) {
+                const created = await this.campaignDAO.insertCampaign({ name });
+                map.set(key, created);
+            }
+        }
+
+        return map;
+    }
 }

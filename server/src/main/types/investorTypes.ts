@@ -1,4 +1,4 @@
-export type Campaign = {
+export type Investor = {
     id: string;
     name: string;
     created?: string;
@@ -6,6 +6,6 @@ export type Campaign = {
     deleted?: string | null;
 };
 
-export type CreateCampaignInput = {
+export type CreateInvestorInput = {
     name: string;
 };

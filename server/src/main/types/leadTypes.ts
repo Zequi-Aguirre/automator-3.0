@@ -1,5 +1,3 @@
-import { BuyerLead } from "./buyerLeadTypes.ts";
-
 export type Lead = {
     id: string;
     address: string;
@@ -12,10 +10,7 @@ export type Lead = {
     last_name: string;
     phone: string;
     email: string;
-    is_test: boolean;
     created: string;
-    buyer_lead: BuyerLead | null;
-    vendor_lead_id: string;
 }
 
 export type LeadUpdateAllowedFieldsType = {
