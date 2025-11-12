@@ -4,12 +4,14 @@ import { Lead, LeadFilters } from "../types/leadTypes";
 import { parseCsvToLeads } from "../middleware/parseCsvToLeads.ts";
 import { County } from "../types/countyType.ts";
 import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
+import CountyDAO from "../data/countyDAO.ts";
 
 @injectable()
 export default class LeadService {
 
     constructor(
         private readonly leadDAO: LeadDAO,
+        private readonly countyDAO: CountyDAO
     ) {
     }
 
@@ -65,7 +67,7 @@ export default class LeadService {
         console.log(`Detected ${affiliates.size} affiliates, ${campaigns.size} campaigns`);
 
         // 2. Fetch existing counties
-        const existingCounties = await this.leadDAO.getAllCounties();
+        const existingCounties = await this.countyDAO.getAllCounties();
         const countyMap = new Map<string, County>();
 
         // Build map from normalized key: `${name.toLowerCase()}_${state.toLowerCase()}`
@@ -82,7 +84,7 @@ export default class LeadService {
 
             if (!county) {
                 // Insert new county if not found
-                county = await this.leadDAO.insertCounty({
+                county = await this.countyDAO.insertCounty({
                     name: lead.county,
                     state: lead.state,
                     population: null,

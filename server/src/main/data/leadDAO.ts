@@ -131,29 +131,6 @@ export default class LeadDAO {
         return await this.db.one(query, { id: leadId });
     }
 
-    async insertCounty(data: {
-        name: string;
-        state: string;
-        population?: number | null;
-        timezone?: string | null;
-    }): Promise<County> {
-        const query = `
-            INSERT INTO counties (name, state, population, timezone)
-            VALUES ($[name], $[state], $[population], $[timezone])
-            RETURNING *;
-          `;
-        return await this.db.one<County>(query, data);
-    }
-
-    async getAllCounties(): Promise<County[]> {
-        const query = `
-            SELECT * 
-            FROM counties 
-            WHERE deleted IS NULL;
-        `;
-        return await this.db.query<County[]>(query);
-    }
-
     async createLeads(
         leads: Array<parsedLeadFromCSV>,
     ): Promise<Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }>> {
