@@ -1,67 +1,86 @@
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid";
-import {Button, Snackbar, Alert, Typography} from "@mui/material";
-import {Lead} from "../../../../types/leadTypes.ts";
-import {Link, useNavigate} from "react-router-dom";
+import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import type { ButtonProps } from "@mui/material/Button";
+import { Button, Snackbar, Alert, Typography } from "@mui/material";
+import { Lead } from "../../../../types/leadTypes.ts";
+import { Link, useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
-import {useState} from "react";
+import { useEffect, useState } from "react";
+import { DateTime } from "luxon";
+import {
+    remainingMs,
+    formatRemaining,
+    getUrgency,
+    colorForUrgency,
+} from "../../../../utils/leadExpiry"; // adjust the relative path if needed
 
 interface LeadsTableProps {
     leads: Lead[];
     setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
 }
 
-const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
+const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     const navigate = useNavigate();
     const [loadingLeads, setLoadingLeads] = useState<Record<string, boolean>>({});
-    const [snackbar, setSnackbar] = useState({open: false, message: '', severity: 'success' as 'success' | 'error'});
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: "",
+        severity: "success" as "success" | "error",
+    });
+
+    // one ticking clock for all rows
+    const [now, setNow] = useState(DateTime.utc());
+    useEffect(() => {
+        const id = setInterval(() => {
+            setNow(DateTime.utc());
+        }, 60_000);
+        return () => {
+            clearInterval(id);
+        };
+    }, []);
 
     const handleCloseSnackbar = () => {
-        setSnackbar(prev => ({...prev, open: false}));
+        setSnackbar((prev) => ({ ...prev, open: false }));
     };
 
-    const showNotification = (message: string, severity: 'success' | 'error') => {
+    const showNotification = (message: string, severity: "success" | "error") => {
         setSnackbar({
             open: true,
             message,
-            severity
+            severity,
         });
     };
 
     const handleTrashLead = async (leadId: string) => {
         try {
-            // Pass oldDatabase flag to trashLead service
             const leadDeleted = await leadsService.trashLead(leadId);
             setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadDeleted.id));
-            showNotification('Lead moved to trash successfully', 'success');
+            showNotification("Lead moved to trash successfully", "success");
         } catch (error) {
-            showNotification('Failed to trash lead', 'error');
+            showNotification("Failed to trash lead", "error");
             console.error("Error trashing the lead:", error);
         }
     };
 
     const handleSendLead = async (leadId: string) => {
-        setLoadingLeads(prev => ({...prev, [leadId]: true}));
-
+        setLoadingLeads((prev) => ({ ...prev, [leadId]: true }));
         try {
-            // Pass oldDatabase flag to sendLead service
             const sendLeadResponse = await leadsService.sendLead(leadId);
             if (sendLeadResponse.success) {
                 setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
-                showNotification('Lead sent successfully', 'success');
+                showNotification("Lead sent successfully", "success");
             } else {
                 setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
-                showNotification(sendLeadResponse.message || 'Failed to send lead', 'error');
+                showNotification(sendLeadResponse.message || "Failed to send lead", "error");
             }
         } catch (error) {
-            showNotification('Failed to send lead', 'error');
+            showNotification("Failed to send lead", "error");
             console.error("Error sending the lead:", error);
         } finally {
-            setLoadingLeads(prev => ({...prev, [leadId]: false}));
+            setLoadingLeads((prev) => ({ ...prev, [leadId]: false }));
         }
     };
 
     const handleRowClick = (params: Lead) => {
-        // Include oldDatabase parameter in navigation
         navigate(`/a/leads/${params.id}`);
     };
 
@@ -70,67 +89,74 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
         name: `${lead.first_name} ${lead.last_name}`,
         contact: {
             phone: lead.phone,
-            email: lead.email
+            email: lead.email,
         },
         location: {
             address: lead.address,
             city: lead.city,
             state: lead.state,
-            zipcode: lead.zipcode
+            zipcode: lead.zipcode,
         },
         county: lead.county ?? "No county saved",
         state: lead.state,
-        dayReceived: lead.created
+        imported_at: lead.imported_at
             ? {
-                date: lead.created.slice(0, 10),
-                time: lead.created.slice(11, 16)
+                date: DateTime.fromISO(lead.imported_at, { zone: "utc" })
+                    .setZone("America/New_York")
+                    .toFormat("yyyy-MM-dd"),
+                time: DateTime.fromISO(lead.imported_at, { zone: "utc" })
+                    .setZone("America/New_York")
+                    .toFormat("HH:mm"),
             }
             : null,
-        daySent: lead.buyer_lead?.ping_date
+        daySent: lead.sent_date
             ? {
-                date: lead.buyer_lead.ping_date.slice(0, 10),
-                time: lead.buyer_lead.ping_date.slice(11, 16)
+                date: DateTime.fromISO(lead.sent_date, { zone: "utc" })
+                    .setZone("America/New_York")
+                    .toFormat("yyyy-MM-dd"),
+                time: DateTime.fromISO(lead.sent_date, { zone: "utc" })
+                    .setZone("America/New_York")
+                    .toFormat("HH:mm"),
             }
             : null,
-        buyer_lead: lead.buyer_lead,
-        raw: lead
+        raw: lead,
     }));
 
     const columns: GridColDef[] = [
         {
-            field: 'name',
-            headerName: 'Name',
+            field: "name",
+            headerName: "Name",
             flex: 1,
-            sortingOrder: ['asc', 'desc'],
+            sortingOrder: ["asc", "desc"],
             renderCell: (params) => (
                 <Typography
                     className="cursor-pointer hover:underline"
                     color="primary"
                     onClick={() => {
-                        handleRowClick(params.row)
+                        handleRowClick(params.row);
                     }}
                 >
                     {params.value}
                 </Typography>
-            )
+            ),
         },
         {
-            field: 'contact',
-            headerName: 'Contact',
+            field: "contact",
+            headerName: "Contact",
             flex: 1.5,
-            sortingOrder: ['asc', 'desc'],
+            sortingOrder: ["asc", "desc"],
             renderCell: (params) => (
                 <div className="flex flex-col">
                     <Typography variant="body2">{params.value.phone}</Typography>
                     <Typography variant="body2">{params.value.email}</Typography>
                 </div>
-            )
+            ),
         },
         {
-            field: 'location',
-            headerName: 'Address',
+            field: "location",
+            headerName: "Address",
             flex: 1.5,
-            sortingOrder: ['asc', 'desc'],
+            sortingOrder: ["asc", "desc"],
             renderCell: (params) => (
                 <div className="flex flex-col">
                     <Typography variant="body2">{params.value.address}</Typography>
@@ -138,41 +164,56 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                         {params.value.city}, {params.value.state} {params.value.zipcode}
                     </Typography>
                 </div>
-            )
+            ),
         },
+        { field: "county", headerName: "County", flex: 1, sortingOrder: ["asc", "desc"] },
+        { field: "state", headerName: "State", flex: 0.7 },
         {
-            field: 'county',
-            headerName: 'County',
-            flex: 1,
-            sortingOrder: ['asc', 'desc'],
-        },
-        {
-            field: 'state',
-            headerName: 'State',
-            flex: 0.7
-        },
-        {
-            field: 'dayReceived',
-            headerName: 'Received',
+            field: "imported_at",
+            headerName: "Received",
             flex: 1,
             sortable: false,
             filterable: false,
-            renderCell: (params) => params.value
+            renderCell: (params) =>
+                params.value
                 ? (
                     <div className="flex flex-col">
                         <Typography variant="body2">{params.value.date}</Typography>
                         <Typography variant="body2">{params.value.time}</Typography>
                     </div>
                 )
-                : 'N/A'
+                : (
+                    "N/A"
+                ),
         },
         {
-            field: 'daySent',
-            headerName: 'Sent',
+            field: "expires_in",
+            headerName: "Expires In",
+            flex: 1.1,
+            sortable: false,
+            filterable: false,
+            renderCell: (params: GridRenderCellParams) => {
+                const importedISO: string | null = params.row.raw?.imported_at ?? null;
+                if (!importedISO) return "—";
+                const ms = remainingMs(importedISO, now);
+                const label = formatRemaining(ms);
+                const urgency = getUrgency(ms);
+                const color = colorForUrgency(urgency);
+                return (
+                    <Typography variant="body2" sx={{ color, fontWeight: urgency === "expired" ? 700 : 500 }}>
+                        {label}
+                    </Typography>
+                );
+            },
+        },
+        {
+            field: "daySent",
+            headerName: "Send | Verify",
             flex: 1.2,
             sortable: false,
             filterable: false,
             renderCell: (params: GridRenderCellParams) => {
+                // If already sent, show the timestamp as before
                 if (params.value) {
                     return (
                         <div className="flex flex-col">
@@ -182,29 +223,51 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                     );
                 }
 
-                const getButtonColor = (isLoading: boolean): "primary" | "error" => {
-                    return !isLoading ? "primary" : "error";
-                };
+                const isLoading: boolean = loadingLeads[params.row.id];
+                const isVerified: boolean = !!params.row.raw?.verified;
 
+                // Use MUI’s own type so we can use "warning"
+                const buttonColor: ButtonProps["color"] = isVerified
+                    ? (isLoading ? "error" : "primary")
+                    : "warning";
+
+                // If not verified, show the verify button that navigates to Details
+                if (!isVerified) {
+                    return (
+                        <Button
+                            variant="contained"
+                            color={buttonColor}
+                            size="small"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/a/leads/${params.row.id}`);
+                            }}
+                        >
+                            Verify Lead
+                        </Button>
+                    );
+                }
+
+                // Verified but not sent: show Send Now
                 return (
                     <Button
                         variant="contained"
-                        color={getButtonColor(loadingLeads[params.row.id])}
+                        color={buttonColor}
                         size="small"
-                        disabled={loadingLeads[params.row.id]}
+                        disabled={isLoading}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleSendLead(params.row.id);
                         }}
                     >
-                        {loadingLeads[params.row.id] ? "Processing..." : "Send Now!"}
+                        {isLoading ? "Processing..." : "Send Now!"}
                     </Button>
                 );
-            }
+            },
         },
         {
-            field: 'actions',
-            headerName: 'Actions',
+            field: "actions",
+            headerName: "Actions",
             flex: 1,
             sortable: false,
             filterable: false,
@@ -217,7 +280,7 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                         color="primary"
                         size="small"
                         onClick={(e) => {
-                            e.stopPropagation()
+                            e.stopPropagation();
                         }}
                     >
                         Details
@@ -226,7 +289,7 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                         variant="contained"
                         color="error"
                         size="small"
-                        sx={{marginLeft: '20px'}}
+                        sx={{ marginLeft: "20px" }}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleTrashLead(params.row.id);
@@ -235,8 +298,8 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                         Trash
                     </Button>
                 </div>
-            )
-        }
+            ),
+        },
     ];
 
     return (
@@ -247,18 +310,14 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                 disableRowSelectionOnClick
                 hideFooter
                 onSortModelChange={(params) => {
-                    console.log('Sort model changed:', params[0]);
+                    console.log("Sort model changed:", params[0]);
                 }}
                 onFilterModelChange={(params) => {
-                    console.log('Filter model changed:', params);
+                    console.log("Filter model changed:", params);
                 }}
                 sx={{
-                    '& .MuiDataGrid-cell': {
-                        py: 2
-                    },
-                    '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: 'action.hover'
-                    }
+                    "& .MuiDataGrid-cell": { py: 2 },
+                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
                 }}
             />
 
@@ -266,13 +325,13 @@ const AdminLeadsTable = ({leads, setLeads}: LeadsTableProps) => {
                 open={snackbar.open}
                 autoHideDuration={3000}
                 onClose={handleCloseSnackbar}
-                anchorOrigin={{vertical: 'top', horizontal: 'right'}}
+                anchorOrigin={{ vertical: "top", horizontal: "right" }}
             >
                 <Alert
                     onClose={handleCloseSnackbar}
                     severity={snackbar.severity}
                     variant="filled"
-                    sx={{width: '100%'}}
+                    sx={{ width: "100%" }}
                 >
                     {snackbar.message}
                 </Alert>

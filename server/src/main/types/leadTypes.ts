@@ -32,7 +32,6 @@ export type LeadUpdateAllowedFieldsType = {
 export type LeadFilters = {
     page: number;
     limit: number;
-    oldDatabase: boolean;
 };
 
 export type FlatLead = {

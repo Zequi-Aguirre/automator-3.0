@@ -29,6 +29,7 @@ const AdminLeadsSection = () => {
     const fetchLeads = useCallback(() => {
         setLoading(true);
         LeadsService.getMany({ page, limit }).then((response) => {
+            console.log('Fetched leads:', response);
             setLeads(response.leads);
             setLeadCount(response.count);
             setLoading(false);

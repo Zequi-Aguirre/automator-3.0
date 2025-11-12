@@ -1,5 +1,3 @@
-import { BuyerLead } from "./buyerLeadTypes.ts";
-
 export type Lead = {
     id: string;
     address: string;
@@ -11,7 +9,9 @@ export type Lead = {
     last_name: string;
     phone: string;
     email: string;
-    is_test: boolean;
     created: string;
-    buyer_lead: BuyerLead | null;
+    imported_at: string;
+    sent_date: string | null;
+    sent: boolean;
+    verified: boolean;
 }

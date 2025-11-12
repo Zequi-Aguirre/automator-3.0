@@ -1,12 +1,10 @@
 import { injectable } from "tsyringe";
 import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
-import { FlatLead, Lead, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
+import { Lead, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
 import { County } from "../types/countyType.ts";
 import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
-
-type CreateLeadDTO = Pick<Lead, 'address' | 'city' | 'state' | 'zipcode' | 'is_test' | 'county_id' >;
 
 @injectable()
 export default class LeadDAO {
@@ -14,60 +12,6 @@ export default class LeadDAO {
 
     constructor(db: DBContainer) {
         this.db = db.database();
-    }
-
-    // Create a new lead with basic information
-    async createBasicLead(lead: CreateLeadDTO): Promise<Lead> {
-        const query = `
-            INSERT INTO leads (
-                address,
-                city,
-                state,
-                zipcode,
-                county_id,
-                is_test
-            ) VALUES (
-                $(address),
-                $(city),
-                $(state),
-                $(zipcode),
-                $(county_id),
-                $(is_test)
-            )
-            RETURNING *;
-        `;
-
-        return await this.db.one<Lead>(query, lead);
-    }
-
-    // create full lead
-    async createLead(lead: Lead): Promise<Lead> {
-        const query = `
-            INSERT INTO leads (
-                address,
-                city,
-                state,
-                zipcode,
-                first_name,
-                last_name,
-                phone,
-                email,
-                county
-            ) VALUES (
-                $(address),
-                $(city),
-                $(state),
-                $(zipcode),
-                $(first_name),
-                $(last_name),
-                $(phone),
-                $(email),
-                $(county)
-            )
-            RETURNING *;
-        `;
-
-        return await this.db.one<Lead>(query, lead);
     }
 
     async updateLead(
@@ -147,177 +91,32 @@ export default class LeadDAO {
         return await this.db.oneOrNone<Lead>(query, { id });
     }
 
-    // Get all leads
-    async getAll(limit: number = 50, offset: number = 0): Promise<Lead[]> {
-        const query = `
+    async getMany(filters: { page: number; limit: number }): Promise<{ leads: Lead[]; count: number }> {
+        const { page, limit } = filters;
+        const offset = (page - 1) * limit;
+
+        // Query #1: Get paginated leads
+        const leadsQuery = `
             SELECT *
             FROM leads
             WHERE deleted IS NULL
-            ORDER BY created DESC
-            LIMIT $(limit) OFFSET $(offset);
+            ORDER BY modified DESC
+            LIMIT $1 OFFSET $2
         `;
+        const leads = await this.db.manyOrNone<Lead>(leadsQuery, [limit, offset]);
 
-        return await this.db.manyOrNone<Lead>(query, { limit, offset });
-    }
-
-    async getMany(filters: { page: number; limit: number }): Promise<{ leads: Lead[]; count: number }> {
-        const query = `
-            WITH filtered_leads AS (
-                SELECT l.*
-                FROM leads l
-                LEFT JOIN buyer_lead bl ON l.id = bl.lead_id
-                WHERE l.deleted IS NULL
-                AND bl.id IS NULL
-            ),
-            paginated_leads AS (
-                SELECT *
-                FROM filtered_leads
-                ORDER BY modified DESC
-                LIMIT $1 OFFSET $2
-            )
-            SELECT 
-                (SELECT COUNT(*) FROM filtered_leads) AS total_count,
-                paginated_leads.*
-            FROM paginated_leads;
+        // Query #2: Get total count (ignores pagination)
+        const countQuery = `
+            SELECT COUNT(*)::int AS total
+            FROM leads
+            WHERE deleted IS NULL
         `;
-
-            const result = await this.db.manyOrNone(query, [
-                filters.limit,
-                (filters.page - 1) * filters.limit
-            ]);
-
-            // Modified count query to match the same filter condition
-            const countQuery = `
-            SELECT COUNT(*) AS total_count
-            FROM leads l
-            LEFT JOIN buyer_lead bl ON l.id = bl.lead_id
-            WHERE l.deleted IS NULL
-            AND bl.id IS NULL;
-        `;
-
-        const countResult = await this.db.one(countQuery);
+        const { total } = await this.db.one<{ total: number }>(countQuery);
 
         return {
-            leads: result || [],
-            count: countResult.total_count || 0,
+            leads,
+            count: total
         };
-    }
-
-    async getNotSentLeads(limit: number = 1000): Promise<Lead[]> {
-        const query = `
-            SELECT l.*
-            FROM leads l
-            LEFT JOIN buyer_lead bl ON l.id = bl.lead_id
-            WHERE l.deleted IS NULL
-            AND bl.id IS NULL
-            AND l.first_name IS NOT NULL
-            AND l.last_name IS NOT NULL
-            AND l.phone IS NOT NULL
-            AND l.email IS NOT NULL
-            ORDER BY l.modified DESC
-            LIMIT $(limit);
-        `;
-
-        return await this.db.manyOrNone<Lead>(query, { limit });
-    }
-
-    async getNotBlacklistedLeads(
-        blacklistedStates: string[],
-        limit: number = 1000
-    ): Promise<Lead[]> {
-        console.log(blacklistedStates);
-        console.log('// TODO AU2-61 set black listed to empty array');
-        blacklistedStates = [];
-        const query = `
-            SELECT l.*, c.timezone
-            FROM leads l
-            LEFT JOIN buyer_lead bl ON l.id = bl.lead_id
-            LEFT JOIN counties c ON l.county_id = c.id
-            WHERE l.deleted IS NULL
-            AND bl.id IS NULL
-            AND l.first_name IS NOT NULL
-            AND l.last_name IS NOT NULL
-            AND l.phone IS NOT NULL
-            AND l.email IS NOT NULL
-            AND NOT (
-                l.state = ANY($(blacklistedStates)::text[])
-                OR (l.county_id = ANY($(blacklistedCounties)::uuid[]))
-            )
-            ORDER BY l.modified DESC
-            LIMIT $(limit);
-        `;
-
-        return await this.db.manyOrNone<Lead>(query, {
-            blacklistedStates,
-            limit,
-        });
-    }
-
-    async getLastLeadSentByState(state: string): Promise<{ sent_at: Date } | null> {
-        // TODO AU2-61 ask Jason if the last sent is based on ping or post timestamp
-        const query = `
-            SELECT bl.post_date as sent_at
-            FROM leads l
-            JOIN buyer_lead bl ON l.id = bl.lead_id
-            WHERE l.state = $(state)
-            AND bl.post_date IS NOT NULL
-            AND bl.post_result = 'success'
-            ORDER BY bl.post_date DESC
-            LIMIT 1;
-        `;
-
-        return await this.db.oneOrNone(query, { state });
-    }
-
-    async getLeadsWithBuyerDataByTimeWindow(
-        hours: number
-    ): Promise<FlatLead[]> {
-        if (hours <= 0) {
-            throw new Error("Hours must be a positive number");
-        }
-
-        const query = `
-            SELECT 
-                l.*,
-                bl.id as "buyer_lead.id",
-                bl.buyer_id as "buyer_lead.buyer_id",
-                bl.campaign_id as "buyer_lead.campaign_id",
-                bl.company_name as "buyer_lead.company_name",
-                bl.error_message as "buyer_lead.error_message",
-                bl.payout as "buyer_lead.payout",
-                bl.ping_date as "buyer_lead.ping_date",
-                bl.ping_id as "buyer_lead.ping_id",
-                bl.ping_message as "buyer_lead.ping_message",
-                bl.ping_result as "buyer_lead.ping_result",
-                bl.post_date as "buyer_lead.post_date",
-                bl.post_message as "buyer_lead.post_message",
-                bl.post_result as "buyer_lead.post_result",
-                bl.sent_by_user_id as "buyer_lead.sent_by_user_id",
-                bl.status as "buyer_lead.status"
-            FROM leads l
-            JOIN buyer_lead bl ON l.id = bl.lead_id
-            WHERE l.deleted IS NULL
-            AND bl.deleted IS NULL;
-        `;
-
-        // Using proper parameterization
-        return await this.db.manyOrNone(query, [hours]);
-    }
-
-    async getLastLeadSentByCounty(countyId: string): Promise<{ sent_at: Date } | null> {
-        // TODO AU2-61 ask Jason if the last sent is based on ping or post timestamp
-        const query = `
-            SELECT bl.post_date as sent_at
-            FROM leads l
-            JOIN buyer_lead bl ON l.id = bl.lead_id
-            WHERE l.county_id = $(countyId)
-            AND bl.post_date IS NOT NULL
-            AND bl.post_result = 'success'
-            ORDER BY bl.post_date DESC
-            LIMIT 1;
-        `;
-
-        return await this.db.oneOrNone(query, { countyId });
     }
 
     async trashLead(leadId: string): Promise<Lead> {
@@ -330,6 +129,20 @@ export default class LeadDAO {
         `;
 
         return await this.db.one(query, { id: leadId });
+    }
+
+    async insertCounty(data: {
+        name: string;
+        state: string;
+        population?: number | null;
+        timezone?: string | null;
+    }): Promise<County> {
+        const query = `
+            INSERT INTO counties (name, state, population, timezone)
+            VALUES ($[name], $[state], $[population], $[timezone])
+            RETURNING *;
+          `;
+        return await this.db.one<County>(query, data);
     }
 
     async getAllCounties(): Promise<County[]> {
@@ -345,20 +158,26 @@ export default class LeadDAO {
         leads: Array<parsedLeadFromCSV>,
     ): Promise<Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }>> {
         return this.db.task(async t => {
-            const results: Array<{ success: boolean; lead?: Lead; failedLead?: parsedLeadFromCSV; error?: string }> = [];
+            console.log(`Inserting ${leads.length} leads into the database...`);
+            const results: Array<{
+                success: boolean;
+                lead?: Lead;
+                failedLead?: parsedLeadFromCSV;
+                error?: string
+            }> = [];
 
             for (const lead of leads) {
                 try {
                     const postedLead: Lead = await t.one(
                         `
-          INSERT INTO leads (
-            name, email, phone, address, city, state, zip_code, county, county_id
-          )
-          VALUES (
-            $[name], $[email], $[phone], $[address], $[city], $[state], $[zip_code], $[county], $[county_id]
-          )
-          RETURNING *;
-        `,
+                          INSERT INTO leads (
+                            first_name, last_name, email, phone, address, city, state, zipcode, county, county_id, imported_at
+                          )
+                          VALUES (
+                            $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode], $[county], $[county_id], $[imported_at]
+                          )
+                          RETURNING *;
+                        `,
                         { ...lead }
                     );
 

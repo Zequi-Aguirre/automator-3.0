@@ -21,7 +21,6 @@ export default class LeadResource {
                 const filters = {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 10,
-                    oldDatabase: req.query.oldDatabase === 'true'
                 };
                 const result = await this.leadService.getMany(filters);
                 return res.status(200).send(result);
@@ -111,7 +110,6 @@ export default class LeadResource {
 
                 const csvContent = req.file.buffer.toString('utf8');
                 const result = await this.leadService.importLeads(csvContent);
-
                 return res.status(200).send(result);
             } catch (error) {
                 console.error("Error handling import:", error);

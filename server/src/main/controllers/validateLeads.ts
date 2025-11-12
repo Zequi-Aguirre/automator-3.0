@@ -1,14 +1,19 @@
 export type parsedLeadFromCSV = {
     name: string;
+    first_name: string;
+    last_name: string;
     phone: string;
     email: string;
     address: string;
     city: string;
     state: string;
-    zip_code: string;
+    zipcode: string;
     county: string;
     county_id?: string;
-    reason?: string;
+    imported_at: Date;
+    dispute_status?: string;
+    affiliate?: string | null;
+    campaign?: string | null;
 };
 
 export function levenshteinDistance(a: string, b: string): number {

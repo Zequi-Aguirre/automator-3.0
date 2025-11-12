@@ -8,5 +8,3 @@ CREATE TABLE public."users" (
   modified TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   deleted TIMESTAMP WITH TIME ZONE
 );
-
-DELETE FROM buyers;
