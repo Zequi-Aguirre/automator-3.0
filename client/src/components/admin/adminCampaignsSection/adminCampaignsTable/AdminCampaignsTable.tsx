@@ -1,19 +1,12 @@
-import { useState } from 'react';
-import {
-    Box,
-    Snackbar,
-    Alert,
-    IconButton,
-    Button,
-    Typography,
-} from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { CheckCircle, Cancel } from '@mui/icons-material';
+import {useState} from 'react';
+import {Alert, Box, Button, IconButton, Snackbar, Typography,} from '@mui/material';
+import {DataGrid, GridColDef} from '@mui/x-data-grid';
+import {Cancel, CheckCircle} from '@mui/icons-material';
 import StarIcon from '@mui/icons-material/Star';
-import { Link } from 'react-router-dom';
+import {Link} from 'react-router-dom';
 
-import { Campaign } from '../../../../types/campaignTypes';
-import { Affiliate } from '../../../../types/affiliateTypes.ts';
+import {Campaign} from '../../../../types/campaignTypes';
+import {Affiliate} from '../../../../types/affiliateTypes.ts';
 import campaignService from '../../../../services/campaign.service';
 
 interface Props {
@@ -59,8 +52,7 @@ const AdminCampaignsTable = ({ campaigns, setCampaigns, affiliates }: Props) => 
                     return a.id === params.row.affiliate_id;
                 });
 
-                const affiliateBlacklisted = affiliate?.blacklisted === true;
-                const disabled = affiliateBlacklisted;
+                const disabled = affiliate?.blacklisted === true || params.row.blacklisted === true;
 
                 return (
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
