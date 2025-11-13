@@ -11,35 +11,37 @@ export default class CountyService {
         return await this.countyDAO.getAllCounties();
     }
 
-    async create(data: County): Promise<County> {
-        return await this.countyDAO.insertCounty(data);
-    }
-
-    async findByNameAndState(name: string, state: string): Promise<County | null> {
-        const all = await this.countyDAO.getAllCounties();
-        return all.find(
-            c => c.name.toLowerCase() === name.toLowerCase() && c.state.toLowerCase() === state.toLowerCase()
-        ) || null;
-    }
-
     async loadOrCreateCounties(leads: parsedLeadFromCSV[]): Promise<Map<string, County>> {
         const existingCounties = await this.countyDAO.getAllCounties();
         const countyMap = new Map<string, County>();
 
+        // Build map from existing records
         for (const county of existingCounties) {
             const key = `${county.name.toLowerCase()}_${county.state.toLowerCase()}`;
             countyMap.set(key, county);
         }
 
         for (const lead of leads) {
-            const key = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
+            // Clean incoming values
+            const rawCounty = (lead.county ?? "").trim().replace(/^,/, "").trim();
+            const rawState = (lead.state ?? "").trim();
+
+            // Skip if either is missing or empty after cleanup
+            if (!rawCounty || !rawState) {
+                continue;
+            }
+
+            const key = `${rawCounty.toLowerCase()}_${rawState.toLowerCase()}`;
+
+            // Insert only if not already in map
             if (!countyMap.has(key)) {
                 const newCounty = await this.countyDAO.insertCounty({
-                    name: lead.county,
-                    state: lead.state,
+                    name: rawCounty,
+                    state: rawState,
                     population: null,
                     timezone: null
                 });
+
                 countyMap.set(key, newCounty);
             }
         }
@@ -49,5 +51,9 @@ export default class CountyService {
 
     async updateCountyBlacklistStatus(id: string, blacklisted: boolean): Promise<County> {
         return this.countyDAO.updateCountyBlacklistStatus(id, blacklisted);
+    }
+
+    async getMany(filters: { page: number; limit: number }): Promise<{ counties: County[]; count: number }> {
+        return await this.countyDAO.getMany(filters);
     }
 }

@@ -1,339 +1,118 @@
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
-import type { ButtonProps } from "@mui/material/Button";
-import { Button, Snackbar, Alert, Typography } from "@mui/material";
-import { Lead } from "../../../../types/leadTypes.ts";
-import { Link, useNavigate } from "react-router-dom";
-import leadsService from "../../../../services/lead.service.tsx";
-import { useEffect, useState } from "react";
-import { DateTime } from "luxon";
+import { useState } from 'react';
 import {
-    remainingMs,
-    formatRemaining,
-    getUrgency,
-    colorForUrgency,
-} from "../../../../utils/leadExpiry"; // adjust the relative path if needed
+    Button,
+    Snackbar,
+    Alert,
+    Box
+} from '@mui/material';
+import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { County } from '../../../../types/countyTypes';
+import countyService from '../../../../services/county.service';
 
-interface LeadsTableProps {
-    leads: Lead[];
-    setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
+interface Props {
+    counties: County[];
+    setCounties: React.Dispatch<React.SetStateAction<County[]>>;
 }
 
-const AdminCountiesTable = ({ leads, setLeads }: LeadsTableProps) => {
-    const navigate = useNavigate();
-    const [loadingLeads, setLoadingLeads] = useState<Record<string, boolean>>({});
-    const [snackbar, setSnackbar] = useState({
+const AdminCountiesTable = ({ counties, setCounties }: Props) => {
+    const [snack, setSnack] = useState({
         open: false,
-        message: "",
-        severity: "success" as "success" | "error",
+        message: '',
+        severity: 'success' as 'success' | 'error'
     });
 
-    // one ticking clock for all rows
-    const [now, setNow] = useState(DateTime.utc());
-    useEffect(() => {
-        const id = setInterval(() => {
-            setNow(DateTime.utc());
-        }, 60_000);
-        return () => {
-            clearInterval(id);
-        };
-    }, []);
-
-    const handleCloseSnackbar = () => {
-        setSnackbar((prev) => ({ ...prev, open: false }));
+    const closeSnack = () => {
+        setSnack(prev => ({ ...prev, open: false }));
     };
 
-    const showNotification = (message: string, severity: "success" | "error") => {
-        setSnackbar({
-            open: true,
-            message,
-            severity,
-        });
+    const show = (msg: string, severity: 'success' | 'error') => {
+        setSnack({ open: true, message: msg, severity });
     };
 
-    const handleTrashLead = async (leadId: string) => {
+    const toggleBlacklist = async (id: string, value: boolean) => {
         try {
-            const leadDeleted = await leadsService.trashLead(leadId);
-            setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadDeleted.id));
-            showNotification("Lead moved to trash successfully", "success");
-        } catch (error) {
-            showNotification("Failed to trash lead", "error");
-            console.error("Error trashing the lead:", error);
+            const updated = await countyService.updateBlacklist(id, value);
+            setCounties(prev =>
+                prev.map(c => (c.id === id ? updated : c))
+            );
+            show('County updated successfully', 'success');
+        } catch (err) {
+            show('Failed to update county', 'error');
         }
     };
-
-    const handleSendLead = async (leadId: string) => {
-        setLoadingLeads((prev) => ({ ...prev, [leadId]: true }));
-        try {
-            const sendLeadResponse = await leadsService.sendLead(leadId);
-            if (sendLeadResponse.success) {
-                setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
-                showNotification("Lead sent successfully", "success");
-            } else {
-                setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
-                showNotification(sendLeadResponse.message || "Failed to send lead", "error");
-            }
-        } catch (error) {
-            showNotification("Failed to send lead", "error");
-            console.error("Error sending the lead:", error);
-        } finally {
-            setLoadingLeads((prev) => ({ ...prev, [leadId]: false }));
-        }
-    };
-
-    const handleRowClick = (params: Lead) => {
-        navigate(`/a/leads/${params.id}`);
-    };
-
-    const rows = leads.map((lead) => ({
-        id: lead.id,
-        name: `${lead.first_name} ${lead.last_name}`,
-        contact: {
-            phone: lead.phone,
-            email: lead.email,
-        },
-        location: {
-            address: lead.address,
-            city: lead.city,
-            state: lead.state,
-            zipcode: lead.zipcode,
-        },
-        county: lead.county ?? "No county saved",
-        state: lead.state,
-        imported_at: lead.imported_at
-            ? {
-                date: DateTime.fromISO(lead.imported_at, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("yyyy-MM-dd"),
-                time: DateTime.fromISO(lead.imported_at, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("HH:mm"),
-            }
-            : null,
-        daySent: lead.sent_date
-            ? {
-                date: DateTime.fromISO(lead.sent_date, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("yyyy-MM-dd"),
-                time: DateTime.fromISO(lead.sent_date, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("HH:mm"),
-            }
-            : null,
-        raw: lead,
-    }));
 
     const columns: GridColDef[] = [
         {
-            field: "name",
-            headerName: "Name",
+            field: 'name',
+            headerName: 'County',
             flex: 1,
-            sortingOrder: ["asc", "desc"],
-            renderCell: (params) => (
-                <Typography
-                    className="cursor-pointer hover:underline"
-                    color="primary"
-                    onClick={() => {
-                        handleRowClick(params.row);
-                    }}
-                >
-                    {params.value}
-                </Typography>
-            ),
+            minWidth: 150
         },
         {
-            field: "contact",
-            headerName: "Contact",
-            flex: 1.5,
-            sortingOrder: ["asc", "desc"],
-            renderCell: (params) => (
-                <div className="flex flex-col">
-                    <Typography variant="body2">{params.value.phone}</Typography>
-                    <Typography variant="body2">{params.value.email}</Typography>
-                </div>
-            ),
+            field: 'state',
+            headerName: 'State',
+            flex: 0.6,
+            minWidth: 100
         },
         {
-            field: "location",
-            headerName: "Address",
-            flex: 1.5,
-            sortingOrder: ["asc", "desc"],
-            renderCell: (params) => (
-                <div className="flex flex-col">
-                    <Typography variant="body2">{params.value.address}</Typography>
-                    <Typography variant="body2">
-                        {params.value.city}, {params.value.state} {params.value.zipcode}
-                    </Typography>
-                </div>
-            ),
-        },
-        { field: "county", headerName: "County", flex: 1, sortingOrder: ["asc", "desc"] },
-        { field: "state", headerName: "State", flex: 0.7 },
-        {
-            field: "imported_at",
-            headerName: "Received",
+            field: 'population',
+            headerName: 'Population',
             flex: 1,
-            sortable: false,
-            filterable: false,
-            renderCell: (params) =>
-                params.value
-                ? (
-                    <div className="flex flex-col">
-                        <Typography variant="body2">{params.value.date}</Typography>
-                        <Typography variant="body2">{params.value.time}</Typography>
-                    </div>
-                )
-                : (
-                    "N/A"
-                ),
+            minWidth: 120,
+            renderCell: (params) => params.value ?? '—'
         },
         {
-            field: "expires_in",
-            headerName: "Expires In",
-            flex: 1.1,
-            sortable: false,
-            filterable: false,
-            renderCell: (params: GridRenderCellParams) => {
-                const importedISO: string | null = params.row.raw?.imported_at ?? null;
-                if (!importedISO) return "—";
-                const ms = remainingMs(importedISO, now);
-                const label = formatRemaining(ms);
-                const urgency = getUrgency(ms);
-                const color = colorForUrgency(urgency);
-                return (
-                    <Typography variant="body2" sx={{ color, fontWeight: urgency === "expired" ? 700 : 500 }}>
-                        {label}
-                    </Typography>
-                );
-            },
+            field: 'timezone',
+            headerName: 'Timezone',
+            flex: 1,
+            minWidth: 120,
+            renderCell: (params) => params.value ?? '—'
         },
         {
-            field: "daySent",
-            headerName: "Send | Verify",
-            flex: 1.2,
-            sortable: false,
-            filterable: false,
-            renderCell: (params: GridRenderCellParams) => {
-                // If already sent, show the timestamp as before
-                if (params.value) {
-                    return (
-                        <div className="flex flex-col">
-                            <Typography variant="body2">{params.value.date}</Typography>
-                            <Typography variant="body2">{params.value.time}</Typography>
-                        </div>
-                    );
-                }
+            field: 'blacklisted',
+            headerName: 'Status',
+            minWidth: 200,
+            flex: 1,
+            renderCell: (params) => {
+                const isBlacklisted = params.value;
+                const id = params.row.id;
 
-                const isLoading: boolean = loadingLeads[params.row.id];
-                const isVerified: boolean = !!params.row.raw?.verified;
-
-                // Use MUI’s own type so we can use "warning"
-                const buttonColor: ButtonProps["color"] = isVerified
-                    ? (isLoading ? "error" : "primary")
-                    : "warning";
-
-                // If not verified, show the verify button that navigates to Details
-                if (!isVerified) {
-                    return (
-                        <Button
-                            variant="contained"
-                            color={buttonColor}
-                            size="small"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/a/leads/${params.row.id}`);
-                            }}
-                        >
-                            Verify Lead
-                        </Button>
-                    );
-                }
-
-                // Verified but not sent: show Send Now
                 return (
                     <Button
                         variant="contained"
-                        color={buttonColor}
-                        size="small"
-                        disabled={isLoading}
+                        color={(isBlacklisted ? 'error' : 'success') as 'error' | 'success'}
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleSendLead(params.row.id);
+                            toggleBlacklist(id, !isBlacklisted);
                         }}
                     >
-                        {isLoading ? "Processing..." : "Send Now!"}
+                        {isBlacklisted ? 'BLACKLISTED' : 'ACTIVE'}
                     </Button>
                 );
-            },
-        },
-        {
-            field: "actions",
-            headerName: "Actions",
-            flex: 1,
-            sortable: false,
-            filterable: false,
-            renderCell: (params) => (
-                <div className="flex gap-2">
-                    <Button
-                        component={Link}
-                        to={`/a/leads/${params.row.id}`}
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                        }}
-                    >
-                        Details
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        size="small"
-                        sx={{ marginLeft: "20px" }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleTrashLead(params.row.id);
-                        }}
-                    >
-                        Trash
-                    </Button>
-                </div>
-            ),
-        },
+            }
+        }
     ];
 
     return (
         <>
-            <DataGrid
-                rows={rows}
-                columns={columns}
-                disableRowSelectionOnClick
-                hideFooter
-                onSortModelChange={(params) => {
-                    console.log("Sort model changed:", params[0]);
-                }}
-                onFilterModelChange={(params) => {
-                    console.log("Filter model changed:", params);
-                }}
-                sx={{
-                    "& .MuiDataGrid-cell": { py: 2 },
-                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
-                }}
-            />
+            <Box sx={{ width: '100%', minWidth: 800, mx: 'auto' }}>
+                <DataGrid
+                    rows={counties}
+                    columns={columns}
+                    getRowId={(row) => row.id}
+                    disableRowSelectionOnClick
+                    hideFooter
+                    autoHeight
+                />
+            </Box>
 
             <Snackbar
-                open={snackbar.open}
-                autoHideDuration={3000}
-                onClose={handleCloseSnackbar}
-                anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                open={snack.open}
+                autoHideDuration={4000}
+                onClose={closeSnack}
             >
-                <Alert
-                    onClose={handleCloseSnackbar}
-                    severity={snackbar.severity}
-                    variant="filled"
-                    sx={{ width: "100%" }}
-                >
-                    {snackbar.message}
+                <Alert onClose={closeSnack} severity={snack.severity} variant="filled">
+                    {snack.message}
                 </Alert>
             </Snackbar>
         </>

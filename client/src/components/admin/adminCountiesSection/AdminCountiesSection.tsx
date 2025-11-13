@@ -1,94 +1,90 @@
-import {useEffect, useState, useCallback} from 'react';
-import LeadsService from "../../../services/lead.service";
-import AdminCountiesTable from "./adminCountiesTable/AdminCountiesTable.tsx";
-import CustomPagination from "../../Pagination";
+import { useCallback, useEffect, useState } from 'react';
 import {
     Box,
     Typography,
     CircularProgress,
     Container,
-    Button,
     Snackbar,
     Alert
-} from "@mui/material";
-import { Lead } from "../../../types/leadTypes.ts";
-import ImportCountiesDialog from "./importCountiesDialog/importCountiesDialog.tsx";
+} from '@mui/material';
+
+import AdminCountiesTable from './adminCountiesTable/AdminCountiesTable';
+import CustomPagination from '../../Pagination';
+import countyService from '../../../services/county.service';
+import { County } from '../../../types/countyTypes';
 
 const AdminCountiesSection = () => {
-    const [leads, setLeads] = useState<Lead[]>([]);
+    const [counties, setCounties] = useState<County[]>([]);
+    const [count, setCount] = useState(0);
+
     const [page, setPage] = useState(1);
-    const [leadCount, setLeadCount] = useState(0);
-    const [loading, setLoading] = useState(true);
     const [limit, setLimit] = useState(100);
 
-    const [importOpen, setImportOpen] = useState(false);
-    const [snack, setSnack] = useState<{open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error'}>({
-        open: false, message: '', severity: 'success'
+    const [loading, setLoading] = useState(true);
+
+    const [snack, setSnack] = useState({
+        open: false,
+        message: '',
+        severity: 'success' as 'success' | 'error'
     });
 
-    const fetchLeads = useCallback(() => {
+    const showNotification = useCallback((message: string, severity: 'success' | 'error') => {
+        setSnack({ open: true, message, severity });
+    }, []);
+
+    const fetchCounties = useCallback(async () => {
         setLoading(true);
-        LeadsService.getMany({ page, limit }).then((response) => {
-            console.log('Fetched leads:', response);
-            setLeads(response.leads);
-            setLeadCount(response.count);
+        try {
+            const data = await countyService.getMany({ page, limit });
+            setCounties(data.counties);
+            setCount(data.count);
+        } catch (err: never) {
+            showNotification('Failed to fetch counties', 'error');
+        } finally {
             setLoading(false);
-        }).catch((err) => {
-            setLoading(false);
-            setSnack({ open: true, message: err?.message || 'Failed to load leads', severity: 'error' });
-        });
-    }, [page, limit]);
+        }
+    }, [page, limit, showNotification]);
 
     useEffect(() => {
-        fetchLeads();
-    }, [fetchLeads]);
+        fetchCounties();
+    }, [fetchCounties]);
 
-    const handleImportSuccess = (summary: { imported?: number; rejected?: number }) => {
-        // After a successful import, go back to first page and refresh.
-        setPage(1);
-        // fetch again after the state change; minor defer to ensure page=1 has applied
-        setTimeout(fetchLeads, 0);
-        const imported = summary?.imported ?? 0;
-        const rejected = summary?.rejected ?? 0;
-        setSnack({
-            open: true,
-            message: `Import complete. Imported ${imported} lead${imported === 1 ? '' : 's'}${rejected ? `, rejected ${rejected}` : ''}.`,
-            severity: 'success'
-        });
+    const closeSnackbar = () => {
+        setSnack(prev => ({ ...prev, open: false }));
     };
 
     return (
-        <Container maxWidth={false} sx={{height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0}}>
+        <Container
+            maxWidth={false}
+            sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}
+        >
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="h4" component="h2" sx={{fontWeight: 'bold'}}>Leads</Typography>
-                    <Button variant="contained" onClick={() => {
-                        setImportOpen(true)
-                    }}>
-                        Import leads
-                    </Button>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                        Counties
+                    </Typography>
                 </Box>
 
                 {loading
-? (
-                    <Box sx={{display: 'flex', justifyContent: 'center', p: 4}}>
-                        <CircularProgress/>
+                    ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                        <CircularProgress />
                     </Box>
-                )
-: (
+                    )
+                    : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                         <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
                             <AdminCountiesTable
-                                leads={leads}
-                                setLeads={setLeads}
+                                counties={counties}
+                                setCounties={setCounties}
                             />
                         </Box>
                         <Box sx={{ backgroundColor: 'background.paper' }}>
                             <CustomPagination
                                 page={page}
                                 setPage={setPage}
-                                rows={leadCount}
                                 limit={limit}
+                                rows={count}
                                 setLimit={setLimit}
                             />
                         </Box>
@@ -96,25 +92,13 @@ const AdminCountiesSection = () => {
                 )}
             </Box>
 
-            <ImportCountiesDialog
-                open={importOpen}
-                onClose={() => {
-                    setImportOpen(false)
-                }}
-                onSuccess={handleImportSuccess}
-            />
-
             <Snackbar
                 open={snack.open}
-                autoHideDuration={5000}
-                onClose={() => {
-                    setSnack(s => ({...s, open: false}))
-                }}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                autoHideDuration={4000}
+                onClose={closeSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-                <Alert onClose={() => {
-                    setSnack(s => ({...s, open: false}))
-                }} severity={snack.severity} sx={{ width: '100%' }}>
+                <Alert severity={snack.severity} onClose={closeSnackbar} variant="filled">
                     {snack.message}
                 </Alert>
             </Snackbar>

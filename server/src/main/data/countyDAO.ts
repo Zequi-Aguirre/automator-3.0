@@ -26,6 +26,34 @@ export default class CountyDAO {
         return await this.db.one<County>(query, data);
     }
 
+    async getMany(filters: { page: number; limit: number }): Promise<{ counties: County[]; count: number }> {
+        const { page, limit } = filters;
+        const offset = (page - 1) * limit;
+
+        // Query 1: Paginated counties
+        const countiesQuery = `
+        SELECT *
+        FROM counties
+        WHERE deleted IS NULL
+        ORDER BY modified DESC
+        LIMIT $1 OFFSET $2
+    `;
+        const counties = await this.db.manyOrNone<County>(countiesQuery, [limit, offset]);
+
+        // Query 2: Total count
+        const countQuery = `
+        SELECT COUNT(*)::int AS total
+        FROM counties
+        WHERE deleted IS NULL
+    `;
+        const { total } = await this.db.one<{ total: number }>(countQuery);
+
+        return {
+            counties,
+            count: total
+        };
+    }
+
     async getAllCounties(): Promise<County[]> {
         const query = `
             SELECT * 

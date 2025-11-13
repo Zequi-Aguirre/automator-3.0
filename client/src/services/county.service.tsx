@@ -9,11 +9,19 @@ class CountyService {
         return res.data;
     }
 
-    async updateCountyBlacklist(
-        countyId: string,
-        blacklisted: boolean
-    ): Promise<County> {
-        const res = await this.api.getApi().patch(`/api/counties/admin/blacklist/${countyId}`, { blacklisted });
+    async getMany(filters: { page: number; limit: number }):
+        Promise<{ counties: County[]; count: number }> {
+        const res = await this.api.getApi().get(
+            "/api/counties/admin/get-many",
+            { params: filters }
+        );
+        return res.data;
+    }
+
+    async updateBlacklist(id: string, value: boolean): Promise<County> {
+        const res = await this.api.getApi().patch(`/api/counties/admin/blacklist/${id}`, {
+            blacklisted: value
+        });
         return res.data;
     }
 }

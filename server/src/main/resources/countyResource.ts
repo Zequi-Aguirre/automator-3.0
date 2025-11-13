@@ -18,6 +18,16 @@ export default class CountyResource {
             res.status(200).send(counties);
         });
 
+        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
+            const filters = {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 100
+            };
+
+            const result = await this.countyService.getMany(filters);
+            res.status(200).send(result);
+        });
+
         this.router.patch("/admin/blacklist/:countyId", async (req: Request, res: Response) => {
             const { countyId } = req.params;
             const { blacklisted } = req.body;

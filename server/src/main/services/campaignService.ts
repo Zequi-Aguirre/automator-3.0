@@ -12,14 +12,27 @@ export default class CampaignService {
         private readonly affiliateService: AffiliateService
     ) {}
 
-    async getMany(filters: { page: number; limit: number }): Promise<{ campaigns: Campaign[]; count: number; affiliates: Affiliate[] }> {
-        const campaignsWithCount = await this.campaignDAO.getMany(filters);
-        const affiliatesIDs = campaignsWithCount.campaigns.map(c => c.affiliate_id);
-        const affiliatesList = await this.affiliateService.getManyByIds(affiliatesIDs);
+    async getMany(filters: { page: number; limit: number }): Promise<{
+        campaigns: Campaign[];
+        count: number;
+        affiliates: Affiliate[];
+    }> {
+        const { campaigns, count } = await this.campaignDAO.getMany(filters);
+
+        let affiliates: Affiliate[] = [];
+
+        if (campaigns.length > 0) {
+            const affiliateIds = campaigns.map(c => c.affiliate_id);
+
+            if (affiliateIds.length > 0) {
+                affiliates = await this.affiliateService.getManyByIds(affiliateIds);
+            }
+        }
 
         return {
-            ...campaignsWithCount,
-            affiliates: affiliatesList
+            campaigns,
+            count,
+            affiliates
         };
     }
 
