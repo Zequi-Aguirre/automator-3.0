@@ -25,6 +25,18 @@ export default class AffiliateService {
         return map;
     }
 
+    async getMany(filters: { page: number; limit: number }): Promise<{ affiliates: Affiliate[]; count: number }> {
+        return this.affiliateDAO.getMany(filters);
+    }
+
+    async getManyByIds(ids: string[]): Promise<Affiliate[]> {
+        return this.affiliateDAO.getAffiliatesByIds(ids);
+    }
+
+    async getById(id: string): Promise<Affiliate> {
+        return this.affiliateDAO.getAffiliateById(id);
+    }
+
     async updateAffiliateMeta(id: string, updates: Partial<Pick<Affiliate, 'rating' | 'blacklisted'>>): Promise<Affiliate> {
         return this.affiliateDAO.updateAffiliate(id, updates);
     }

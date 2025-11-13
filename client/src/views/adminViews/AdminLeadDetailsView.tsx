@@ -32,7 +32,7 @@ import {
     colorForUrgency
 } from '../../utils/leadExpiry';
 
-const AdminLeadDetails = () => {
+const AdminLeadDetailsView = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
@@ -112,7 +112,7 @@ const AdminLeadDetails = () => {
         try {
             if (!id) return;
             await leadsService.trashLead(id);
-            navigate('/a/dashboard');
+            navigate('/a/leads');
             showNotification('Lead moved to trash successfully', 'success');
         } catch (error) {
             showNotification('Failed to trash lead', 'error');
@@ -239,7 +239,7 @@ const AdminLeadDetails = () => {
                     <Stack direction="row" alignItems="center" spacing={2}>
                         <IconButton
                             onClick={() => {
-                                navigate('/a/dashboard');
+                                navigate('/a/leads');
                             }}
                             size="large"
                         >
@@ -377,4 +377,4 @@ const AdminLeadDetails = () => {
     );
 };
 
-export default AdminLeadDetails;
+export default AdminLeadDetailsView;

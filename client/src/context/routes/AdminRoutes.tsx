@@ -1,35 +1,41 @@
 import { Routes, Route } from "react-router-dom";
 import VerifyAdmin from "../../middleware/VerifyAdmin"
-import AdminDashboard from "../../views/adminViews/AdminDashboard.tsx";
-import AdminLeadDetails from "../../views/adminViews/AdminLeadDetails.tsx";
-import AdminCampaigns from "../../views/adminViews/AdminCampaigns.tsx";
-import AdminCampaignDetails from "../../views/adminViews/AdminCampaignDetails.tsx";
-import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanel.tsx";
-import AdminJobsSection from "../../views/adminViews/AdminWorkerJobs.tsx";
-import AdminJobDetails from "../../views/adminViews/AdminJobDetails.tsx";
+import AdminLeadsView from "../../views/adminViews/AdminLeadsView.tsx";
+import AdminLeadDetailsView from "../../views/adminViews/AdminLeadDetailsView.tsx";
+import AdminCampaignsView from "../../views/adminViews/AdminCampaignsView.tsx";
+import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanelView.tsx";
+import AdminJobsSection from "../../views/adminViews/AdminWorkerJobsView.tsx";
+import AdminJobDetailsView from "../../views/adminViews/AdminJobDetailsView.tsx";
+import AdminAffiliatesView from "../../views/adminViews/AdminAffiliatesView.tsx";
+import AdminAffiliateDetailsView from "../../views/adminViews/AdminAffiliatesDetailsView.tsx";
 
 const AdminRoutes = () => {
     return (
         <>
             <Routes>
-                <Route path="/a/dashboard" element={
+                <Route path="/a/leads" element={
                     <VerifyAdmin>
-                        <AdminDashboard/>
+                        <AdminLeadsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/leads/:id" element={
                     <VerifyAdmin>
-                        <AdminLeadDetails/>
+                        <AdminLeadDetailsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/campaigns" element={
                     <VerifyAdmin>
-                        <AdminCampaigns/>
+                        <AdminCampaignsView/>
                     </VerifyAdmin>
                 }/>
-                <Route path="/a/campaigns/:id" element={
+                <Route path="/a/affiliates" element={
                     <VerifyAdmin>
-                        <AdminCampaignDetails/>
+                        <AdminAffiliatesView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/affiliates/:id" element={
+                    <VerifyAdmin>
+                        <AdminAffiliateDetailsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/settings" element={
@@ -44,10 +50,9 @@ const AdminRoutes = () => {
                 }/>
                 <Route path="/a/worker-jobs/:id" element={
                     <VerifyAdmin>
-                        <AdminJobDetails/>
+                        <AdminJobDetailsView/>
                     </VerifyAdmin>
                 }/>
-
             </Routes>
 
         </>

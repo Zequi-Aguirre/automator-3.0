@@ -33,7 +33,7 @@ interface DialogConfig {
     onConfirm: () => void;
 }
 
-const AdminJobDetails = () => {
+const AdminJobDetailsView = () => {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [job, setJob] = useState<Job | null>(null);
@@ -449,4 +449,4 @@ const AdminJobDetails = () => {
     );
 };
 
-export default AdminJobDetails;
+export default AdminJobDetailsView;

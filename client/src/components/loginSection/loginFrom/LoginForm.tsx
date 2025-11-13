@@ -47,19 +47,11 @@ const LoginForm = () => {
                 user: { id, email, name },
             });
 
-            console.log("Logged in as:", user);
-            console.log("Role:", role);
             setLoggedInUser(user);
             setRole(role);
             setLoginRecord({ email: "", password: "" });
             setFailedResponse(false);
-
-            console.log("Navigating to dashboard...");
-            console.log("Role:", role);
-            console.log('role === "admin"', role === "admin");
-            console.log('role === "superadmin"', role === "superadmin");
-            console.log('role === "admin" || role === "superadmin"', role === "admin" || role === "superadmin");
-            navigate((role === "admin" || role === "superadmin") ? "/a/dashboard" : "/u/dashboard");
+            navigate((role === "admin" || role === "superadmin") ? "/a/leads" : "/u/dashboard");
         } catch (error) {
             setFailedResponse(true);
             console.error("Login failed:", error);

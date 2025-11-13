@@ -10,8 +10,8 @@ import {useContext, useEffect, useState} from "react";
 import userService from "../../services/user.service.tsx";
 import DataContext from "../../context/DataContext.tsx";
 
-const adminPages = ['Dashboard', 'Campaigns', 'Settings', 'Worker Jobs'];
-const userPages = ['Dashboard'];
+const adminPages = ['Leads', 'Campaigns', 'Affiliates', 'Counties', 'Settings', 'Worker Jobs'];
+const userPages = ['Leads'];
 const commonPages = ['Logout'];
 
 export default function NavBar() {
@@ -31,8 +31,8 @@ export default function NavBar() {
 
     const handleNavItemClick = (page: string) => {
         switch (page) {
-            case 'Dashboard':
-                isAdmin ? navigate('/a/dashboard') : navigate('/b/dashboard');
+            case 'Leads':
+                navigate('/a/leads');
                 break;
             case 'Buyers':
                 navigate('/a/buyers');
@@ -40,8 +40,17 @@ export default function NavBar() {
             case 'Campaigns':
                 navigate('/a/campaigns');
                 break;
-            case 'Leads':
-                navigate('/b/leads');
+            case 'Affiliates':
+                navigate('/a/affiliates');
+                break;
+            case 'Counties':
+                navigate('/a/counties');
+                break;
+            case 'Settings':
+                navigate('/a/settings');
+                break;
+            case 'Worker Jobs':
+                navigate('/a/worker-jobs');
                 break;
             case 'Logout':
                 userService.signOut();
@@ -49,15 +58,6 @@ export default function NavBar() {
                 setSession(null);
                 setLoggedInUser(null);
                 navigate('/login');
-                break;
-            case 'Settings':
-                navigate('/a/settings');
-                break;
-            case 'Users':
-                navigate('/a/users');
-                break;
-            case 'Worker Jobs':
-                navigate('/a/worker-jobs');
                 break;
             default:
             // Handle other cases or do nothing
@@ -70,9 +70,6 @@ export default function NavBar() {
         switch (true) {
             case location.pathname.includes('dashboard'):
                 setCurrentPage('Dashboard');
-                break;
-            case location.pathname.includes('buyers'):
-                setCurrentPage('Buyers');
                 break;
             case location.pathname.includes('campaigns'):
                 setCurrentPage('Campaigns');

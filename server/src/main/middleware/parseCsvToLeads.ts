@@ -34,6 +34,7 @@ function parseDate(raw: string): Date | null {
     const match = raw.trim().match(/^([A-Za-z]{3})\/(\d{1,2})\/(\d{2}) (\d{2}):(\d{2})$/);
     if (!match) return null;
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [_line, monthStr, dayStr, yearStr, hourStr, minuteStr] = match;
 
     const months: Record<string, number> = {

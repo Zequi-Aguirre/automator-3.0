@@ -12,38 +12,6 @@ export default class CampaignDAO {
         this.db = db.database();
     }
 
-    async createOne(campaign: Partial<Campaign>): Promise<Campaign> {
-        const query = `
-            INSERT INTO public."campaigns" (external_id, name, is_active)
-            VALUES ($[external_id], $[name], $[is_active])
-            RETURNING *;
-        `;
-        return await this.db.one<Campaign>(query, campaign);
-    }
-
-    async getAll(limit: number = 50, offset: number = 0): Promise<Campaign[]> {
-        const query = `
-            SELECT *
-            FROM public."campaigns"
-            WHERE deleted IS NULL
-            ORDER BY created DESC
-            LIMIT $[limit] OFFSET $[offset];
-        `;
-        return await this.db.manyOrNone<Campaign>(query, { limit, offset });
-    }
-
-    async getActive(limit: number = 50, offset: number = 0): Promise<Campaign[]> {
-        const query = `
-            SELECT *
-            FROM public."campaigns"
-            WHERE deleted IS NULL
-              AND is_active = true
-            ORDER BY created DESC
-            LIMIT $[limit] OFFSET $[offset];
-        `;
-        return await this.db.manyOrNone<Campaign>(query, { limit, offset });
-    }
-
     async getById(campaignId: string): Promise<Campaign> {
         const query = `
             SELECT *
@@ -54,72 +22,15 @@ export default class CampaignDAO {
         return await this.db.one<Campaign>(query, { campaignId });
     }
 
-    async getByExternalId(externalId: string): Promise<Campaign> {
+    async getByAffiliateId(affiliateId: string): Promise<Campaign[]> {
         const query = `
-            SELECT *
-            FROM public."campaigns"
-            WHERE external_id = $[externalId]
-              AND deleted IS NULL;
-        `;
-        return await this.db.one<Campaign>(query, { externalId });
-    }
-
-    async updateCampaign(
-        id: string,
-        updates: Partial<Omit<Campaign, 'id' | 'created' | 'modified' | 'deleted'>>
-    ): Promise<Campaign> {
-        if (!id) throw new Error("Campaign ID is required");
-
-        const updatedFields = await this.getUpdatedCampaignFields(id, updates);
-        const setClause = Object.keys(updatedFields)
-            .map((key) => `${key} = $[${key}]`)
-            .join(", ");
-
-        const query = `
-            UPDATE public."campaigns"
-            SET ${setClause},
-                modified = NOW()
-            WHERE id = $[id]
-              AND deleted IS NULL
-            RETURNING *;
-        `;
-
-        const params = { ...updatedFields, id };
-        const result = await this.db.oneOrNone<Campaign>(query, params);
-        if (!result) throw new Error("Campaign not found or update failed");
-
-        return result;
-    }
-
-    private async getUpdatedCampaignFields(
-        id: string,
-        updates: Partial<Omit<Campaign, 'id' | 'created' | 'modified' | 'deleted'>>
-    ): Promise<Partial<Campaign>> {
-        const existing = await this.getById(id);
-        if (!existing) throw new Error("Campaign not found");
-
-        return {
-            name: updates.name ?? existing.name,
-        };
-    }
-
-    async updateCampaignStatus(campaignId: string, status: boolean): Promise<Campaign> {
-        const query = `
-            UPDATE public."campaigns"
-            SET is_active = $[status]
-            WHERE id = $[campaignId]
-            RETURNING *;
-        `;
-        return await this.db.one<Campaign>(query, { campaignId, status });
-    }
-
-    async deleteCampaign(campaignId: string): Promise<void> {
-        const query = `
-            UPDATE public."campaigns"
-            SET deleted = NOW()
-            WHERE id = $[campaignId];
-        `;
-        await this.db.none(query, { campaignId });
+        SELECT *
+        FROM campaigns
+        WHERE affiliate_id = $[affiliateId]
+          AND deleted IS NULL
+        ORDER BY modified DESC;
+    `;
+        return await this.db.manyOrNone<Campaign>(query, { affiliateId });
     }
 
     async insertCampaign(data: { name: string; affiliate_id: string }): Promise<Campaign> {
@@ -129,6 +40,34 @@ export default class CampaignDAO {
         RETURNING *;
     `;
         return await this.db.one<Campaign>(query, data);
+    }
+
+    async getMany(filters: { page: number; limit: number }): Promise<{ campaigns: Campaign[]; count: number }> {
+        const { page, limit } = filters;
+        const offset = (page - 1) * limit;
+
+        // Query #1: Get paginated campaigns
+        const campaignsQuery = `
+            SELECT *
+            FROM campaigns
+            WHERE deleted IS NULL
+            ORDER BY modified DESC
+            LIMIT $1 OFFSET $2
+        `;
+        const campaigns = await this.db.manyOrNone<Campaign>(campaignsQuery, [limit, offset]);
+
+        // Query #2: Get total count (ignores pagination)
+        const countQuery = `
+            SELECT COUNT(*)::int AS total
+            FROM campaigns
+            WHERE deleted IS NULL
+        `;
+        const { total } = await this.db.one<{ total: number }>(countQuery);
+
+        return {
+            campaigns,
+            count: total
+        };
     }
 
     async getAllCampaigns(): Promise<Campaign[]> {

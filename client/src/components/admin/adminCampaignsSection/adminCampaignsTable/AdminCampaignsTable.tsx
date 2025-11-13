@@ -1,24 +1,28 @@
 import { useState } from 'react';
 import {
     Box,
-    Typography,
-    Container,
     Snackbar,
     Alert,
     IconButton,
-    Button
+    Button,
+    Typography,
 } from '@mui/material';
+import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { CheckCircle, Cancel } from '@mui/icons-material';
 import StarIcon from '@mui/icons-material/Star';
+import { Link } from 'react-router-dom';
+
 import { Campaign } from '../../../../types/campaignTypes';
+import { Affiliate } from '../../../../types/affiliateTypes.ts';
 import campaignService from '../../../../services/campaign.service';
 
 interface Props {
     campaigns: Campaign[];
-    setCampaigns: (campaigns: (prev) => never) => void;
+    setCampaigns: (campaigns: (prev: Campaign[]) => Campaign[]) => void;
+    affiliates: Affiliate[];
 }
 
-const AdminCampaignsTable = ({ campaigns, setCampaigns }: Props) => {
+const AdminCampaignsTable = ({ campaigns, setCampaigns, affiliates }: Props) => {
     const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
         open: false,
         message: '',
@@ -28,72 +32,175 @@ const AdminCampaignsTable = ({ campaigns, setCampaigns }: Props) => {
     const updateMeta = async (id: string, updates: Partial<Pick<Campaign, 'blacklisted' | 'rating'>>) => {
         try {
             const updated = await campaignService.updateCampaignMeta(id, updates);
-            setCampaigns(prev => prev.map(c => (c.id === id ? updated : c)));
+            setCampaigns((prev) => {
+                return prev.map((c) => {
+                    return c.id === id ? updated : c;
+                });
+            });
         } catch (err: never) {
             setSnack({ open: true, message: err?.message || 'Update failed', severity: 'error' });
         }
     };
 
-    return (
-        <Container maxWidth="lg" sx={{ pt: 4 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {campaigns.map((c) => (
-                    <Box
-                        key={c.id}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            p: 2,
-                            border: '1px solid #ccc',
-                            borderRadius: 2
-                        }}
-                    >
-                        <Typography variant="subtitle1" sx={{ flex: 1 }}>{c.name}</Typography>
-                        <Typography variant="subtitle1" sx={{ flex: 1 }}>{c.affiliate_id}</Typography>
+    const columns: GridColDef[] = [
+        {
+            field: 'name',
+            headerName: 'Campaign Name',
+            flex: 1,
+            minWidth: 180,
+            maxWidth: 300
+        },
+        {
+            field: 'rating',
+            headerName: 'Rating',
+            minWidth: 260,
+            sortable: false,
+            renderCell: (params) => {
+                const rating = params.value || 0;
+                const id = params.row.id;
 
-                        {/* Blacklist toggle */}
-                        <Button
-                            onClick={async () => {
-                                await updateMeta(c.id, { blacklisted: !c.blacklisted });
-                            }}
-                            variant="contained"
-                            color={(c.blacklisted ? 'error' : 'success') as 'error' | 'success'}
-                            startIcon={c.blacklisted ? <Cancel /> : <CheckCircle />}
-                        >
-                            {c.blacklisted ? 'Blacklisted' : 'Active'}
-                        </Button>
+                const affiliate = affiliates.find((a) => {
+                    return a.id === params.row.affiliate_id;
+                });
 
-                        {/* Rating Stars */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, marginLeft: '20px' }}>
-                            {[1, 2, 3, 4, 5].map((star) => (
+                const affiliateBlacklisted = affiliate?.blacklisted === true;
+                const disabled = affiliateBlacklisted;
+
+                return (
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {[1, 2, 3, 4, 5].map((star) => {
+                            const color = disabled
+                                ? 'grey.400'
+                                : star <= rating
+                                    ? 'gold'
+                                    : 'grey.400';
+
+                            return (
                                 <IconButton
                                     key={star}
-                                    onClick={async () => {
-                                        await updateMeta(c.id, { rating: star });
-                                    }}
                                     size="small"
-                                    sx={{ color: c.blacklisted ? 'grey.400' : (star <= c.rating ? 'gold' : 'grey.400') }}
+                                    disabled={disabled}
+                                    sx={{ color }}
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!disabled) {
+                                            await updateMeta(id, { rating: star });
+                                        }
+                                    }}
                                 >
                                     <StarIcon />
                                 </IconButton>
-                            ))}
-                        </Box>
+                            );
+                        })}
                     </Box>
-                ))}
-            </Box>
+                );
+            }
+        },
+        {
+            field: 'blacklisted',
+            headerName: 'Status',
+            minWidth: 300,
+            renderCell: (params) => {
+                const campaign = params.row;
+
+                const affiliate = affiliates.find((a) => {
+                    return a.id === campaign.affiliate_id;
+                });
+
+                const affiliateBlacklisted = affiliate?.blacklisted === true;
+
+                if (affiliateBlacklisted) {
+                    return (
+                        <Button
+                            variant="contained"
+                            color="error"
+                            component={Link}
+                            to={`/a/affiliates/${affiliate?.id}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
+                            startIcon={<Cancel />}
+                        >
+                            Blacklisted Affiliate
+                        </Button>
+                    );
+                }
+
+                const isBlacklisted = campaign.blacklisted;
+
+                return (
+                    <Button
+                        variant="contained"
+                        color={(isBlacklisted ? 'error' : 'success') as 'error' | 'success'}
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            await updateMeta(campaign.id, { blacklisted: !isBlacklisted });
+                        }}
+                        startIcon={isBlacklisted ? <Cancel /> : <CheckCircle />}
+                    >
+                        {isBlacklisted ? 'Blacklisted' : 'Active'}
+                    </Button>
+                );
+            }
+        },
+        {
+            field: 'affiliate_id',
+            headerName: 'Affiliate',
+            flex: 1,
+            minWidth: 180,
+            renderCell: (params) => {
+                const affiliate = affiliates.find((a) => {
+                    return a.id === params.value;
+                });
+
+                if (!affiliate) {
+                    return <Typography>{params.value}</Typography>;
+                }
+
+                return (
+                    <Button
+                        component={Link}
+                        to={`/a/affiliates/${affiliate.id}`}
+                        size="small"
+                        variant="text"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
+                    >
+                        {affiliate.name}
+                    </Button>
+                );
+            }
+        }
+    ];
+
+    return (
+        <>
+            <DataGrid
+                rows={campaigns}
+                columns={columns}
+                getRowId={(row) => {
+                    return row.id;
+                }}
+                disableRowSelectionOnClick
+                hideFooter
+            />
 
             <Snackbar
                 open={snack.open}
                 autoHideDuration={5000}
                 onClose={() => {
-                    setSnack((s) => ({ ...s, open: false }));
+                    setSnack((s) => {
+                        return { ...s, open: false };
+                    });
                 }}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
                 <Alert
                     onClose={() => {
-                        setSnack((s) => ({ ...s, open: false }));
+                        setSnack((s) => {
+                            return { ...s, open: false };
+                        });
                     }}
                     severity={snack.severity}
                     sx={{ width: '100%' }}
@@ -101,7 +208,7 @@ const AdminCampaignsTable = ({ campaigns, setCampaigns }: Props) => {
                     {snack.message}
                 </Alert>
             </Snackbar>
-        </Container>
+        </>
     );
 };
 

@@ -23,6 +23,49 @@ export default class AffiliateDAO {
         return await this.db.one<Affiliate>(query, data);
     }
 
+    async getMany(filters: { page: number; limit: number }): Promise<{ affiliates: Affiliate[]; count: number }> {
+        const { page, limit } = filters;
+        const offset = (page - 1) * limit;
+
+        const listQuery = `
+            SELECT *
+            FROM affiliates
+            WHERE deleted IS NULL
+            ORDER BY modified DESC
+            LIMIT $[limit] OFFSET $[offset];
+        `;
+        const affiliates = await this.db.manyOrNone<Affiliate>(listQuery, { limit, offset });
+
+        const countQuery = `
+            SELECT COUNT(*)::int AS total
+            FROM affiliates
+            WHERE deleted IS NULL;
+        `;
+        const { total } = await this.db.one<{ total: number }>(countQuery);
+
+        return { affiliates, count: total };
+    }
+
+    async getAffiliateById(id: string): Promise<Affiliate> {
+        const query = `
+        SELECT *
+        FROM affiliates
+        WHERE id = $[id]
+          AND deleted IS NULL;
+    `;
+        return await this.db.one<Affiliate>(query, { id });
+    }
+
+    async getAffiliatesByIds(ids: string[]): Promise<Affiliate[]> {
+        const query = `
+            SELECT * 
+            FROM affiliates 
+            WHERE id IN ($[ids:csv]) 
+              AND deleted IS NULL;
+        `;
+        return await this.db.query<Affiliate[]>(query, { ids });
+    }
+
     async getAllAffiliates(): Promise<Affiliate[]> {
         const query = `
             SELECT * 
@@ -42,7 +85,7 @@ export default class AffiliateDAO {
         UPDATE affiliates
         SET ${setClause},
             modified = NOW()
-        WHERE id = ${id}
+        WHERE id = $[id]
         RETURNING *;
     `;
 

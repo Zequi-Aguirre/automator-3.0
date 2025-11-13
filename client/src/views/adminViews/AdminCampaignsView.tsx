@@ -1,6 +1,6 @@
 import AdminCampaignsSection from "../../components/admin/adminCampaignsSection/AdminCampaignsSection.tsx";
 
-export default function AdminCampaigns() {
+export default function AdminCampaignsView() {
     return (
         <>
             <AdminCampaignsSection />

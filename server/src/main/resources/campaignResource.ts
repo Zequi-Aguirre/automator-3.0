@@ -13,9 +13,19 @@ export default class CampaignResource {
     }
 
     private initializeRoutes() {
-        this.router.get("/admin/get-all", async (_req: Request, res: Response) => {
-            const campaigns = await this.campaignService.getAll();
-            res.status(200).send(campaigns);
+        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
+            const filters = {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 10,
+            };
+            const result = await this.campaignService.getMany(filters);
+            res.status(200).send(result);
+        });
+
+        this.router.get("/admin/get-by-affiliate/:affiliateId", async (req: Request, res: Response) => {
+            const { affiliateId } = req.params;
+            const result = await this.campaignService.getByAffiliateId(affiliateId);
+            res.status(200).send(result);
         });
 
         this.router.patch("/admin/update-meta/:campaignId", async (req: Request, res: Response) => {
