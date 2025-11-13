@@ -30,16 +30,12 @@ const AdminCampaignsTable = ({ campaigns, setCampaigns, affiliates }: Props) => 
     });
 
     const updateMeta = async (id: string, updates: Partial<Pick<Campaign, 'blacklisted' | 'rating'>>) => {
-        try {
-            const updated = await campaignService.updateCampaignMeta(id, updates);
-            setCampaigns((prev) => {
-                return prev.map((c) => {
-                    return c.id === id ? updated : c;
-                });
+        const updated = await campaignService.updateCampaignMeta(id, updates);
+        setCampaigns((prev) => {
+            return prev.map((c) => {
+                return c.id === id ? updated : c;
             });
-        } catch (err: never) {
-            setSnack({ open: true, message: err?.message || 'Update failed', severity: 'error' });
-        }
+        });
     };
 
     const columns: GridColDef[] = [

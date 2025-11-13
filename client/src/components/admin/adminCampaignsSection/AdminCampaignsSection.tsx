@@ -35,7 +35,7 @@ const AdminCampaignsSection = () => {
             const data = await campaignService.getMany({ page, limit });
             setCampaigns(data.campaigns);
             setAffiliates(data.affiliates);
-        } catch (err: never) {
+        } catch (err: unknown) {
             showNotification('Failed to fetch campaigns', 'error');
         } finally {
             setLoading(false);

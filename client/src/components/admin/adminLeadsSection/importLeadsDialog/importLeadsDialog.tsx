@@ -60,24 +60,18 @@ export default function ImportLeadsDialog({open, onClose, onSuccess}: Props) {
             setError('Choose a CSV file first.');
             return;
         }
-        try {
-            setBusy(true);
-            setError(null);
-            const form = new FormData();
-            form.append('file', file, file.name);
+        setBusy(true);
+        setError(null);
+        const form = new FormData();
+        form.append('file', file, file.name);
 
-            // Optional: include flags to let backend know to run filters immediately
-            // form.append('applyFilters', 'true');
+        // Optional: include flags to let backend know to run filters immediately
+        // form.append('applyFilters', 'true');
 
-            const res = await LeadsService.importLeads(form);
-            onSuccess({imported: res?.imported, rejected: res?.rejected, errors: res?.errors});
-            reset();
-            onClose();
-        } catch (e: never) {
-            setError(e?.message || 'Import failed');
-        } finally {
-            setBusy(false);
-        }
+        const res = await LeadsService.importLeads(form);
+        onSuccess({imported: res?.imported, rejected: res?.rejected, errors: res?.errors});
+        reset();
+        onClose();
     };
 
     return (

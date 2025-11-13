@@ -38,7 +38,7 @@ const AdminCountiesSection = () => {
             const data = await countyService.getMany({ page, limit });
             setCounties(data.counties);
             setCount(data.count);
-        } catch (err: never) {
+        } catch (err: unknown) {
             showNotification('Failed to fetch counties', 'error');
         } finally {
             setLoading(false);

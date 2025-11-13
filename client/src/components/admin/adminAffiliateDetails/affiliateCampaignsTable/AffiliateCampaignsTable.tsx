@@ -55,7 +55,7 @@ const AffiliateCampaignsTable = ({ affiliateId, affiliate }: Props) => {
                     return c.id === id ? updated : c;
                 });
             });
-        } catch (err: never) {
+        } catch (err: unknown) {
             setSnack({ open: true, severity: 'error', message: 'Failed to update campaign' });
         }
     };

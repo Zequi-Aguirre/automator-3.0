@@ -18,19 +18,13 @@ interface Props {
 
 const AdminAffiliatesTable = ({ affiliates, setAffiliates }: Props) => {
     const updateMeta = async (id: string, updates: Partial<Pick<Affiliate, 'rating' | 'blacklisted'>>) => {
-        try {
-            const updated = await affiliateService.updateAffiliateMeta(id, updates);
+        const updated = await affiliateService.updateAffiliateMeta(id, updates);
 
-            setAffiliates((prev) => {
-                return prev.map((a) => {
-                    return a.id === id ? updated : a;
-                });
+        setAffiliates((prev) => {
+            return prev.map((a) => {
+                return a.id === id ? updated : a;
             });
-
-        } catch (err: never) {
-            // You can route Snackbar from the parent if needed
-            console.error('Affiliate meta update failed:', err?.message);
-        }
+        });
     };
 
     const columns: GridColDef[] = [

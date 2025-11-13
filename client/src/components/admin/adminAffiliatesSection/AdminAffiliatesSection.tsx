@@ -37,7 +37,7 @@ const AdminAffiliatesSection = () => {
             const data = await affiliateService.getMany({ page, limit });
             setAffiliates(data.affiliates);
             setCount(data.count);
-        } catch (err: never) {
+        } catch (err: unknown) {
             showNotification('Failed to fetch affiliates', 'error');
         } finally {
             setLoading(false);

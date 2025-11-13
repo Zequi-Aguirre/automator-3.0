@@ -1,6 +1,6 @@
 import { authProvider, AxiosProvider } from "../config/axiosProvider";
 import { Campaign } from "../types/campaignTypes";
-import {Affiliate} from "../../../server/src/main/types/affiliateTypes.ts";
+import { Affiliate } from "../types/affiliateTypes.ts";
 
 class CampaignService {
     constructor(private readonly api: AxiosProvider) {}
