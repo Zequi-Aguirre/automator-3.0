@@ -21,7 +21,7 @@
     "lint-be": "eslint server/src --ext ts,tsx --report-unused-disable-directives --max-warnings 1000",
     "preview": "cd client && vite preview",
     "db-migrate": "cd postgres && ./migrate.sh",
-    "db-migrate-stg": "doppler run --scope automator --project automator --config stg --command 'cd postgres && ./migrate.sh'",
+    "db-migrate-stg": "cd postgres && ./migrate.sh",
     "counties-script": "doppler run -c dev --scope automator -- node scripts/load-counties-script/loadCountyData.js",
     "counties-deploy": "node scripts/load-counties-script/loadCountyData.js"
   },
