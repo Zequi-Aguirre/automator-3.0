@@ -59,4 +59,8 @@ export default class CampaignService {
 
         return map;
     }
+
+    async updateCampaignMeta(id: string, updates: Partial<Pick<Campaign, 'rating' | 'blacklisted'>>): Promise<Campaign> {
+        return this.campaignDAO.updateCampaignMetadata(id, updates);
+    }
 }

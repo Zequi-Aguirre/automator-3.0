@@ -13,6 +13,8 @@ import CampaignResource from "./resources/campaignResource";
 import SettingsResource from "./resources/settingsResource.ts";
 import { Worker } from './worker/Worker';
 import JobResource from "./resources/jobResource.ts";
+import AffiliateResource from "./resources/affiliateResource";
+import CountyResource from "./resources/countyResource";
 
 dotenv.config();
 
@@ -41,7 +43,9 @@ export class AutomatorServer {
         const authFunc = authenticator.authenticateFunc();
 
         // Set up routes
+        this.app.use("/api/affiliates", authFunc, cont.resolve(AffiliateResource).routes());
         this.app.use("/api/authenticate", cont.resolve(AuthenticateResource).routes());
+        this.app.use("/api/counties", authFunc, cont.resolve(CountyResource).routes());
         this.app.use("/api/campaigns", authFunc, cont.resolve(CampaignResource).routes());
         this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
         this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());

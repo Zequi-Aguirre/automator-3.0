@@ -31,4 +31,21 @@ export default class AffiliateDAO {
         `;
         return await this.db.query<Affiliate[]>(query);
     }
+
+    async updateAffiliate(id: string, updates: Partial<Pick<Affiliate, 'rating' | 'blacklisted'>>): Promise<Affiliate> {
+        const fields: string[] = [];
+        if (updates.rating !== undefined) fields.push('rating = $[rating]');
+        if (updates.blacklisted !== undefined) fields.push('blacklisted = $[blacklisted]');
+
+        const setClause = fields.join(', ');
+        const query = `
+        UPDATE affiliates
+        SET ${setClause},
+            modified = NOW()
+        WHERE id = ${id}
+        RETURNING *;
+    `;
+
+        return await this.db.one<Affiliate>(query, { ...updates, id });
+    }
 }

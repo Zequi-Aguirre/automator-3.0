@@ -53,3 +53,6 @@ ADD CONSTRAINT fk_leads_county
 FOREIGN KEY (county_id)
 REFERENCES counties(id)
 ON DELETE RESTRICT;  -- Prevents deletion of a county if leads reference it
+
+-- Add blacklisted column to counties table
+ALTER TABLE counties ADD COLUMN blacklisted BOOLEAN DEFAULT FALSE;

@@ -1,6 +1,8 @@
 export type Campaign = {
     id: string;
     name: string;
+    blacklisted: boolean;
+    rating: number;
     created?: string;
     modified?: string;
     deleted?: string | null;

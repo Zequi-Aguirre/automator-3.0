@@ -46,4 +46,8 @@ export default class CountyService {
 
         return countyMap;
     }
+
+    async updateCountyBlacklistStatus(id: string, blacklisted: boolean): Promise<County> {
+        return this.countyDAO.updateCountyBlacklistStatus(id, blacklisted);
+    }
 }

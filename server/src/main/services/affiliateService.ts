@@ -24,4 +24,12 @@ export default class AffiliateService {
 
         return map;
     }
+
+    async updateAffiliateMeta(id: string, updates: Partial<Pick<Affiliate, 'rating' | 'blacklisted'>>): Promise<Affiliate> {
+        return this.affiliateDAO.updateAffiliate(id, updates);
+    }
+
+    async getAll(): Promise<Affiliate[]> {
+        return await this.affiliateDAO.getAllAffiliates();
+    }
 }

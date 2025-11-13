@@ -168,4 +168,21 @@ export default class CampaignDAO {
         `;
         return await this.db.query<Campaign[]>(query);
     }
+
+    async updateCampaignMetadata(id: string, updates: Partial<Pick<Campaign, 'rating' | 'blacklisted'>>): Promise<Campaign> {
+        const fields: string[] = [];
+        if (updates.rating !== undefined) fields.push('rating = $[rating]');
+        if (updates.blacklisted !== undefined) fields.push('blacklisted = $[blacklisted]');
+
+        const setClause = fields.join(', ');
+        const query = `
+        UPDATE campaigns
+        SET ${setClause},
+            modified = NOW()
+        WHERE id = ${id}
+        RETURNING *;
+    `;
+
+        return await this.db.one<Campaign>(query, { ...updates, id });
+    }
 }

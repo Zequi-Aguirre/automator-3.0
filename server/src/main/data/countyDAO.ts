@@ -35,4 +35,15 @@ export default class CountyDAO {
         return await this.db.query<County[]>(query);
     }
 
+    async updateCountyBlacklistStatus(id: string, blacklisted: boolean): Promise<County> {
+        const query = `
+        UPDATE counties
+        SET blacklisted = $[blacklisted],
+            modified = NOW()
+        WHERE id = $[id]
+        RETURNING *;
+    `;
+        return await this.db.one<County>(query, { id, blacklisted });
+    }
+
 }
