@@ -4,7 +4,7 @@ import { parsedLeadFromCSV } from "../controllers/validateLeads";
 type ParsedCsvResult = {
     leads: parsedLeadFromCSV[];
     affiliates: Set<string>;
-    campaigns: Set<string>;
+    campaigns: Map<string, string>; // <campaignName, affiliateName>
     investors: Set<string>;
 };
 
@@ -86,7 +86,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     const leads: parsedLeadFromCSV[] = [];
     const investors = new Set<string>();
     const affiliates = new Set<string>();
-    const campaigns = new Set<string>();
+    const campaigns = new Map<string, string>(); // campaignName → affiliateName
 
     for (const row of records) {
         const {
@@ -111,7 +111,9 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
         const imported_at = parseDate(Imported);
         if (Investor) investors.add(Investor.trim());
         if (Affiliate) affiliates.add(Affiliate.trim());
-        if (Campaign) campaigns.add(Campaign.trim());
+        if (Campaign) {
+            campaigns.set(Campaign.trim(), Affiliate?.trim() || "");
+        }
 
         if (!imported_at || !Address || !City || !state) continue;
 
@@ -130,7 +132,6 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             imported_at,
             dispute_status: Dispute,
             investor_id: Investor?.trim() || null,
-            affiliate_id: Affiliate?.trim() || null,
             campaign_id: Campaign?.trim() || null,
         });
     }

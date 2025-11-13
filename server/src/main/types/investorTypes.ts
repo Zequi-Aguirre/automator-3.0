@@ -5,7 +5,3 @@ export type Investor = {
     modified?: string;
     deleted?: string | null;
 };
-
-export type CreateInvestorInput = {
-    name: string;
-};

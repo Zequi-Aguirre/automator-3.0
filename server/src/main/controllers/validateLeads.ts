@@ -13,7 +13,6 @@ export type parsedLeadFromCSV = {
     imported_at: Date;
     dispute_status?: string;
     investor_id?: string | null;
-    affiliate_id?: string | null;
     campaign_id?: string | null;
 };
 

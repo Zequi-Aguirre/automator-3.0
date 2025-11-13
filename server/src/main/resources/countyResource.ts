@@ -18,7 +18,7 @@ export default class CountyResource {
             res.status(200).send(counties);
         });
 
-        this.router.patch("/admin/update-blacklist/:countyId", async (req: Request, res: Response) => {
+        this.router.patch("/admin/blacklist/:countyId", async (req: Request, res: Response) => {
             const { countyId } = req.params;
             const { blacklisted } = req.body;
             const updated = await this.countyService.updateCountyBlacklistStatus(countyId, blacklisted);

@@ -3,11 +3,5 @@ export type Campaign = {
     name: string;
     blacklisted: boolean;
     rating: number;
-    created?: string;
-    modified?: string;
-    deleted?: string | null;
-};
-
-export type CreateCampaignInput = {
-    name: string;
+    affiliate_id: string;
 };

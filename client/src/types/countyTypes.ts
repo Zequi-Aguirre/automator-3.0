@@ -4,4 +4,5 @@ export type County = {
     state: string;
     population: number;
     timezone: string;
+    blacklisted: boolean;
 }

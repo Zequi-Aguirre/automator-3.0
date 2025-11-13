@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { Campaign } from "../types/campaignTypes.ts";
 import CampaignDAO from "../data/campaignDAO.ts";
+import {Affiliate} from "../types/affiliateTypes.ts";
 
 @injectable()
 export default class CampaignService {
@@ -41,7 +42,10 @@ export default class CampaignService {
         return this.campaignDAO.deleteCampaign(campaignId);
     }
 
-    async loadOrCreateCampaigns(names: Set<string>): Promise<Map<string, Campaign>> {
+    async loadOrCreateCampaigns(
+        campaignAffiliateMap: Map<string, string>, // campaignName -> affiliateName
+        affiliateMap: Map<string, Affiliate>
+    ): Promise<Map<string, Campaign>> {
         const all = await this.campaignDAO.getAllCampaigns();
         const map = new Map<string, Campaign>();
 
@@ -49,10 +53,19 @@ export default class CampaignService {
             map.set(campaign.name.toLowerCase(), campaign);
         }
 
-        for (const name of names) {
-            const key = name.toLowerCase();
+        for (const [campaignName, affiliateName] of campaignAffiliateMap.entries()) {
+            const key = campaignName.toLowerCase();
             if (!map.has(key)) {
-                const created = await this.campaignDAO.insertCampaign({ name });
+                const affiliateKey = affiliateName?.toLowerCase();
+                if (!affiliateKey) continue;
+                const affiliate = affiliateMap.get(affiliateKey);
+                if (!affiliate) continue;
+
+                const created = await this.campaignDAO.insertCampaign({
+                    name: campaignName,
+                    affiliate_id: affiliate.id
+                });
+
                 map.set(key, created);
             }
         }

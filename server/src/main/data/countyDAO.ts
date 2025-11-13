@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import { County } from "../types/countyType.ts";
+import { County } from "../types/countyTypes.ts";
 
 @injectable()
 export default class CountyDAO {

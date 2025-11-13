@@ -1,189 +1,107 @@
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { Button, Snackbar, Alert, Typography, Box, styled } from "@mui/material";
-import { faCheck, faTimes } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Campaign } from "../../../../types/campaignTypes.ts";
-import { Link } from "react-router-dom";
-import campaignService from "../../../../services/campaign.service";
-import { useState } from "react";
+import { useState } from 'react';
+import {
+    Box,
+    Typography,
+    Container,
+    Snackbar,
+    Alert,
+    IconButton,
+    Button
+} from '@mui/material';
+import { CheckCircle, Cancel } from '@mui/icons-material';
+import StarIcon from '@mui/icons-material/Star';
+import { Campaign } from '../../../../types/campaignTypes';
+import campaignService from '../../../../services/campaign.service';
 
-interface CampaignsTableProps {
+interface Props {
     campaigns: Campaign[];
-    setCampaigns: React.Dispatch<React.SetStateAction<Campaign[]>>;
+    setCampaigns: (campaigns: (prev) => never) => void;
 }
 
-const AdminCampaignsTable = ({ campaigns, setCampaigns }: CampaignsTableProps) => {
-    const [loadingCampaigns, setLoadingCampaigns] = useState<Record<string, boolean>>({});
-    const [snackbar, setSnackbar] = useState({
+const AdminCampaignsTable = ({ campaigns, setCampaigns }: Props) => {
+    const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
         open: false,
         message: '',
-        severity: 'success' as 'success' | 'error'
+        severity: 'success'
     });
 
-    const handleCloseSnackbar = () => {
-        setSnackbar(prev => ({ ...prev, open: false }));
-    };
-
-    const showNotification = (message: string, severity: 'success' | 'error') => {
-        setSnackbar({
-            open: true,
-            message,
-            severity
-        });
-    };
-
-    const handleToggleActive = async (campaignId: string, currentStatus: boolean) => {
-        setLoadingCampaigns(prev => ({ ...prev, [campaignId]: true }));
-
+    const updateMeta = async (id: string, updates: Partial<Pick<Campaign, 'blacklisted' | 'rating'>>) => {
         try {
-            const updatedCampaign = await campaignService.updateCampaignStatus(
-                campaignId,
-                !currentStatus
-            );
-
-            setCampaigns((prevCampaigns) =>
-                prevCampaigns.map((campaign) =>
-                    campaign.id === campaignId ? updatedCampaign : campaign
-                )
-            );
-            showNotification('Campaign status updated successfully', 'success');
-        } catch (error) {
-            showNotification('Failed to update campaign status', 'error');
-            console.error("Error updating campaign status:", error);
-        } finally {
-            setLoadingCampaigns(prev => ({ ...prev, [campaignId]: false }));
+            const updated = await campaignService.updateCampaignMeta(id, updates);
+            setCampaigns(prev => prev.map(c => (c.id === id ? updated : c)));
+        } catch (err: never) {
+            setSnack({ open: true, message: err?.message || 'Update failed', severity: 'error' });
         }
     };
-
-    const StatusCircle = styled(Box)<{ isActive: boolean }>(({ theme, isActive }) => ({
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: isActive ? theme.palette.success.main : theme.palette.error.main,
-        color: theme.palette.common.white,
-        '& svg': {
-            fontSize: 16
-        }
-    }));
-
-    const columns: GridColDef[] = [
-        {
-            field: 'name',
-            headerName: 'Name',
-            flex: 1,
-            sortingOrder: ['asc', 'desc'],
-            renderCell: (params) => (
-                <Typography>
-                    {params.value}
-                </Typography>
-            )
-        },
-        {
-            field: 'external_id',
-            headerName: 'External ID',
-            flex: 1,
-            sortingOrder: ['asc', 'desc']
-        },
-        {
-            field: 'is_active',
-            headerName: 'Active',
-            flex: 1,
-            sortingOrder: ['asc', 'desc'],
-            renderCell: (params) => (
-                <Box display="flex" alignItems="center" justifyContent="center">
-                    <StatusCircle isActive={params.value}>
-                        <FontAwesomeIcon
-                            icon={params.value ? faCheck : faTimes}
-                        />
-                    </StatusCircle>
-                </Box>
-            )
-        },
-        {
-            field: 'action',
-            headerName: 'Action',
-            flex: 1,
-            sortable: false,
-            renderCell: (params) => {
-                const getButtonColor = (isActive: boolean): "success" | "error" => {
-                    return !isActive ? "success" : "error";
-                };
-
-                return (
-                    <Button
-                        variant="contained"
-                        color={getButtonColor(params.row.is_active)}
-                        size="small"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleActive(params.row.id, params.row.is_active);
-                        }}
-                        disabled={loadingCampaigns[params.row.id]}
-                    >
-                        {params.row.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
-                );
-            }
-        },
-        {
-            field: 'details',
-            headerName: 'Details',
-            flex: 1,
-            sortable: false,
-            renderCell: (params) => (
-                <Button
-                    component={Link}
-                    to={`/a/campaigns/${params.row.id}`}
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={(e) => {
-                        e.stopPropagation()
-                    }}
-                >
-                    Details
-                </Button>
-            )
-        }
-    ];
 
     return (
-        <>
-            <DataGrid
-                rows={campaigns}
-                columns={columns}
-                disableRowSelectionOnClick
-                hideFooter
-                autoHeight
-                sx={{
-                    '& .MuiDataGrid-cell': {
-                        py: 2
-                    },
-                    '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: 'action.hover'
-                    }
-                }}
-            />
+        <Container maxWidth="lg" sx={{ pt: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {campaigns.map((c) => (
+                    <Box
+                        key={c.id}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 2,
+                            border: '1px solid #ccc',
+                            borderRadius: 2
+                        }}
+                    >
+                        <Typography variant="subtitle1" sx={{ flex: 1 }}>{c.name}</Typography>
+                        <Typography variant="subtitle1" sx={{ flex: 1 }}>{c.affiliate_id}</Typography>
+
+                        {/* Blacklist toggle */}
+                        <Button
+                            onClick={async () => {
+                                await updateMeta(c.id, { blacklisted: !c.blacklisted });
+                            }}
+                            variant="contained"
+                            color={(c.blacklisted ? 'error' : 'success') as 'error' | 'success'}
+                            startIcon={c.blacklisted ? <Cancel /> : <CheckCircle />}
+                        >
+                            {c.blacklisted ? 'Blacklisted' : 'Active'}
+                        </Button>
+
+                        {/* Rating Stars */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, marginLeft: '20px' }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <IconButton
+                                    key={star}
+                                    onClick={async () => {
+                                        await updateMeta(c.id, { rating: star });
+                                    }}
+                                    size="small"
+                                    sx={{ color: c.blacklisted ? 'grey.400' : (star <= c.rating ? 'gold' : 'grey.400') }}
+                                >
+                                    <StarIcon />
+                                </IconButton>
+                            ))}
+                        </Box>
+                    </Box>
+                ))}
+            </Box>
 
             <Snackbar
-                open={snackbar.open}
-                autoHideDuration={3000}
-                onClose={handleCloseSnackbar}
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                open={snack.open}
+                autoHideDuration={5000}
+                onClose={() => {
+                    setSnack((s) => ({ ...s, open: false }));
+                }}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
                 <Alert
-                    onClose={handleCloseSnackbar}
-                    severity={snackbar.severity}
-                    variant="filled"
+                    onClose={() => {
+                        setSnack((s) => ({ ...s, open: false }));
+                    }}
+                    severity={snack.severity}
                     sx={{ width: '100%' }}
                 >
-                    {snackbar.message}
+                    {snack.message}
                 </Alert>
             </Snackbar>
-        </>
+        </Container>
     );
 };
 

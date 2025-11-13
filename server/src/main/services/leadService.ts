@@ -67,7 +67,7 @@ export default class LeadService {
         // 2. Resolve IDs and maps for all associated entities
         const investorMap = await this.investorService.loadOrCreateInvestors(investors);
         const affiliateMap = await this.affiliateService.loadOrCreateAffiliates(affiliates);
-        const campaignMap = await this.campaignService.loadOrCreateCampaigns(campaigns);
+        const campaignMap = await this.campaignService.loadOrCreateCampaigns(campaigns, affiliateMap);
         const countyMap = await this.countyService.loadOrCreateCounties(leads);
 
         // 3. Enrich leads with foreign keys
@@ -76,17 +76,15 @@ export default class LeadService {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
             const county = countyMap.get(countyKey);
             const investor = investorMap.get(lead.investor_id?.toLowerCase() || '');
-            const affiliate = affiliateMap.get(lead.affiliate_id?.toLowerCase() || '');
             const campaign = campaignMap.get(lead.campaign_id?.toLowerCase() || '');
 
-            if (!county || !investor || !affiliate || !campaign) {
+            if (!county || !investor || !campaign) {
                 console.warn('Missing related entity for lead:', lead);
                 continue; // skip this lead
             }
 
             lead.county_id = county.id;
             lead.investor_id = investor.id;
-            lead.affiliate_id = affiliate.id;
             lead.campaign_id = campaign.id;
 
             resolvedLeads.push(lead);
