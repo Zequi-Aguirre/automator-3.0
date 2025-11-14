@@ -33,6 +33,7 @@ const AdminAffiliatesTable = ({ affiliates, setAffiliates }: Props) => {
             headerName: 'Affiliate',
             flex: 1,
             minWidth: 200,
+            maxWidth: 400,
             renderCell: (params) => {
                 return (
                     <Typography sx={{ fontWeight: 500 }}>

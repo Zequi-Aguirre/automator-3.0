@@ -42,8 +42,4 @@ export default class SettingsService {
     ): Promise<WorkerSettings> {
         return this.workerSettingsDAO.updateNextLeadTime(id, nextLeadTime);
     }
-
-    async togglePauseApp(id: string): Promise<WorkerSettings> {
-        return this.workerSettingsDAO.togglePauseApp(id);
-    }
 }

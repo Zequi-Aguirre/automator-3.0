@@ -35,8 +35,6 @@ export default class LeadDAO {
                 last_name = $[last_name],
                 phone = $[phone],
                 email = $[email],
-                is_test = $[is_test],
-                vendor_lead_id = $[vendor_lead_id],
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL

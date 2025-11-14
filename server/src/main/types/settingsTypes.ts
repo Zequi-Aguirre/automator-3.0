@@ -28,9 +28,6 @@ export type WorkerSettingsUpdateAllowedFieldsType = {
     business_hours_start: number | null;
     business_hours_end: number | null;
     delay_same_state: number | null;
-    getting_leads: boolean;
-    pause_app: boolean;
-    counties_on_hold: string[];
     states_on_hold: string[];
 };
 

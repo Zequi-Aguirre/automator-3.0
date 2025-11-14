@@ -70,9 +70,6 @@ export default class WorkerSettingsDAO {
                 business_hours_start = $[business_hours_start],
                 business_hours_end = $[business_hours_end],
                 delay_same_state = $[delay_same_state],
-                getting_leads = $[getting_leads],
-                pause_app = $[pause_app],
-                counties_on_hold = $[counties_on_hold],
                 states_on_hold = $[states_on_hold],
                 modified = NOW()
             WHERE deleted IS NULL
@@ -109,9 +106,6 @@ export default class WorkerSettingsDAO {
             business_hours_start: updates.business_hours_start ?? existingSettings.business_hours_start,
             business_hours_end: updates.business_hours_end ?? existingSettings.business_hours_end,
             delay_same_state: updates.delay_same_state ?? existingSettings.delay_same_state,
-            getting_leads: updates.getting_leads ?? existingSettings.getting_leads,
-            pause_app: updates.pause_app ?? existingSettings.pause_app,
-            counties_on_hold: updates.counties_on_hold ?? existingSettings.counties_on_hold,
             states_on_hold: updates.states_on_hold ?? existingSettings.states_on_hold,
         };
     }
@@ -156,27 +150,6 @@ export default class WorkerSettingsDAO {
             query,
             { id, nextLeadTime }
         );
-
-        if (!result) {
-            throw new Error("Settings not found or update failed");
-        }
-
-        return result;
-    }
-
-    // Toggle pause_app status
-    async togglePauseApp(id: string): Promise<WorkerSettings> {
-        const query = `
-            UPDATE worker_settings
-            SET 
-                pause_app = NOT pause_app,
-                modified = NOW()
-            WHERE id = $(id)
-            AND deleted IS NULL
-            RETURNING *;
-        `;
-
-        const result = await this.db.oneOrNone<WorkerSettings>(query, { id });
 
         if (!result) {
             throw new Error("Settings not found or update failed");

@@ -13,8 +13,6 @@ import {
     Typography,
     Alert,
     Snackbar,
-    Switch,
-    FormControlLabel
 } from '@mui/material';
 import {Edit, Save, Cancel} from '@mui/icons-material';
 import {WorkerSettings} from '../../types/settingsTypes';
@@ -32,9 +30,6 @@ const WorkerSettingsPanel = () => {
         minutes_range_start: 0,
         minutes_range_end: 0,
         delay_same_state: 0,
-        getting_leads: false,
-        pause_app: false,
-        counties_on_hold: [] as string[],
         states_on_hold: [] as string[],
     });
     const [snackbar, setSnackbar] = useState({
@@ -56,9 +51,6 @@ const WorkerSettingsPanel = () => {
                     minutes_range_start: response.minutes_range_start ?? 0,
                     minutes_range_end: response.minutes_range_end ?? 0,
                     delay_same_state: response.delay_same_state ?? 0,
-                    getting_leads: response.getting_leads,
-                    pause_app: response.pause_app,
-                    counties_on_hold: response.counties_on_hold,
                     states_on_hold: response.states_on_hold,
                 });
             }
@@ -96,9 +88,6 @@ const WorkerSettingsPanel = () => {
             minutes_range_start: settings.minutes_range_start ?? 0,
             minutes_range_end: settings.minutes_range_end ?? 0,
             delay_same_state: settings.delay_same_state ?? 0,
-            getting_leads: settings.getting_leads,
-            pause_app: settings.pause_app,
-            counties_on_hold: settings.counties_on_hold,
             states_on_hold: settings.states_on_hold,
         });
     };
@@ -108,14 +97,6 @@ const WorkerSettingsPanel = () => {
         setEditedSettings(prev => ({
             ...prev,
             [name]: type === 'number' ? Number(value) : value
-        }));
-    };
-
-    const handleSwitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {name, checked} = e.target;
-        setEditedSettings(prev => ({
-            ...prev,
-            [name]: checked
         }));
     };
 
@@ -235,36 +216,8 @@ const WorkerSettingsPanel = () => {
                                     onChange={handleInputChange}
                                     disabled={!editMode}
                                 />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={editMode ? editedSettings.getting_leads : settings.getting_leads}
-                                            onChange={handleSwitchChange}
-                                            name="getting_leads"
-                                            disabled={!editMode}
-                                        />
-                                    }
-                                    label="Getting Leads"
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={editMode ? editedSettings.pause_app : settings.pause_app}
-                                            onChange={handleSwitchChange}
-                                            name="pause_app"
-                                            disabled={!editMode}
-                                        />
-                                    }
-                                    label="Pause App"
-                                />
                                 {!editMode && (
                                     <>
-                                        <TextField
-                                            fullWidth
-                                            label="Created"
-                                            value={settings.created.toLocaleString()}
-                                            disabled
-                                        />
                                         <TextField
                                             fullWidth
                                             label="Last Modified"
