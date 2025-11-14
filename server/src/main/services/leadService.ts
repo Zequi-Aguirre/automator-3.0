@@ -86,7 +86,6 @@ export default class LeadService {
             lead.county_id = county.id;
             lead.investor_id = investor.id;
             lead.campaign_id = campaign.id;
-
             resolvedLeads.push(lead);
         }
 

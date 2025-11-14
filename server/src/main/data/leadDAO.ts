@@ -81,7 +81,7 @@ export default class LeadDAO {
         const query = `
             SELECT *
             FROM leads
-            WHERE id = $(id)
+            WHERE id = $[id]
             AND deleted IS NULL;
         `;
 
@@ -120,7 +120,7 @@ export default class LeadDAO {
         const query = `
             UPDATE leads
             SET deleted = now()
-            WHERE id = $(id)
+            WHERE id = $[id]
             AND deleted IS NULL
             RETURNING *;
         `;
