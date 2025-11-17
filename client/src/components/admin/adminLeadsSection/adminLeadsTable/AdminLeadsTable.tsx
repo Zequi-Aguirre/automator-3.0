@@ -193,7 +193,7 @@ const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             sortable: false,
             filterable: false,
             renderCell: (params: GridRenderCellParams) => {
-                const importedISO: string | null = params.row.raw?.imported_at ?? null;
+                const importedISO: string | null = params.row.raw?.created ?? null;
                 if (!importedISO) return "—";
                 const ms = remainingMs(importedISO, now);
                 const label = formatRemaining(ms);

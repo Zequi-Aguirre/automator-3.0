@@ -30,11 +30,13 @@ export default class LeadFormInputDAO {
         const query = `
             INSERT INTO lead_form_inputs (
                 id,
-                lead_id
+                lead_id,
+                form_listed
                 )
             VALUES (
                 gen_random_uuid(),
-                $[lead_id]
+                $[lead_id],
+                $[form_listed]
             )
             RETURNING *;
             `;

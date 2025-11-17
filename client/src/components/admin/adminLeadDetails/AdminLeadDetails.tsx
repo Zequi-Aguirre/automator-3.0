@@ -174,8 +174,8 @@ const AdminLeadDetails = () => {
     };
 
     const renderExpiresBanner = () => {
-        if (!lead?.imported_at) return null;
-        const ms = remainingMs(lead.imported_at, now);
+        if (!lead?.created) return null;
+        const ms = remainingMs(lead.created, now);
         const label = formatRemaining(ms);
         const urgency = getUrgency(ms);
         const color = colorForUrgency(urgency);
