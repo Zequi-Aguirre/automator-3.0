@@ -74,7 +74,6 @@ export default class LeadResource {
             try {
                 const leadId = req.params.leadId;
                 const userId = req.user.id; // Assuming user is attached to request by auth middleware
-
                 const response = `${leadId} - ${userId}` // await this.leadService.sendLeadWithDelay(leadId, userId);
                 return res.status(200).send(response);
             } catch (error) {
@@ -83,6 +82,28 @@ export default class LeadResource {
                     message: 'Failed to send lead',
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
+            }
+        });
+
+        // Verify lead
+        this.router.patch("/admin/verify/:leadId", async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const result = await this.leadService.verifyLead(leadId);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(400).send({ message: error instanceof Error ? error.message : "Verification failed" });
+            }
+        });
+
+        // Unverify lead
+        this.router.patch("/admin/unverify/:leadId", async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const result = await this.leadService.unverifyLead(leadId);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(400).send({ message: error instanceof Error ? error.message : "Unverify failed" });
             }
         });
 

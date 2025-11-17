@@ -53,6 +53,40 @@ export default class LeadDAO {
         return result;
     }
 
+    // Mark lead as verified
+    async verifyLead(leadId: string): Promise<Lead> {
+        const query = `
+        UPDATE leads
+        SET verified = TRUE,
+            modified = NOW()
+        WHERE id = $[leadId]
+        AND deleted IS NULL
+        RETURNING *;
+    `;
+        const result = await this.db.oneOrNone<Lead>(query, { leadId });
+        if (!result) {
+            throw new Error("Lead not found or verify failed");
+        }
+        return result;
+    }
+
+// Mark lead as unverified
+    async unverifyLead(leadId: string): Promise<Lead> {
+        const query = `
+        UPDATE leads
+        SET verified = FALSE,
+            modified = NOW()
+        WHERE id = $[leadId]
+        AND deleted IS NULL
+        RETURNING *;
+    `;
+        const result = await this.db.oneOrNone<Lead>(query, { leadId });
+        if (!result) {
+            throw new Error("Lead not found or unverify failed");
+        }
+        return result;
+    }
+
     private async getUpdatedLeadFields(
         id: string,
         updates: Partial<LeadUpdateAllowedFieldsType>

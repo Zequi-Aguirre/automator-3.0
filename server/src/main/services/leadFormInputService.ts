@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import LeadFormInputDAO from "../data/leadFormInputDAO";
+import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import { LeadFormInputCreate, LeadFormInputUpdate, LeadFormInput } from "../types/leadFormInputTypes";
 
 @injectable()

@@ -7,12 +7,14 @@ import CountyService from "../services/countyService.ts";
 import CampaignService from "../services/campaignService.ts";
 import AffiliateService from "../services/affiliateService.ts";
 import InvestorService from "../services/investorService.ts";
+import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 
 @injectable()
 export default class LeadService {
 
     constructor(
         private readonly leadDAO: LeadDAO,
+        private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
         private readonly campaignService: CampaignService,
         private readonly affiliateService: AffiliateService,
@@ -41,10 +43,23 @@ export default class LeadService {
 
     async trashLead(leadId: string): Promise<Lead> {
         try {
+            const lead = await this.leadDAO.getById(leadId);
+            if (!lead) {
+                throw new Error("Lead not found");
+            }
+
+            // Hard block: sent leads cannot be trashed
+            if (lead.sent) {
+                throw new Error("Lead already sent");
+            }
+
             return await this.leadDAO.trashLead(leadId);
+
         } catch (error) {
-            console.error('Error during lead trash process:', error);
-            throw new Error(`Failed to trash lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error during lead trash process:", error);
+            throw new Error(
+                error instanceof Error ? error.message : "Failed to trash lead"
+            );
         }
     }
 
@@ -58,9 +73,53 @@ export default class LeadService {
         }
     }
 
-    async importLeads(csvContent: string) {
-        console.log('Starting CSV import...');
+    async verifyLead(leadId: string): Promise<Lead> {
+        // Fetch lead
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) throw new Error("Lead not found");
+        if (lead.sent) throw new Error("Lead already sent");
+        if (lead.verified) throw new Error("Lead is already verified");
 
+        // Fetch form input
+        const form = await this.leadFormInputDAO.getByLeadId(leadId);
+        if (!form) throw new Error("Missing form for lead");
+
+        // Required backend validation
+        const REQUIRED_FIELDS = [
+            "form_multifamily",
+            "form_repairs",
+            "form_occupied",
+            "form_sell_fast",
+            "form_goal",
+            "form_owner",
+            "form_owned_years",
+            "form_listed"
+        ];
+
+        const formObj = form as unknown as Record<string, any>;
+
+        const missing: string[] = REQUIRED_FIELDS.filter(
+            f => !formObj[f] || String(formObj[f]).trim() === ""
+        );
+
+        if (missing.length > 0) {
+            throw new Error(`Missing required fields: ${missing.join(", ")}`);
+        }
+
+        // Verify lead
+        return await this.leadDAO.verifyLead(leadId);
+    }
+
+    async unverifyLead(leadId: string): Promise<Lead> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) throw new Error("Lead not found");
+        if (lead.sent) throw new Error("Lead already sent");
+        if (!lead.verified) throw new Error("Lead is not verified");
+
+        return await this.leadDAO.unverifyLead(leadId);
+    }
+
+    async importLeads(csvContent: string) {
         // 1. Parse CSV into leads, affiliates, campaigns, and investors
         const { leads, affiliates, campaigns, investors } = parseCsvToLeads(csvContent);
 

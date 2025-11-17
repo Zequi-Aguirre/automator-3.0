@@ -27,7 +27,6 @@ export default class LeadFormInputDAO {
     }
 
     async create(input: LeadFormInputCreate): Promise<LeadFormInput> {
-        console.log("Creating LeadFormInput with input:", input);
         const query = `
             INSERT INTO lead_form_inputs (
                 id,

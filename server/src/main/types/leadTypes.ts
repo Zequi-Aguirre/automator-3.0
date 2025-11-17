@@ -11,6 +11,10 @@ export type Lead = {
     phone: string;
     email: string;
     created: string;
+    sent: boolean;
+    verified: boolean;
+    imported_at: string;
+    sent_date: string;
 }
 
 export type LeadUpdateAllowedFieldsType = {

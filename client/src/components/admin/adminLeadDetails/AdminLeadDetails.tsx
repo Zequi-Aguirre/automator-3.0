@@ -38,6 +38,7 @@ const AdminLeadDetails = () => {
     const navigate = useNavigate();
 
     const [lead, setLead] = useState<Lead | null>(null);
+    const [isLocked, setIsLocked] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,14 +59,13 @@ const AdminLeadDetails = () => {
         severity: 'success' as 'success' | 'error'
     });
 
-    // shared ticking clock for countdown
     const [now, setNow] = useState(DateTime.utc());
     useEffect(() => {
-        const id = setInterval(() => {
+        const intervalId = setInterval(() => {
             setNow(DateTime.utc());
         }, 1000);
         return () => {
-            clearInterval(id);
+            clearInterval(intervalId);
         };
     }, []);
 
@@ -93,6 +93,9 @@ const AdminLeadDetails = () => {
                 state: response.state,
                 zipcode: response.zipcode
             });
+            setError(null);
+            setEditMode(false);
+            setIsLocked(response.verified || response.sent);
         } catch (err) {
             setError('Failed to load lead details');
             console.error('Error fetching lead:', err);
@@ -106,6 +109,10 @@ const AdminLeadDetails = () => {
     }, [fetchLead]);
 
     const handleEditClick = () => {
+        if (!lead) return;
+        if (isLocked) {
+            return;
+        }
         setEditMode(true);
     };
 
@@ -148,6 +155,11 @@ const AdminLeadDetails = () => {
     const handleSave = async () => {
         try {
             if (!id || !lead) return;
+
+            if (isLocked) {
+                return;
+            }
+
             await leadsService.updateLead(id, {
                 ...lead,
                 ...editedContact
@@ -178,16 +190,52 @@ const AdminLeadDetails = () => {
         );
     };
 
+    const handleCopyAddress = () => {
+        if (!lead) return;
+
+        const fullAddress = `${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`;
+
+        navigator.clipboard.writeText(fullAddress)
+            .then(() => {
+                showNotification('Address copied to clipboard', 'success');
+            })
+            .catch(() => {
+                showNotification('Failed to copy address', 'error');
+            });
+    };
+
+    const handleOpenGoogleSearch = () => {
+        if (!lead) return;
+
+        const fullAddress = `${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`;
+        const encoded = encodeURIComponent(fullAddress);
+
+        const url = `https://www.google.com/search?q=${encoded}`;
+
+        window.open(url, "_blank");
+    };
+
     const renderHeaderActions = () => {
+        if (!lead) return null;
         if (editMode) {
             return (
                 <Stack direction="column" spacing={1} alignItems="flex-end">
                     {renderExpiresBanner()}
                     <Stack direction="row" spacing={1}>
-                        <Button startIcon={<Save />} variant="contained" onClick={handleSave}>
+                        <Button
+                            startIcon={<Save />}
+                            variant="contained"
+                            onClick={handleSave}
+                            disabled={isLocked}
+                        >
                             Save
                         </Button>
-                        <Button startIcon={<Cancel />} variant="outlined" onClick={handleCancelEdit}>
+                        <Button
+                            startIcon={<Cancel />}
+                            variant="outlined"
+                            onClick={handleCancelEdit}
+                            disabled={isLocked}
+                        >
                             Cancel
                         </Button>
                     </Stack>
@@ -206,10 +254,16 @@ const AdminLeadDetails = () => {
                         onClick={() => {
                             setConfirmDialogOpen(true);
                         }}
+                        disabled={lead.sent}
                     >
                         Trash
                     </Button>
-                    <Button startIcon={<Edit />} variant="contained" onClick={handleEditClick}>
+                    <Button
+                        startIcon={<Edit />}
+                        variant="contained"
+                        onClick={handleEditClick}
+                        disabled={isLocked}
+                    >
                         Edit
                     </Button>
                 </Stack>
@@ -246,7 +300,25 @@ const AdminLeadDetails = () => {
                         >
                             <ArrowBack />
                         </IconButton>
+
                         <Typography variant="h4">Lead Details</Typography>
+
+                        {!editMode && lead && (
+                            <>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleCopyAddress}
+                                >
+                                    Copy Address
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleOpenGoogleSearch}
+                                >
+                                    See on Google
+                                </Button>
+                            </>
+                        )}
                     </Stack>
 
                     <Card>
@@ -261,7 +333,7 @@ const AdminLeadDetails = () => {
                                         name="first_name"
                                         value={editMode ? editedContact.first_name : lead.first_name}
                                         onChange={handleInputChange}
-                                        disabled={!editMode}
+                                        disabled={!editMode || isLocked}
                                     />
                                     <TextField
                                         fullWidth
@@ -269,7 +341,7 @@ const AdminLeadDetails = () => {
                                         name="last_name"
                                         value={editMode ? editedContact.last_name : lead.last_name}
                                         onChange={handleInputChange}
-                                        disabled={!editMode}
+                                        disabled={!editMode || isLocked}
                                     />
                                 </Stack>
                                 <TextField
@@ -278,7 +350,7 @@ const AdminLeadDetails = () => {
                                     name="email"
                                     value={editMode ? editedContact.email : lead.email}
                                     onChange={handleInputChange}
-                                    disabled={!editMode}
+                                    disabled={!editMode || isLocked}
                                 />
                                 <TextField
                                     fullWidth
@@ -286,7 +358,7 @@ const AdminLeadDetails = () => {
                                     name="phone"
                                     value={editMode ? editedContact.phone : lead.phone}
                                     onChange={handleInputChange}
-                                    disabled={!editMode}
+                                    disabled={!editMode || isLocked}
                                 />
                                 <TextField
                                     fullWidth
@@ -294,7 +366,7 @@ const AdminLeadDetails = () => {
                                     name="address"
                                     value={editMode ? editedContact.address : lead.address}
                                     onChange={handleInputChange}
-                                    disabled={!editMode}
+                                    disabled={!editMode || isLocked}
                                 />
                                 <Stack direction="row" spacing={2}>
                                     <TextField
@@ -303,7 +375,7 @@ const AdminLeadDetails = () => {
                                         name="city"
                                         value={editMode ? editedContact.city : lead.city}
                                         onChange={handleInputChange}
-                                        disabled={!editMode}
+                                        disabled={!editMode || isLocked}
                                     />
                                     <TextField
                                         fullWidth
@@ -311,7 +383,7 @@ const AdminLeadDetails = () => {
                                         name="state"
                                         value={editMode ? editedContact.state : lead.state}
                                         onChange={handleInputChange}
-                                        disabled={!editMode}
+                                        disabled={!editMode || isLocked}
                                     />
                                     <TextField
                                         fullWidth
@@ -319,7 +391,7 @@ const AdminLeadDetails = () => {
                                         name="zipcode"
                                         value={editMode ? editedContact.zipcode : lead.zipcode}
                                         onChange={handleInputChange}
-                                        disabled={!editMode}
+                                        disabled={!editMode || isLocked}
                                     />
                                 </Stack>
                             </Stack>
@@ -328,9 +400,12 @@ const AdminLeadDetails = () => {
                 </Stack>
             </Box>
 
-            <LeadVerificationForm leadId={id!} />
+            <LeadVerificationForm
+                leadId={id!}
+                lead={lead}
+                refreshLead={fetchLead}
+            />
 
-            {/* Confirmation Dialog for Trash */}
             <Dialog
                 open={confirmDialogOpen}
                 onClose={() => {
@@ -357,7 +432,6 @@ const AdminLeadDetails = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Snackbar for notifications */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}

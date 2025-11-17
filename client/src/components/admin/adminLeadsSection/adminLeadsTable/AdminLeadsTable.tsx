@@ -290,6 +290,7 @@ const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                         color="error"
                         size="small"
                         sx={{ marginLeft: "20px" }}
+                        disabled={params.row.raw?.sent}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleTrashLead(params.row.id);

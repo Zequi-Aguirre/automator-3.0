@@ -48,6 +48,18 @@ class LeadService {
         return response.data;
     }
 
+    // Verify lead by id (uses saved form data in backend)
+    async verifyLead(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/admin/verify/${leadId}`);
+        return response.data;
+    }
+
+    // Unverify lead by id
+    async unverifyLead(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/admin/unverify/${leadId}`);
+        return response.data;
+    }
+
     // 🚀 Import leads from CSV
     async importLeads(formData: FormData): Promise<{
         imported: number;

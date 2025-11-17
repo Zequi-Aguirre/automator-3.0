@@ -17,7 +17,9 @@ import {
 } from "@mui/material";
 
 import { LeadFormInput } from "../../../../types/leadFormInputTypes.ts";
+import { Lead } from "../../../../types/leadTypes";
 import leadFormInputService from "../../../../services/leadFormInput.service.tsx";
+import leadsService from "../../../../services/lead.service";
 
 import {
     TYPE_OF_HOUSE_OPTIONS,
@@ -38,9 +40,11 @@ import {
 
 interface Props {
     leadId: string;
+    lead: Lead;
+    refreshLead: () => Promise<void> | void;
 }
 
-const LeadVerificationForm = ({ leadId }: Props) => {
+const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
@@ -50,6 +54,10 @@ const LeadVerificationForm = ({ leadId }: Props) => {
     const [verifyError, setVerifyError] = useState<string | null>(null);
     const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
 
+    const isVerified = lead.verified;
+    const isSent = lead.sent;
+    const isLocked = isVerified || isSent;
+
     const fetchForm = useCallback(async () => {
         setLoading(true);
         try {
@@ -57,13 +65,19 @@ const LeadVerificationForm = ({ leadId }: Props) => {
             if (response) {
                 setExists(true);
                 setForm(response);
+                setDirty(false);
+                setError(null);
+                setVerifyError(null);
+                setVerifySuccess(null);
             } else {
                 setExists(false);
                 setForm(null);
+                setDirty(false);
             }
         } catch {
             setExists(false);
             setForm(null);
+            setDirty(false);
         } finally {
             setLoading(false);
         }
@@ -74,6 +88,10 @@ const LeadVerificationForm = ({ leadId }: Props) => {
     }, [fetchForm]);
 
     const handleStart = async () => {
+        if (isLocked) {
+            return;
+        }
+
         try {
             const emptyPayload = {
                 lead_id: leadId,
@@ -95,6 +113,10 @@ const LeadVerificationForm = ({ leadId }: Props) => {
             const data = await leadFormInputService.create(emptyPayload);
             setExists(true);
             setForm(data);
+            setDirty(false);
+            setError(null);
+            setVerifyError(null);
+            setVerifySuccess(null);
         } catch {
             setError("Failed to start verification");
         }
@@ -102,11 +124,18 @@ const LeadVerificationForm = ({ leadId }: Props) => {
 
     const handleChange = (field: string, value: any) => {
         if (!form) return;
+        if (isLocked) return;
+
         setForm({ ...form, [field]: value });
         setDirty(true);
+        setVerifyError(null);
+        setVerifySuccess(null);
     };
 
     const handleCancel = () => {
+        if (isLocked) {
+            return;
+        }
         fetchForm();
         setDirty(false);
         setVerifyError(null);
@@ -115,6 +144,8 @@ const LeadVerificationForm = ({ leadId }: Props) => {
 
     const handleSave = async () => {
         if (!form) return;
+        if (isLocked) return;
+
         setSaving(true);
         setError(null);
         try {
@@ -128,10 +159,12 @@ const LeadVerificationForm = ({ leadId }: Props) => {
         }
     };
 
-    const handleVerify = () => {
+    const handleVerify = async () => {
         if (!form) return;
+        if (isLocked) return;
+
         const missing = REQUIRED_FIELDS.filter(
-            field => form[field] == null || form[field] === ""
+            (field) => form[field] == null || form[field] === ""
         );
 
         if (missing.length > 0) {
@@ -140,255 +173,309 @@ const LeadVerificationForm = ({ leadId }: Props) => {
             return;
         }
 
-        setVerifySuccess("Verification passed. Lead is ready for the queue.");
-        setVerifyError(null);
+        try {
+            setError(null);
+            setVerifyError(null);
+
+            await leadsService.verifyLead(leadId);
+            await refreshLead();
+
+            setVerifySuccess("Verification passed. Lead is locked and in the queue.");
+            setDirty(false);
+        } catch {
+            setVerifyError("Failed to verify lead");
+            setVerifySuccess(null);
+        }
     };
 
-    const isVerifiable = form
-        ? REQUIRED_FIELDS.every(field => form[field] && form[field] !== "")
-        : false;
+    const handleUnverify = async () => {
+        if (!form) return;
+        if (!isVerified) return;
+        if (isSent) return;
 
-    if (loading) {
-        return (
-            <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}>
-                <CircularProgress />
-            </Box>
-        );
+        try {
+        setError(null);
+        setVerifyError(null);
+
+        console.log(">>> UNVERIFY CALL: about to unverify lead and remove it from the queue.");
+        console.log(">>> Lead id:", leadId);
+
+        await leadsService.unverifyLead(leadId);
+
+        if (typeof refreshLead === "function") {
+            await Promise.resolve(refreshLead());
+        }
+
+        setVerifySuccess("Lead has been unverifed and removed from the queue.");
+        setDirty(false);
+    } catch {
+        setVerifyError("Failed to unverify lead");
     }
+};
 
+const isVerifiable = form
+    ? REQUIRED_FIELDS.every((field) => form[field] && form[field] !== "")
+    : false;
+
+if (loading) {
     return (
-        <Card sx={{ mt: 4 }}>
-            <CardHeader title="Lead Verification" />
-            <Divider />
-            <CardContent>
-                {!exists && (
-                    <Box sx={{ textAlign: "center", py: 3 }}>
-                        <Button variant="contained" onClick={handleStart}>
-                            Start Verification
-                        </Button>
-                    </Box>
-                )}
+        <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}>
+            <CircularProgress />
+        </Box>
+    );
+}
 
-                {exists && form && (
-                    <Stack spacing={3}>
+return (
+    <Card sx={{ mt: 4 }}>
+        <CardHeader title="Lead Verification" />
+        <Divider />
+        <CardContent>
+            {!exists && (
+                <Box sx={{ textAlign: "center", py: 3 }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleStart}
+                        disabled={isLocked}
+                    >
+                        Start Verification
+                    </Button>
+                </Box>
+            )}
 
-                        {/* TYPE OF HOUSE */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Type of house (Required)"
-                            value={form.form_multifamily ?? ""}
-                            onChange={e => {
-                                handleChange("form_multifamily", e.target.value)
-                            }}
-                        >
-                            {TYPE_OF_HOUSE_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+            {exists && form && (
+                <Stack spacing={3}>
 
-                        {/* REPAIRS MULTISELECT */}
-                        <Select
-                            multiple
-                            fullWidth
-                            displayEmpty
-                            value={form.form_repairs ? form.form_repairs.split("\n") : []}
-                            onChange={e => {
-                                const val = (e.target.value as string[]).join("\n");
-                                handleChange("form_repairs", val);
-                            }}
-                            renderValue={(selected) =>
-                                !selected || selected.length === 0
-                                    ? "Repairs needed (Required)"
-                                    : selected.join(", ")
-                            }
-                        >
-                            {REPAIRS_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>
-                                    <Checkbox checked={form.form_repairs?.includes(opt) ?? false} />
-                                    <ListItemText primary={opt} />
-                                </MenuItem>
-                            ))}
-                        </Select>
+                    {/* TYPE OF HOUSE */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Type of house (Required)"
+                        value={form.form_multifamily ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_multifamily", e.target.value);
+                        }}
+                    >
+                        {TYPE_OF_HOUSE_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* SQUARE FOOTAGE */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Square footage"
-                            value={form.form_square ?? ""}
-                            onChange={e => {
-                                handleChange("form_square", e.target.value)
-                            }}
-                        >
-                            {SQUARE_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* REPAIRS MULTISELECT */}
+                    <Select
+                        multiple
+                        fullWidth
+                        displayEmpty
+                        disabled={isLocked}
+                        value={form.form_repairs ? form.form_repairs.split("\n") : []}
+                        onChange={e => {
+                            const val = (e.target.value as string[]).join("\n");
+                            handleChange("form_repairs", val);
+                        }}
+                        renderValue={(selected) =>
+                            !selected || selected.length === 0
+                                ? "Repairs needed (Required)"
+                                : (selected).join(", ")
+                        }
+                    >
+                        {REPAIRS_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>
+                                <Checkbox checked={form.form_repairs?.includes(opt) ?? false} />
+                                <ListItemText primary={opt} />
+                            </MenuItem>
+                        ))}
+                    </Select>
 
-                        {/* YEAR BUILT RANGE */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Year built range"
-                            value={form.form_year ?? ""}
-                            onChange={e => {
-                                handleChange("form_year", e.target.value)
-                            }}
-                        >
-                            {YEAR_RANGE_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* SQUARE FOOTAGE */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Square footage"
+                        value={form.form_square ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_square", e.target.value);
+                        }}
+                    >
+                        {SQUARE_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* GARAGE */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Garage"
-                            value={form.form_garage ?? ""}
-                            onChange={e => {
-                                handleChange("form_garage", e.target.value)
-                            }}
-                        >
-                            {GARAGE_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* YEAR BUILT RANGE */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Year built range"
+                        value={form.form_year ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_year", e.target.value);
+                        }}
+                    >
+                        {YEAR_RANGE_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* BEDROOMS */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Bedrooms"
-                            value={form.form_bedrooms ?? ""}
-                            onChange={e => {
-                                handleChange("form_bedrooms", e.target.value)
-                            }}
-                        >
-                            {BEDROOM_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* GARAGE */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Garage"
+                        value={form.form_garage ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_garage", e.target.value);
+                        }}
+                    >
+                        {GARAGE_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* BATHROOMS */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Bathrooms"
-                            value={form.form_bathrooms ?? ""}
-                            onChange={e => {
-                                handleChange("form_bathrooms", e.target.value)
-                            }}
-                        >
-                            {BATHROOM_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* BEDROOMS */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Bedrooms"
+                        value={form.form_bedrooms ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_bedrooms", e.target.value);
+                        }}
+                    >
+                        {BEDROOM_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* OCCUPIED */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Occupied (Required)"
-                            value={form.form_occupied ?? ""}
-                            onChange={e => {
-                                handleChange("form_occupied", e.target.value)
-                            }}
-                        >
-                            {OCCUPIED_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* BATHROOMS */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Bathrooms"
+                        value={form.form_bathrooms ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_bathrooms", e.target.value);
+                        }}
+                    >
+                        {BATHROOM_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* SELL FAST */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="How fast (Required)"
-                            value={form.form_sell_fast ?? ""}
-                            onChange={e => {
-                                handleChange("form_sell_fast", e.target.value)
-                            }}
-                        >
-                            {SELL_FAST_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* OCCUPIED */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Occupied (Required)"
+                        value={form.form_occupied ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_occupied", e.target.value);
+                        }}
+                    >
+                        {OCCUPIED_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* GOAL MULTISELECT */}
-                        <Select
-                            multiple
-                            fullWidth
-                            displayEmpty
-                            value={form.form_goal ? form.form_goal.split("\n") : []}
-                            onChange={e => {
-                                const val = (e.target.value as string[]).join("\n");
-                                handleChange("form_goal", val);
-                            }}
-                            renderValue={(selected) =>
-                                !selected || selected.length === 0
-                                    ? "Goal (Required)"
-                                    : selected.join(", ")
-                            }
-                        >
-                            {GOAL_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>
-                                    <Checkbox checked={form.form_goal?.includes(opt) ?? false} />
-                                    <ListItemText primary={opt} />
-                                </MenuItem>
-                            ))}
-                        </Select>
+                    {/* SELL FAST */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="How fast (Required)"
+                        value={form.form_sell_fast ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_sell_fast", e.target.value);
+                        }}
+                    >
+                        {SELL_FAST_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* OWNER */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Owner (Required)"
-                            value={form.form_owner ?? ""}
-                            onChange={e => {
-                                handleChange("form_owner", e.target.value)
-                            }}
-                        >
-                            {OWNER_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* GOAL MULTISELECT */}
+                    <Select
+                        multiple
+                        fullWidth
+                        displayEmpty
+                        disabled={isLocked}
+                        value={form.form_goal ? form.form_goal.split("\n") : []}
+                        onChange={e => {
+                            const val = (e.target.value as string[]).join("\n");
+                            handleChange("form_goal", val);
+                        }}
+                        renderValue={(selected) =>
+                            !selected || selected.length === 0
+                                ? "Goal (Required)"
+                                : (selected).join(", ")
+                        }
+                    >
+                        {GOAL_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>
+                                <Checkbox checked={form.form_goal?.includes(opt) ?? false} />
+                                <ListItemText primary={opt} />
+                            </MenuItem>
+                        ))}
+                    </Select>
 
-                        {/* OWNED YEARS */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Owned years (Required)"
-                            value={form.form_owned_years ?? ""}
-                            onChange={e => {
-                                handleChange("form_owned_years", e.target.value)
-                            }}
-                        >
-                            {OWNED_YEARS_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* OWNER */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Owner (Required)"
+                        value={form.form_owner ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_owner", e.target.value);
+                        }}
+                    >
+                        {OWNER_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {/* LISTED */}
-                        <TextField
-                            select
-                            fullWidth
-                            label="Listed (Required)"
-                            value={form.form_listed ?? ""}
-                            onChange={e => {
-                                handleChange("form_listed", e.target.value)
-                            }}
-                        >
-                            {LISTED_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </TextField>
+                    {/* OWNED YEARS */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Owned years (Required)"
+                        value={form.form_owned_years ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_owned_years", e.target.value);
+                        }}
+                    >
+                        {OWNED_YEARS_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
-                        {error && <Alert severity="error">{error}</Alert>}
-                        {verifyError && <Alert severity="error">{verifyError}</Alert>}
-                        {verifySuccess && <Alert severity="success">{verifySuccess}</Alert>}
+                    {/* LISTED */}
+                    <TextField
+                        select
+                        fullWidth
+                        label="Listed (Required)"
+                        value={form.form_listed ?? ""}
+                        disabled={isLocked}
+                        onChange={e => {
+                            handleChange("form_listed", e.target.value);
+                        }}
+                    >
+                        {LISTED_OPTIONS.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                    </TextField>
 
+                    {error && <Alert severity="error">{error}</Alert>}
+                    {verifyError && <Alert severity="error">{verifyError}</Alert>}
+                    {verifySuccess && <Alert severity="success">{verifySuccess}</Alert>}
+
+                    {!isLocked && (
                         <Stack direction="row" spacing={2}>
                             <Button
                                 variant="contained"
@@ -415,12 +502,24 @@ const LeadVerificationForm = ({ leadId }: Props) => {
                                 Verify
                             </Button>
                         </Stack>
+                    )}
 
-                    </Stack>
-                )}
-            </CardContent>
-        </Card>
-    );
+                    {isVerified && !isSent && (
+                        <Stack direction="row" spacing={2}>
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={handleUnverify}
+                            >
+                                Unverify
+                            </Button>
+                        </Stack>
+                    )}
+
+                </Stack>
+            )}
+        </CardContent>
+    </Card>
+)
 };
-
 export default LeadVerificationForm;
