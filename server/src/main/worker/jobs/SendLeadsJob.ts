@@ -1,12 +1,13 @@
 import { injectable } from 'tsyringe';
-// import LeadService from "../../services/leadService.ts";
+import LeadService from "../../services/leadService.ts";
 import SettingsService from "../../services/settingsService.ts";
+import { Lead } from "../../types/leadTypes.ts";
 
 // Update SendLeadsJob to use workerSend
 @injectable()
 export default class SendLeadsJob {
     constructor(
-        // private readonly leadService: LeadService,
+        private readonly leadService: LeadService,
         private readonly workerSettingsService: SettingsService
     ) {}
 
@@ -19,14 +20,13 @@ export default class SendLeadsJob {
             console.log('----- SendLeadsJob: Not time to send a lead yet');
             return;
         }
-        const workerId = await this.workerSettingsService.getWorkerId();
-        const leads: never[] = [] // await this.leadService.getLeadsToSendByWorker();
-        // TODO: Uncomment the line above and implement getLeadsToSendByWorker in LeadService
-        for (const lead of leads) {
-            console.log(`----- SendLeadsJob: Sending lead with id ${lead}`);
-            console.log(`----- SendLeadsJob: Using worker id ${workerId}`);
-            // await this.leadService.sendLead(lead.id, workerId);
-        }
-        console.log(`----- SendLeadsJob: Processed ${leads.length} leads`);
+        const lead: Lead = await this.leadService.getLeadToSendByWorker();
+        const sentLead = await this.leadService.sendLead(lead.id);
+        console.log(`----- SendLeadsJob: Processed ${sentLead.first_name} leads`);
+        const { minutes_range_start, minutes_range_end } = currentSettings!;
+        const nextLeadTime = new Date();
+        const randomNumber = Math.floor(Math.random() * (minutes_range_end - minutes_range_start + 1)) + minutes_range_start;
+        nextLeadTime.setMinutes(nextLeadTime.getMinutes() + randomNumber);
+        await this.workerSettingsService.updateNextLeadTime(currentSettings!.id, nextLeadTime.toISOString());
     }
 }

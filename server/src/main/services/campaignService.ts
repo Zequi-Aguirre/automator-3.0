@@ -41,6 +41,10 @@ export default class CampaignService {
         return { campaigns };
     }
 
+    async getById(id: string): Promise<Campaign | null> {
+        return this.campaignDAO.getById(id);
+    }
+
     async loadOrCreateCampaigns(
         campaignAffiliateMap: Map<string, string>, // campaignName -> affiliateName
         affiliateMap: Map<string, Affiliate>

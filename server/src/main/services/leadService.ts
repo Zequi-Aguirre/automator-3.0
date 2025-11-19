@@ -8,6 +8,8 @@ import CampaignService from "../services/campaignService.ts";
 import AffiliateService from "../services/affiliateService.ts";
 import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
+import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
+import SendLogDAO from "../data/sendLogDAO.ts";
 
 @injectable()
 export default class LeadService {
@@ -18,7 +20,9 @@ export default class LeadService {
         private readonly countyService: CountyService,
         private readonly campaignService: CampaignService,
         private readonly affiliateService: AffiliateService,
-        private readonly investorService: InvestorService
+        private readonly investorService: InvestorService,
+        private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
+        private readonly sendLogDAO: SendLogDAO
     ) {}
 
     // Lead Management Methods
@@ -39,6 +43,110 @@ export default class LeadService {
 
     async updateLead(leadId: string, leadData: Partial<Lead>): Promise<Lead> {
         return await this.leadDAO.updateLead(leadId, leadData);
+    }
+
+    async getLeadToSendByWorker(): Promise<Lead> {
+        console.log('LeadService: Fetching leads to send by worker');
+        // get all verified not deleted leads and randomly pick one
+        const leads = await this.leadDAO.getLeadsToSendByWorker();
+        console.log(`LeadService: Found ${leads.length} leads to send by worker`, leads);
+        if (leads.length === 0) {
+            throw new Error("No leads available to send");
+        }
+
+        const randomIndex = Math.floor(Math.random() * leads.length);
+        return leads[randomIndex];
+    }
+
+    async sendLead(leadId: string): Promise<Lead> {
+        // --- Fetch lead ------------------------------------------------------
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) throw new Error("Lead not found");
+        if (lead.sent) throw new Error("Lead already sent");
+        if (!lead.verified) throw new Error("Lead must be verified first");
+
+        // --- Fetch form ------------------------------------------------------
+        const form = await this.leadFormInputDAO.getByLeadId(lead.id);
+        if (!form) throw new Error("Lead is missing form data");
+
+        // --- Fetch related entities -----------------------------------------
+        const campaign = await this.campaignService.getById(lead.campaign_id);
+        const affiliate = await this.affiliateService.getById(campaign!.affiliate_id);
+        const investor = await this.investorService.getById(lead.investor_id);
+
+        // --- Build payload ---------------------------------------------------
+        const payload = {
+            form_first_name: lead.first_name,
+            form_last_name: lead.last_name,
+            form_phone: lead.phone,
+            form_email: lead.email,
+            form_address: lead.address,
+            form_city: lead.city,
+            form_state: lead.state,
+            form_zip: lead.zipcode,
+            ...form
+        };
+
+        // remove 'created' and 'modified' fields if present
+        delete (payload as any).created;
+        delete (payload as any).modified;
+
+        // --- Create initial send_log ----------------------------------------
+        const log = await this.sendLogDAO.createLog({
+            lead_id: lead.id,
+            affiliate_id: affiliate.id,
+            campaign_id: campaign!.id,
+            investor_id: investor!.id,
+            status: "sent"
+        });
+
+        try {
+            // --- Send lead to ISpeedToLead ----------------------------------
+            const axiosResponse = await this.iSpeedToLeadIAO.sendLead(payload);
+            const response = axiosResponse.data; // typed correctly
+
+            const payoutCents = (() => {
+                const payout = response.data?.payout;
+                if (!payout) return null;
+                const num = Number(payout);
+                return Number.isFinite(num) ? Math.round(num * 100) : null;
+            })();
+
+            // --- Update send_log with response -------------------------------
+            await this.sendLogDAO.updateLog(log.id, {
+                response_code: response.status,
+                response_body: JSON.stringify(response.data),
+                payout_cents: payoutCents,
+                status: "sent"
+            });
+
+            // --- Mark lead as sent -------------------------------------------
+            const updatedLead = await this.leadDAO.updateLead(lead.id, { sent: true });
+            console.log(`Lead ${lead.id} sent successfully to ISpeedToLead.`);
+            console.log('ISpeedToLead response:', response.data);
+            console.log('Updated Lead:', updatedLead);
+            return updatedLead;
+
+        } catch (err: any) {
+
+            // --- Mark lead as sent -------------------------------------------
+            await this.leadDAO.updateLead(lead.id, { sent: true });
+            const errorResponse = err.response?.data || err.message || "Unknown error";
+
+            // --- Update send_log on failure ----------------------------------
+            await this.sendLogDAO.updateLog(log.id, {
+                response_code: err.response?.status ?? 0,
+                response_body: JSON.stringify(errorResponse),
+                payout_cents: null,
+                status: "failed"
+            });
+
+            throw new Error(
+                typeof errorResponse === "string"
+                    ? errorResponse
+                    : JSON.stringify(errorResponse)
+            );
+        }
     }
 
     async trashLead(leadId: string): Promise<Lead> {
@@ -138,7 +246,6 @@ export default class LeadService {
             const campaign = campaignMap.get(lead.campaign_id?.toLowerCase() || '');
 
             if (!county || !investor || !campaign) {
-                console.warn('Missing related entity for lead:', lead);
                 continue; // skip this lead
             }
 

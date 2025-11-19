@@ -15,6 +15,8 @@ export type Lead = {
     verified: boolean;
     imported_at: string;
     sent_date: string;
+    campaign_id: string;
+    investor_id: string;
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -26,6 +28,7 @@ export type LeadUpdateAllowedFieldsType = {
     last_name: string;
     phone: string;
     email: string;
+    sent: boolean;
 };
 
 export type LeadFilters = {

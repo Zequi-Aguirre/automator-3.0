@@ -24,4 +24,9 @@ export default class InvestorService {
 
         return map;
     }
+
+    async getById(id: string): Promise<Investor | null> {
+        return this.investorDAO.getById(id);
+    }
+
 }

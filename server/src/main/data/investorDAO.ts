@@ -23,6 +23,15 @@ export default class InvestorDAO {
         return await this.db.one<Investor>(query, data);
     }
 
+    async getById(id: string): Promise<Investor | null> {
+        const query = `
+            SELECT * 
+            FROM investors 
+            WHERE id = $[id] AND deleted IS NULL;
+        `;
+        return await this.db.oneOrNone<Investor>(query, { id });
+    }
+
     async getAllInvestors(): Promise<Investor[]> {
         const query = `
             SELECT * 

@@ -28,13 +28,7 @@ export class Worker {
 
     public initialize = async (): Promise<void> => {
         const cronSchedule = process.env.USE_WORKER_CRON;
-        const workerId = await this.jobService.getWorkerId();
         const currentSettings = await this.workerSettingsService.getWorkerSettings();
-
-        if (!workerId) {
-            console.error('Error: Worker ID not found. worker must have an user in the DB to record its ID');
-            throw new Error('Worker ID not found');
-        }
 
         if (!currentSettings) {
             console.error('Error: Worker settings not found. Worker settings must be initialized');

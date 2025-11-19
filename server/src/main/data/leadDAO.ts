@@ -35,6 +35,7 @@ export default class LeadDAO {
                 last_name = $[last_name],
                 phone = $[phone],
                 email = $[email],
+                sent = $[sent],
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL
@@ -93,6 +94,8 @@ export default class LeadDAO {
     ): Promise<LeadUpdateAllowedFieldsType> {
         // Fetch the existing Lead from the database
         const existingLead = await this.getById(id);
+        console.log('Existing Lead:', existingLead);
+        console.log('Updates:', updates);
         if (!existingLead) {
             throw new Error("Lead not found");
         }
@@ -107,6 +110,7 @@ export default class LeadDAO {
             last_name: updates.last_name ?? existingLead.last_name,
             phone: updates.phone ?? existingLead.phone,
             email: updates.email ?? existingLead.email,
+            sent: updates.sent ?? existingLead.sent
         };
     }
 
@@ -150,6 +154,20 @@ export default class LeadDAO {
         };
     }
 
+    async getLeadsToSendByWorker(): Promise<Lead[]> {
+        const query = `
+            SELECT *
+            FROM leads
+            WHERE verified = TRUE
+            AND deleted IS NULL
+            AND sent = FALSE
+            ORDER BY RANDOM()
+            LIMIT 20;
+        `;
+
+        return await this.db.manyOrNone<Lead>(query);
+    }
+
     async trashLead(leadId: string): Promise<Lead> {
         const query = `
             UPDATE leads
@@ -179,10 +197,12 @@ export default class LeadDAO {
                     const postedLead: Lead = await t.one(
                         `
                           INSERT INTO leads (
-                            first_name, last_name, email, phone, address, city, state, zipcode, county, county_id, imported_at
+                            first_name, last_name, email, phone, address, city, state, zipcode,
+                            county, county_id, imported_at, investor_id, campaign_id
                           )
                           VALUES (
-                            $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode], $[county], $[county_id], $[imported_at]
+                            $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
+                            $[county], $[county_id], $[imported_at], $[investor_id], $[campaign_id]
                           )
                           RETURNING *;
                         `,

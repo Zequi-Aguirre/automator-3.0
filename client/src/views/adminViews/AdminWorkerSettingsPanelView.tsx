@@ -43,6 +43,7 @@ const WorkerSettingsPanel = () => {
             setLoading(true);
             const response = await workerSettingsService.getWorkerSettings();
             if (response) {
+                console.log(response)
                 setSettings(response);
                 setEditedSettings({
                     name: response.name,
