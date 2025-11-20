@@ -35,32 +35,47 @@ export default class CountyDAO {
         return await this.db.oneOrNone<County>(query, [id]);
     }
 
-    async getMany(filters: { page: number; limit: number }): Promise<{ counties: County[]; count: number }> {
-        const { page, limit } = filters;
+    async getMany(filters: {
+        page: number;
+        limit: number;
+        search?: string;
+        status?: "all" | "active" | "blacklisted";
+    }): Promise<{ counties: County[]; count: number }> {
+
+        const { page, limit, search = "", status = "all" } = filters;
         const offset = (page - 1) * limit;
 
-        // Query 1: Paginated counties
-        const countiesQuery = `
-        SELECT *
-        FROM counties
-        WHERE deleted IS NULL
-        ORDER BY modified DESC
-        LIMIT $1 OFFSET $2
-    `;
-        const counties = await this.db.manyOrNone<County>(countiesQuery, [limit, offset]);
+        const nameFilter = search.trim().toLowerCase();
+        const searchClause = nameFilter
+            ? `AND LOWER(name) LIKE '%${nameFilter}%'`
+            : "";
 
-        // Query 2: Total count
+        let statusClause = "";
+        if (status === "active") statusClause = `AND blacklisted = FALSE`;
+        if (status === "blacklisted") statusClause = `AND blacklisted = TRUE`;
+
+        const countiesQuery = `
+            SELECT *
+            FROM counties
+            WHERE deleted IS NULL
+            ${searchClause}
+            ${statusClause}
+            ORDER BY modified DESC
+            LIMIT $1 OFFSET $2
+        `;
+
         const countQuery = `
-        SELECT COUNT(*)::int AS total
-        FROM counties
-        WHERE deleted IS NULL
-    `;
+            SELECT COUNT(*)::int AS total
+            FROM counties
+            WHERE deleted IS NULL
+            ${searchClause}
+            ${statusClause}
+        `;
+
+        const counties = await this.db.manyOrNone<County>(countiesQuery, [limit, offset]);
         const { total } = await this.db.one<{ total: number }>(countQuery);
 
-        return {
-            counties,
-            count: total
-        };
+        return { counties, count: total };
     }
 
     async getAllCounties(): Promise<County[]> {

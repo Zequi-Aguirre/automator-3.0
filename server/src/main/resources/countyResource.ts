@@ -24,7 +24,9 @@ export default class CountyResource {
         this.router.get("/admin/get-many", async (req: Request, res: Response) => {
             const filters = {
                 page: Number(req.query.page) || 1,
-                limit: Number(req.query.limit) || 100
+                limit: Number(req.query.limit) || 100,
+                search: (req.query.search as string) || "",
+                status: (req.query.status as "all" | "active" | "blacklisted") || "all"
             };
 
             const result = await this.countyService.getMany(filters);

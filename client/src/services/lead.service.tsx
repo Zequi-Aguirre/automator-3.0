@@ -7,7 +7,9 @@ class LeadService {
     // Get many with filters, limit and page
     async getMany(filters: {
         page: number,
-        limit: number
+        limit: number,
+        search?: string,
+        status?: "new" | "verified" | "sent" | "trash"
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
             '/api/leads/admin/get-many',

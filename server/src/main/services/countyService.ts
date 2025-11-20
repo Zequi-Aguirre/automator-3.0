@@ -109,7 +109,12 @@ export default class CountyService {
         return this.countyDAO.updateCountyBlacklistStatus(id, blacklisted);
     }
 
-    async getMany(filters: { page: number; limit: number }): Promise<{ counties: County[]; count: number }> {
+    async getMany(filters: {
+        page: number;
+        limit: number;
+        search?: string;
+        status?: "all" | "active" | "blacklisted";
+    }): Promise<{ counties: County[]; count: number }> {
         return await this.countyDAO.getMany(filters);
     }
 

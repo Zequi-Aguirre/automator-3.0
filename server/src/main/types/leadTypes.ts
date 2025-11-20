@@ -34,6 +34,8 @@ export type LeadUpdateAllowedFieldsType = {
 export type LeadFilters = {
     page: number;
     limit: number;
+    search?: string;
+    status?: "new" | "verified" | "sent" | "trash";
 };
 
 export type FlatLead = {

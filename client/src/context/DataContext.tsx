@@ -1,11 +1,17 @@
-import React, { createContext, ReactNode, useEffect, useState } from "react";
-import { User } from "../types/userTypes.ts";
-import { Session } from "../types/userTypes";
+import React, { createContext, ReactNode, useEffect, useState, useMemo } from "react";
+import { User, Session } from "../types/userTypes.ts";
 
 type LoginRecord = {
     email: string;
     password: string;
-}
+};
+
+type LeadFilters = {
+    page: number;
+    limit: number;
+    search: string;
+    status: "new" | "verified" | "sent" | "trash";
+};
 
 type DataContextType = {
     session: Session | null;
@@ -18,34 +24,42 @@ type DataContextType = {
     setLoginRecord: React.Dispatch<React.SetStateAction<LoginRecord>>;
     allowLogin: boolean;
     setAllowLogin: React.Dispatch<React.SetStateAction<boolean>>;
-}
+    leadFilters: LeadFilters;
+    setLeadFilters: React.Dispatch<React.SetStateAction<LeadFilters>>;
+};
 
-const CURRENT_VERSION = 2; // Update this value whenever the data structure changes
+const CURRENT_VERSION = 3;
+
+const defaultLeadFilters: LeadFilters = {
+    page: 1,
+    limit: 200,
+    search: "",
+    status: "new"
+};
+
 const defaultData = {
     session: null,
     loggedInUser: null,
-    version: CURRENT_VERSION,
-}
+    role: "",
+    allowLogin: false,
+    leadFilters: defaultLeadFilters,
+    version: CURRENT_VERSION
+};
 
-// Get data from local storage
 const loadFromLocalStorage = () => {
     try {
-        // Retrieve data from local storage
         const storedData = localStorage.getItem("appData");
         if (storedData) {
-            const parsedData = JSON.parse(storedData);
-            // Check if the data version matches the current version
-            if (parsedData.version === CURRENT_VERSION) {
-                return parsedData;
+            const parsed = JSON.parse(storedData);
+            if (parsed.version === CURRENT_VERSION) {
+                return parsed;
             }
-            // If the data version does not match the current version, return default values
             return defaultData;
         }
-    } catch (error) {
-        console.error("Error loading data from local storage:", error);
+    } catch (err) {
+        console.error("Error loading data from local storage:", err);
     }
-    // Return default values if no data found in local storage
-    return defaultData
+    return defaultData;
 };
 
 const DataContext = createContext<DataContextType>({
@@ -53,59 +67,68 @@ const DataContext = createContext<DataContextType>({
     setSession: () => {},
     loggedInUser: null,
     setLoggedInUser: () => {},
-    role: '',
+    role: "",
     setRole: () => {},
-    loginRecord: { email: '', password: '' },
+    loginRecord: { email: "", password: "" },
     setLoginRecord: () => {},
     allowLogin: false,
     setAllowLogin: () => {},
-})
+    leadFilters: defaultLeadFilters,
+    setLeadFilters: () => {}
+});
 
 type Props = {
     children: ReactNode;
 };
 
 export const AppProps = ({ children }: Props) => {
-    const initialState = loadFromLocalStorage();
-    const [session, setSession] = useState<Session | null>(initialState.session);
-    const [loggedInUser, setLoggedInUser] = useState<User | null>(initialState.loggedInUser);
-    const [role, setRole] = useState<string>(initialState.role);
-    const [loginRecord, setLoginRecord] = useState<LoginRecord>({ email: '', password: '' });
-    const [allowLogin, setAllowLogin] = useState<boolean>(initialState.allowLogin);
+    const initial = loadFromLocalStorage();
 
-    // Use useEffect to save state to local storage whenever it changes
+    const [session, setSession] = useState<Session | null>(() => initial.session);
+    const [loggedInUser, setLoggedInUser] = useState<User | null>(() => initial.loggedInUser);
+    const [role, setRole] = useState<string>(() => initial.role);
+    const [loginRecord, setLoginRecord] = useState<LoginRecord>({ email: "", password: "" });
+    const [allowLogin, setAllowLogin] = useState<boolean>(() => initial.allowLogin);
+    const [leadFilters, setLeadFilters] = useState<LeadFilters>(() => initial.leadFilters || defaultLeadFilters);
+
     useEffect(() => {
-        const dataToStore = {
+        const data = {
             session,
             loggedInUser,
             role,
             allowLogin,
-            version: CURRENT_VERSION,
+            leadFilters,
+            version: CURRENT_VERSION
         };
+
         try {
-            // Store data in local storage as a JSON string
-            localStorage.setItem("appData", JSON.stringify(dataToStore));
-        } catch (error) {
-            console.error("Error saving data to local storage:", error);
+            localStorage.setItem("appData", JSON.stringify(data));
+        } catch (err) {
+            console.error("Error saving data to local storage:", err);
         }
-    }, [session, loggedInUser, role, allowLogin]);
+    }, [session, loggedInUser, role, allowLogin, leadFilters]);
+
+    const contextValue = useMemo(
+        () => ({
+            session,
+            setSession,
+            loggedInUser,
+            setLoggedInUser,
+            role,
+            setRole,
+            loginRecord,
+            setLoginRecord,
+            allowLogin,
+            setAllowLogin,
+            leadFilters,
+            setLeadFilters
+        }),
+        [session, loggedInUser, role, loginRecord, allowLogin, leadFilters]
+    );
 
     return (
-        <DataContext.Provider
-            value={{
-                session,
-                setSession,
-                loggedInUser,
-                setLoggedInUser,
-                role,
-                setRole,
-                loginRecord,
-                setLoginRecord,
-                allowLogin,
-                setAllowLogin,
-            }}
-        >
-        {children}
+        <DataContext.Provider value={contextValue}>
+            {children}
         </DataContext.Provider>
     );
 };

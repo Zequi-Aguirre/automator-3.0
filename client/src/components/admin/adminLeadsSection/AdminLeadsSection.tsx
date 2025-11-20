@@ -1,4 +1,4 @@
-import {useEffect, useState, useCallback} from 'react';
+import { useEffect, useState, useContext, useCallback } from "react";
 import LeadsService from "../../../services/lead.service";
 import AdminLeadsTable from "./adminLeadsTable/AdminLeadsTable.tsx";
 import CustomPagination from "../../Pagination";
@@ -9,81 +9,202 @@ import {
     Container,
     Button,
     Snackbar,
-    Alert
+    Alert,
+    TextField,
+    Stack
 } from "@mui/material";
 import { Lead } from "../../../types/leadTypes.ts";
 import ImportLeadsDialog from "./importLeadsDialog/importLeadsDialog.tsx";
+import DataContext from "../../../context/DataContext";
 
 const AdminLeadsSection = () => {
+    const { leadFilters, setLeadFilters } = useContext(DataContext);
+
+    // ------------------------------
+    // LOCAL FILTER STATE (UI-driven)
+    // ------------------------------
+    const [status, setStatus] = useState(leadFilters.status);
+    const [search, setSearch] = useState(leadFilters.search);
+    const [page, setPage] = useState(leadFilters.page);
+    const [limit, setLimit] = useState(leadFilters.limit);
+
+    // ------------------------------
+    // DATA STATES
+    // ------------------------------
     const [leads, setLeads] = useState<Lead[]>([]);
-    const [page, setPage] = useState(1);
     const [leadCount, setLeadCount] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [limit, setLimit] = useState(100);
-
     const [importOpen, setImportOpen] = useState(false);
-    const [snack, setSnack] = useState<{open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error'}>({
-        open: false, message: '', severity: 'success'
+
+    const [snack, setSnack] = useState({
+        open: false,
+        message: "",
+        severity: "success"
     });
 
-    const fetchLeads = useCallback(() => {
+    // ------------------------------
+    // SYNC LOCAL FILTERS -> CONTEXT FILTERS
+    // Only update context if something actually changed
+    // ------------------------------
+    useEffect(() => {
+        const f = leadFilters;
+
+        const changed =
+            f.status !== status ||
+            f.search !== search ||
+            f.page !== page ||
+            f.limit !== limit;
+
+        if (changed) {
+            setLeadFilters({
+                ...f,
+                status,
+                search,
+                page,
+                limit
+            });
+        }
+    }, [status, search, page, limit, leadFilters, setLeadFilters]);
+
+    // ------------------------------
+    // FETCH LEADS when CONTEXT FILTERS CHANGE
+    // ------------------------------
+    const fetchLeads = useCallback(async () => {
         setLoading(true);
-        LeadsService.getMany({ page, limit }).then((response) => {
-            console.log('Fetched leads:', response);
+
+        try {
+            const response = await LeadsService.getMany(leadFilters);
             setLeads(response.leads);
             setLeadCount(response.count);
+        } catch (err) {
+            setSnack({
+                open: true,
+                message: err?.message || "Failed to load leads",
+                severity: "error"
+            });
+        } finally {
             setLoading(false);
-        }).catch((err) => {
-            setLoading(false);
-            setSnack({ open: true, message: err?.message || 'Failed to load leads', severity: 'error' });
-        });
-    }, [page, limit]);
+        }
+    }, [leadFilters]);
 
     useEffect(() => {
         fetchLeads();
     }, [fetchLeads]);
 
-    const handleImportSuccess = (summary: { imported?: number; rejected?: number }) => {
-        // After a successful import, go back to first page and refresh.
+    // ------------------------------
+    // EVENT HANDLERS
+    // ------------------------------
+
+    const updateStatus = (newStatus) => {
+        setStatus(newStatus);
         setPage(1);
-        // fetch again after the state change; minor defer to ensure page=1 has applied
-        setTimeout(fetchLeads, 0);
+    };
+
+    const handleImportSuccess = (summary: { imported?: number; rejected?: number }) => {
+        setPage(1);
+
         const imported = summary?.imported ?? 0;
         const rejected = summary?.rejected ?? 0;
+
         setSnack({
             open: true,
-            message: `Import complete. Imported ${imported} lead${imported === 1 ? '' : 's'}${rejected ? `, rejected ${rejected}` : ''}.`,
-            severity: 'success'
+            message: `Import complete. Imported ${imported} lead${imported === 1 ? "" : "s"}${
+                rejected ? `, rejected ${rejected}` : ""
+            }.`,
+            severity: "success"
         });
     };
 
+    const currentVariant = (cond: boolean): "contained" | "outlined" =>
+        cond ? "contained" : "outlined";
+
+    // ------------------------------
+    // RENDER
+    // ------------------------------
     return (
-        <Container maxWidth={false} sx={{height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0}}>
-            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="h4" component="h2" sx={{fontWeight: 'bold'}}>Leads</Typography>
-                    <Button variant="contained" onClick={() => {
-                        setImportOpen(true)
-                    }}>
+        <Container
+            maxWidth={false}
+            sx={{
+                height: "calc(100vh - 64px)",
+                display: "flex",
+                flexDirection: "column",
+                p: 0
+            }}
+        >
+            <Box
+                sx={{
+                    p: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    overflow: "hidden"
+                }}
+            >
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+                    <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+                        Leads
+                    </Typography>
+                    <Button variant="contained" onClick={() => { setImportOpen(true); }}>
                         Import leads
                     </Button>
                 </Box>
 
+                {/* FILTERS */}
+                <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: "center" }}>
+                    <Button
+                        variant={currentVariant(status === "new")}
+                        onClick={() => { updateStatus("new"); }}
+                    >
+                        New
+                    </Button>
+
+                    <Button
+                        variant={currentVariant(status === "verified")}
+                        onClick={() => { updateStatus("verified"); }}
+                    >
+                        Verified
+                    </Button>
+
+                    <Button
+                        variant={currentVariant(status === "sent")}
+                        onClick={() => { updateStatus("sent"); }}
+                    >
+                        Sent
+                    </Button>
+
+                    <Button
+                        variant={currentVariant(status === "trash")}
+                        onClick={() => { updateStatus("trash"); }}
+                    >
+                        Trash
+                    </Button>
+
+                    <TextField
+                        size="small"
+                        label="Search county"
+                        value={search}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            setPage(1);
+                        }}
+                        sx={{ width: 200 }}
+                    />
+                </Stack>
+
+                {/* CONTENT */}
                 {loading
 ? (
-                    <Box sx={{display: 'flex', justifyContent: 'center', p: 4}}>
-                        <CircularProgress/>
+                    <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                        <CircularProgress />
                     </Box>
                 )
 : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-                        <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
-                            <AdminLeadsTable
-                                leads={leads}
-                                setLeads={setLeads}
-                            />
+                    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+                        <Box sx={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
+                            <AdminLeadsTable leads={leads} setLeads={setLeads} />
                         </Box>
-                        <Box sx={{ backgroundColor: 'background.paper' }}>
+
+                        <Box sx={{ backgroundColor: "background.paper" }}>
                             <CustomPagination
                                 page={page}
                                 setPage={setPage}
@@ -96,25 +217,25 @@ const AdminLeadsSection = () => {
                 )}
             </Box>
 
+            {/* IMPORT DIALOG */}
             <ImportLeadsDialog
                 open={importOpen}
-                onClose={() => {
-                    setImportOpen(false)
-                }}
+                onClose={() => { setImportOpen(false); }}
                 onSuccess={handleImportSuccess}
             />
 
+            {/* SNACKBAR */}
             <Snackbar
                 open={snack.open}
                 autoHideDuration={5000}
-                onClose={() => {
-                    setSnack(s => ({...s, open: false}))
-                }}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                onClose={() => { setSnack((s) => ({ ...s, open: false })); }}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
             >
-                <Alert onClose={() => {
-                    setSnack(s => ({...s, open: false}))
-                }} severity={snack.severity} sx={{ width: '100%' }}>
+                <Alert
+                    onClose={() => { setSnack((s) => ({ ...s, open: false })); }}
+                    severity={snack.severity as "success" | "info" | "warning" | "error"}
+                    sx={{ width: "100%" }}
+                >
                     {snack.message}
                 </Alert>
             </Snackbar>

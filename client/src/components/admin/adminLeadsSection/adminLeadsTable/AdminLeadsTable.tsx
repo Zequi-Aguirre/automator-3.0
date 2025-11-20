@@ -254,7 +254,7 @@ const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                         variant="contained"
                         color={buttonColor}
                         size="small"
-                        disabled={isLoading}
+                        disabled={isLoading || params.row.raw?.sent}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleSendLead(params.row.id);

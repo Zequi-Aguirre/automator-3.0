@@ -21,7 +21,10 @@ export default class LeadResource {
                 const filters = {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 10,
+                    search: req.query.search ? String(req.query.search) : "",
+                    status: req.query.status ? String(req.query.status) as any : 'new'
                 };
+
                 const result = await this.leadService.getMany(filters);
                 return res.status(200).send(result);
             } catch (error) {

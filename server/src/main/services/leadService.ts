@@ -155,11 +155,12 @@ export default class LeadService {
 
     async getMany(filters: LeadFilters): Promise<{ leads: Lead[]; count: number }> {
         try {
-            const { limit, page } = filters;
-            return await this.leadDAO.getMany({ page, limit });
+            return await this.leadDAO.getMany(filters);
         } catch (error) {
             console.error('Error fetching leads:', error);
-            throw new Error(`Failed to fetch leads: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(
+                `Failed to fetch leads: ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
         }
     }
 

@@ -124,32 +124,93 @@ export default class LeadDAO {
         return await this.db.oneOrNone<Lead>(query, { id });
     }
 
-    async getMany(filters: { page: number; limit: number }): Promise<{ leads: Lead[]; count: number }> {
-        const { page, limit } = filters;
+    async getMany(filters: {
+        page: number;
+        limit: number;
+        search?: string;
+        status?: "new" | "verified" | "sent" | "trash";
+    }): Promise<{ leads: Lead[]; count: number }> {
+        const { page, limit, search, status } = filters;
         const offset = (page - 1) * limit;
 
-        // Query #1: Get paginated leads
-        const leadsQuery = `
-            SELECT *
-            FROM leads
-            WHERE deleted IS NULL
-            ORDER BY modified DESC
-            LIMIT $1 OFFSET $2
-        `;
-        const leads = await this.db.manyOrNone<Lead>(leadsQuery, [limit, offset]);
+        const whereClauses: string[] = [];
 
-        // Query #2: Get total count (ignores pagination)
+        // STATUS FILTER
+        switch (status) {
+            case "new":
+                whereClauses.push(`
+                l.sent = FALSE
+                AND l.verified = FALSE
+                AND l.deleted IS NULL
+            `);
+                break;
+
+            case "verified":
+                whereClauses.push(`
+                l.verified = TRUE
+                AND l.sent = FALSE
+                AND l.deleted IS NULL
+            `);
+                break;
+
+            case "sent":
+                whereClauses.push(`
+                l.sent = TRUE
+                AND l.deleted IS NULL
+            `);
+                break;
+
+            case "trash":
+                whereClauses.push(`
+                l.deleted IS NOT NULL
+            `);
+                break;
+
+            default:
+                whereClauses.push(`
+                l.deleted IS NULL
+            `);
+        }
+
+        // SEARCH FILTER
+        if (search) {
+            whereClauses.push(`l.county ILIKE '%' || $/search/ || '%'`);
+        }
+
+        const whereSQL = whereClauses.length ? "WHERE " + whereClauses.join(" AND ") : "";
+
+        const baseQuery = `
+            FROM leads l
+            JOIN campaigns c ON c.id = l.campaign_id
+            JOIN affiliates a ON a.id = c.affiliate_id
+            ${whereSQL}
+        `;
+
+        const leadsQuery = `
+            SELECT l.*
+            ${baseQuery}
+            ORDER BY
+                a.rating DESC,
+                c.rating DESC,
+                l.modified DESC
+            LIMIT $/limit/
+            OFFSET $/offset/;
+        `;
+
         const countQuery = `
             SELECT COUNT(*)::int AS total
-            FROM leads
-            WHERE deleted IS NULL
+            ${baseQuery};
         `;
-        const { total } = await this.db.one<{ total: number }>(countQuery);
 
-        return {
-            leads,
-            count: total
-        };
+        const leads = await this.db.manyOrNone<Lead>(leadsQuery, {
+            limit,
+            offset,
+            search
+        });
+
+        const { total } = await this.db.one<{ total: number }>(countQuery, { search });
+
+        return { leads, count: total };
     }
 
     async getLeadsToSendByWorker(): Promise<Lead[]> {
