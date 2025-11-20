@@ -9,6 +9,7 @@ export type WorkerSettings = {
     business_hours_end: number;
     delay_same_county: number;
     delay_same_state: number;
+    delay_same_investor: number;
     min_delay: number;
     max_delay: number;
     getting_leads: boolean;

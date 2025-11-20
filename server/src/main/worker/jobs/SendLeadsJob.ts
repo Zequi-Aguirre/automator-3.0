@@ -1,7 +1,6 @@
 import { injectable } from 'tsyringe';
 import LeadService from "../../services/leadService.ts";
 import SettingsService from "../../services/settingsService.ts";
-import { Lead } from "../../types/leadTypes.ts";
 
 // Update SendLeadsJob to use workerSend
 @injectable()
@@ -20,8 +19,8 @@ export default class SendLeadsJob {
             console.log('----- SendLeadsJob: Not time to send a lead yet');
             return;
         }
-        const lead: Lead = await this.leadService.getLeadToSendByWorker();
-        const sentLead = await this.leadService.sendLead(lead.id);
+        const leads = await this.leadService.getLeadsToSendByWorker();
+        const sentLead = await this.leadService.sendLead(leads);
         console.log(`----- SendLeadsJob: Processed ${sentLead.first_name} leads`);
         const { minutes_range_start, minutes_range_end } = currentSettings!;
         const nextLeadTime = new Date();

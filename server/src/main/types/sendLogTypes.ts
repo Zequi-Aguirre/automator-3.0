@@ -4,6 +4,7 @@ export interface SendLog {
     affiliate_id: string | null;
     campaign_id: string | null;
     investor_id: string | null;
+    county_id: string | null;
 
     status: "sent" | "failed";
 

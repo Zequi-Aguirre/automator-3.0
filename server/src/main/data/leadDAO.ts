@@ -162,7 +162,7 @@ export default class LeadDAO {
             AND deleted IS NULL
             AND sent = FALSE
             ORDER BY RANDOM()
-            LIMIT 20;
+            LIMIT 50;
         `;
 
         return await this.db.manyOrNone<Lead>(query);

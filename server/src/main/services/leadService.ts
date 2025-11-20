@@ -10,6 +10,7 @@ import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
+import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 
 @injectable()
 export default class LeadService {
@@ -22,7 +23,8 @@ export default class LeadService {
         private readonly affiliateService: AffiliateService,
         private readonly investorService: InvestorService,
         private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
-        private readonly sendLogDAO: SendLogDAO
+        private readonly sendLogDAO: SendLogDAO,
+        private readonly workerSettingsDAO: WorkerSettingsDAO
     ) {}
 
     // Lead Management Methods
@@ -45,7 +47,7 @@ export default class LeadService {
         return await this.leadDAO.updateLead(leadId, leadData);
     }
 
-    async getLeadToSendByWorker(): Promise<Lead> {
+    async getLeadsToSendByWorker(): Promise<Lead[]> {
         console.log('LeadService: Fetching leads to send by worker');
         // get all verified not deleted leads and randomly pick one
         const leads = await this.leadDAO.getLeadsToSendByWorker();
@@ -54,11 +56,37 @@ export default class LeadService {
             throw new Error("No leads available to send");
         }
 
-        const randomIndex = Math.floor(Math.random() * leads.length);
-        return leads[randomIndex];
+        return leads;
     }
 
-    async sendLead(leadId: string): Promise<Lead> {
+    async sendLead(leads: Lead[]): Promise<Lead> {
+        // TODO this function should just send the lead. The lead selection logic should be moved to the worker.
+        // TODO move all functionally into smaller private methods.
+        const settings = await this.workerSettingsDAO.getCurrentSettings();
+        const delay_same_county = settings.delay_same_county || 36; // default to 36 hours
+
+        const countyIds = leads.map(l => l.county_id);
+        // Remove dupes
+        const uniqueCountyIds = [...new Set(countyIds)];
+        console.log('Unique county IDs for leads:', uniqueCountyIds);
+        const recentLogs = await this.sendLogDAO.getLatestLogsByCountyIds(uniqueCountyIds);
+        console.log('Recent send logs by county:', recentLogs);
+        // Now filter leads based on delay
+        const delayMs = delay_same_county * 60 * 60 * 1000;
+
+        const allowedLeads = leads.filter(lead => {
+            const log = recentLogs.find(log => log.county_id === lead.county_id);
+            if (!log) return true;
+            return Date.now() - new Date(log.created).getTime() > delayMs;
+        });
+
+        if (allowedLeads.length === 0) {
+            throw new Error("No leads available to send after applying county delay");
+        }
+        // Randomly select one lead from allowed leads
+        const randomIndex = Math.floor(Math.random() * allowedLeads.length);
+        const leadId = leads[randomIndex].id;
+
         // --- Fetch lead ------------------------------------------------------
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) throw new Error("Lead not found");
@@ -228,41 +256,53 @@ export default class LeadService {
     }
 
     async importLeads(csvContent: string) {
-        // 1. Parse CSV into leads, affiliates, campaigns, and investors
         const { leads, affiliates, campaigns, investors } = parseCsvToLeads(csvContent);
 
-        // 2. Resolve IDs and maps for all associated entities
         const investorMap = await this.investorService.loadOrCreateInvestors(investors);
         const affiliateMap = await this.affiliateService.loadOrCreateAffiliates(affiliates);
         const campaignMap = await this.campaignService.loadOrCreateCampaigns(campaigns, affiliateMap);
         const countyMap = await this.countyService.loadOrCreateCounties(leads);
 
-        // 3. Enrich leads with foreign keys
         const resolvedLeads: parsedLeadFromCSV[] = [];
+
         for (const lead of leads) {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
             const county = countyMap.get(countyKey);
             const investor = investorMap.get(lead.investor_id?.toLowerCase() || '');
             const campaign = campaignMap.get(lead.campaign_id?.toLowerCase() || '');
 
-            if (!county || !investor || !campaign) {
-                continue; // skip this lead
-            }
+            if (!county || !investor || !campaign) continue;
 
             lead.county_id = county.id;
             lead.investor_id = investor.id;
             lead.campaign_id = campaign.id;
+
             resolvedLeads.push(lead);
         }
 
-        // 4. Insert leads
-        const insertResults = await this.leadDAO.createLeads(resolvedLeads);
+        // SETTINGS
+        const settings = await this.workerSettingsDAO.getCurrentSettings();
+        const delayMs = settings.delay_same_investor * 24 * 60 * 60 * 1000;
+
+        // GET LOGS PER INVESTOR
+        const investorIds = [...new Set(resolvedLeads.map(l => l.investor_id!))];
+        const recentInvestorLogs = await this.sendLogDAO.getLatestLogsByInvestorIds(investorIds);
+
+        // FILTER LEADS BASED ON DELAY
+        const filteredLeads = resolvedLeads.filter(lead => {
+            const log = recentInvestorLogs.find(l => l.investor_id === lead.investor_id);
+            if (!log) return true;
+            return Date.now() - new Date(log.created).getTime() > delayMs;
+        });
+
+        const insertResults = await this.leadDAO.createLeads(filteredLeads);
+
         const successCount = insertResults.filter(r => r.success).length;
         const failedCount = insertResults.length - successCount;
 
         return {
             imported: successCount,
-            rejected: failedCount,
+            rejected: failedCount + (resolvedLeads.length - filteredLeads.length),
             errors: insertResults.filter(r => !r.success).map(r => r.error || "Unknown error")
         };
     }
