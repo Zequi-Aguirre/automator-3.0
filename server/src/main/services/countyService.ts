@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import CountyDAO from "../data/countyDAO";
 import { County } from "../types/countyTypes.ts";
 import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
+import { parseCsvToCounties } from "../middleware/parseCsvToCounties.ts";
 
 @injectable()
 export default class CountyService {
@@ -49,11 +50,70 @@ export default class CountyService {
         return countyMap;
     }
 
+    async importCounties(csvContent: string): Promise<{
+        imported: number;
+        rejected: number;
+        errors: string[];
+    }> {
+        const rows = parseCsvToCounties(csvContent); // you must add this parser
+        const existing = await this.countyDAO.getAllCounties();
+
+        const existingMap = new Map<string, County>();
+        for (const c of existing) {
+            const key = `${c.name.toLowerCase()}_${c.state.toLowerCase()}`;
+            existingMap.set(key, c);
+        }
+
+        let imported = 0;
+        let rejected = 0;
+        const errors: string[] = [];
+
+        console.log(rows[0]);
+        for (const row of rows) {
+            try {
+                const name = row.name?.trim();
+                const state = row.state?.trim();
+
+                if (!name || !state) {
+                    rejected++;
+                    errors.push(`Missing name or state for row: ${JSON.stringify(row)}`);
+                    continue;
+                }
+
+                const key = `${name.toLowerCase()}_${state.toLowerCase()}`;
+
+                if (existingMap.has(key)) {
+                    // Skip duplicates
+                    continue;
+                }
+
+                const created = await this.countyDAO.insertCounty({
+                    name,
+                    state,
+                    population: row.population ? Number(row.population) : null,
+                    timezone: row.timezone || null
+                });
+
+                existingMap.set(key, created);
+                imported++;
+            } catch (err) {
+                rejected++;
+                errors.push(err instanceof Error ? err.message : "Unknown error");
+            }
+        }
+
+        return { imported, rejected, errors };
+    }
+
     async updateCountyBlacklistStatus(id: string, blacklisted: boolean): Promise<County> {
         return this.countyDAO.updateCountyBlacklistStatus(id, blacklisted);
     }
 
     async getMany(filters: { page: number; limit: number }): Promise<{ counties: County[]; count: number }> {
         return await this.countyDAO.getMany(filters);
+    }
+
+    async getById(id: string): Promise<County | null> {
+        return await this.countyDAO.getById(id);
     }
 }

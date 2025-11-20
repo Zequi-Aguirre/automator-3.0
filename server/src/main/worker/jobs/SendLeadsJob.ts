@@ -1,31 +1,21 @@
-import { injectable } from 'tsyringe';
-import LeadService from "../../services/leadService.ts";
-import SettingsService from "../../services/settingsService.ts";
+import { injectable } from "tsyringe";
+import WorkerService from "../../services/workerService";
 
-// Update SendLeadsJob to use workerSend
 @injectable()
 export default class SendLeadsJob {
+
     constructor(
-        private readonly leadService: LeadService,
-        private readonly workerSettingsService: SettingsService
+        private readonly workerService: WorkerService
     ) {}
 
-    async execute() {
-        const currentSettings = await this.workerSettingsService.getWorkerSettings();
-        const { send_next_lead_at } = currentSettings!
-        console.log('----- SendLeadsJob: Checking if it is time to send a lead');
-        console.log(`----- SendLeadsJob: Next lead time is ${send_next_lead_at}`);
-        if (send_next_lead_at && new Date(send_next_lead_at) > new Date()) {
-            console.log('----- SendLeadsJob: Not time to send a lead yet');
+    async execute(): Promise<void> {
+        const ready = await this.workerService.isTimeToSend();
+        if (!ready) {
+            console.log("SendLeadsJob: Not time yet");
             return;
         }
-        const leads = await this.leadService.getLeadsToSendByWorker();
-        const sentLead = await this.leadService.sendLead(leads);
-        console.log(`----- SendLeadsJob: Processed ${sentLead.first_name} leads`);
-        const { minutes_range_start, minutes_range_end } = currentSettings!;
-        const nextLeadTime = new Date();
-        const randomNumber = Math.floor(Math.random() * (minutes_range_end - minutes_range_start + 1)) + minutes_range_start;
-        nextLeadTime.setMinutes(nextLeadTime.getMinutes() + randomNumber);
-        await this.workerSettingsService.updateNextLeadTime(currentSettings!.id, nextLeadTime.toISOString());
+
+        const sent = await this.workerService.sendNextLead();
+        console.log(`SendLeadsJob: Sent lead ${sent.id}`);
     }
 }

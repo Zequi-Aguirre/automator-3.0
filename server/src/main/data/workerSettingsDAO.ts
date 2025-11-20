@@ -57,7 +57,6 @@ export default class WorkerSettingsDAO {
     async updateSettings(
         updates: Partial<WorkerSettingsUpdateAllowedFieldsType>
     ): Promise<WorkerSettings> {
-        // Get the complete updated fields using the helper function
         const updatedFields = await this.getUpdatedSettingsFields(updates);
 
         const query = `
@@ -70,16 +69,16 @@ export default class WorkerSettingsDAO {
                 business_hours_start = $[business_hours_start],
                 business_hours_end = $[business_hours_end],
                 delay_same_state = $[delay_same_state],
-                states_on_hold = $[states_on_hold],
+                delay_same_investor = $[delay_same_investor],
+                delay_same_county = $[delay_same_county],
+                states_on_hold = ARRAY[$[states_on_hold:csv]]::us_state[],
                 modified = NOW()
             WHERE deleted IS NULL
             RETURNING *;
         `;
 
-        // Include only necessary fields in the query parameters
         const params = { ...updatedFields };
 
-        // Execute the query
         const result = await this.db.oneOrNone<WorkerSettings>(query, params);
         if (!result) {
             throw new Error("Settings not found or update failed");
@@ -107,6 +106,8 @@ export default class WorkerSettingsDAO {
             business_hours_end: updates.business_hours_end ?? existingSettings.business_hours_end,
             delay_same_state: updates.delay_same_state ?? existingSettings.delay_same_state,
             states_on_hold: updates.states_on_hold ?? existingSettings.states_on_hold,
+            delay_same_investor: updates.delay_same_investor ?? existingSettings.delay_same_investor,
+            delay_same_county: updates.delay_same_county ?? existingSettings.delay_same_county,
         };
     }
 

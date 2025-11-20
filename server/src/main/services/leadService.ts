@@ -47,63 +47,28 @@ export default class LeadService {
         return await this.leadDAO.updateLead(leadId, leadData);
     }
 
-    async getLeadsToSendByWorker(): Promise<Lead[]> {
-        console.log('LeadService: Fetching leads to send by worker');
-        // get all verified not deleted leads and randomly pick one
-        const leads = await this.leadDAO.getLeadsToSendByWorker();
-        console.log(`LeadService: Found ${leads.length} leads to send by worker`, leads);
-        if (leads.length === 0) {
-            throw new Error("No leads available to send");
-        }
-
-        return leads;
-    }
-
-    async sendLead(leads: Lead[]): Promise<Lead> {
-        // TODO this function should just send the lead. The lead selection logic should be moved to the worker.
-        // TODO move all functionally into smaller private methods.
-        const settings = await this.workerSettingsDAO.getCurrentSettings();
-        const delay_same_county = settings.delay_same_county || 36; // default to 36 hours
-
-        const countyIds = leads.map(l => l.county_id);
-        // Remove dupes
-        const uniqueCountyIds = [...new Set(countyIds)];
-        console.log('Unique county IDs for leads:', uniqueCountyIds);
-        const recentLogs = await this.sendLogDAO.getLatestLogsByCountyIds(uniqueCountyIds);
-        console.log('Recent send logs by county:', recentLogs);
-        // Now filter leads based on delay
-        const delayMs = delay_same_county * 60 * 60 * 1000;
-
-        const allowedLeads = leads.filter(lead => {
-            const log = recentLogs.find(log => log.county_id === lead.county_id);
-            if (!log) return true;
-            return Date.now() - new Date(log.created).getTime() > delayMs;
-        });
-
-        if (allowedLeads.length === 0) {
-            throw new Error("No leads available to send after applying county delay");
-        }
-        // Randomly select one lead from allowed leads
-        const randomIndex = Math.floor(Math.random() * allowedLeads.length);
-        const leadId = leads[randomIndex].id;
-
-        // --- Fetch lead ------------------------------------------------------
+    async sendLead(leadId: string): Promise<Lead> {
         const lead = await this.leadDAO.getById(leadId);
-        if (!lead) throw new Error("Lead not found");
-        if (lead.sent) throw new Error("Lead already sent");
-        if (!lead.verified) throw new Error("Lead must be verified first");
+        if (!lead) {
+            throw new Error("Lead not found");
+        }
+        if (lead.sent) {
+            throw new Error("Lead already sent");
+        }
+        if (!lead.verified) {
+            throw new Error("Lead must be verified first");
+        }
 
-        // --- Fetch form ------------------------------------------------------
         const form = await this.leadFormInputDAO.getByLeadId(lead.id);
-        if (!form) throw new Error("Lead is missing form data");
+        if (!form) {
+            throw new Error("Lead missing form data");
+        }
 
-        // --- Fetch related entities -----------------------------------------
         const campaign = await this.campaignService.getById(lead.campaign_id);
         const affiliate = await this.affiliateService.getById(campaign!.affiliate_id);
         const investor = await this.investorService.getById(lead.investor_id);
 
-        // --- Build payload ---------------------------------------------------
-        const payload = {
+        const payload: any = {
             form_first_name: lead.first_name,
             form_last_name: lead.last_name,
             form_phone: lead.phone,
@@ -115,11 +80,9 @@ export default class LeadService {
             ...form
         };
 
-        // remove 'created' and 'modified' fields if present
-        delete (payload as any).created;
-        delete (payload as any).modified;
+        delete payload.created;
+        delete payload.modified;
 
-        // --- Create initial send_log ----------------------------------------
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
             affiliate_id: affiliate.id,
@@ -129,39 +92,32 @@ export default class LeadService {
         });
 
         try {
-            // --- Send lead to ISpeedToLead ----------------------------------
             const axiosResponse = await this.iSpeedToLeadIAO.sendLead(payload);
-            const response = axiosResponse.data; // typed correctly
+            const response = axiosResponse.data;
 
             const payoutCents = (() => {
                 const payout = response.data?.payout;
-                if (!payout) return null;
+                if (!payout) {
+                    return null;
+                }
                 const num = Number(payout);
                 return Number.isFinite(num) ? Math.round(num * 100) : null;
             })();
 
-            // --- Update send_log with response -------------------------------
             await this.sendLogDAO.updateLog(log.id, {
-                response_code: response.status,
+                response_code: axiosResponse.status,
                 response_body: JSON.stringify(response.data),
                 payout_cents: payoutCents,
                 status: "sent"
             });
 
-            // --- Mark lead as sent -------------------------------------------
-            const updatedLead = await this.leadDAO.updateLead(lead.id, { sent: true });
-            console.log(`Lead ${lead.id} sent successfully to ISpeedToLead.`);
-            console.log('ISpeedToLead response:', response.data);
-            console.log('Updated Lead:', updatedLead);
-            return updatedLead;
+            return await this.leadDAO.updateLead(lead.id, {sent: true});
 
         } catch (err: any) {
 
-            // --- Mark lead as sent -------------------------------------------
             await this.leadDAO.updateLead(lead.id, { sent: true });
             const errorResponse = err.response?.data || err.message || "Unknown error";
 
-            // --- Update send_log on failure ----------------------------------
             await this.sendLogDAO.updateLog(log.id, {
                 response_code: err.response?.status ?? 0,
                 response_body: JSON.stringify(errorResponse),
@@ -170,9 +126,7 @@ export default class LeadService {
             });
 
             throw new Error(
-                typeof errorResponse === "string"
-                    ? errorResponse
-                    : JSON.stringify(errorResponse)
+                typeof errorResponse === "string" ? errorResponse : JSON.stringify(errorResponse)
             );
         }
     }

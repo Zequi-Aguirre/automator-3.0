@@ -30,7 +30,7 @@ VALUES (
     11,
     3,
     36,        -- updated default for county cooldown
-    '[]',      -- states_on_hold
+    '{}',      -- states_on_hold
     16,        -- investor cooldown in days
     2,
     4

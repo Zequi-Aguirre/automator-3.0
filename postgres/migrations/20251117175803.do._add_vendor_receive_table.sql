@@ -4,14 +4,18 @@ CREATE TABLE vendor_receives (
     received_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- enforce array of valid us_state enum values
 ALTER TABLE worker_settings
-    ALTER COLUMN states_on_hold TYPE us_state[] USING (
-        CASE
-            WHEN jsonb_typeof(states_on_hold) = 'array'
-            THEN (SELECT ARRAY(
-                SELECT jsonb_array_elements_text(states_on_hold)::us_state
-            ))
-            ELSE ARRAY[]::us_state[]
-        END
-    );
+ADD COLUMN states_on_hold_text text[];
+
+UPDATE worker_settings
+SET states_on_hold_text = CASE
+    WHEN jsonb_typeof(states_on_hold) = 'array'
+        THEN array(SELECT jsonb_array_elements_text(states_on_hold))
+    ELSE ARRAY[]::text[]
+END;
+
+ALTER TABLE worker_settings
+DROP COLUMN states_on_hold;
+
+ALTER TABLE worker_settings
+RENAME COLUMN states_on_hold_text TO states_on_hold;

@@ -94,8 +94,6 @@ export default class LeadDAO {
     ): Promise<LeadUpdateAllowedFieldsType> {
         // Fetch the existing Lead from the database
         const existingLead = await this.getById(id);
-        console.log('Existing Lead:', existingLead);
-        console.log('Updates:', updates);
         if (!existingLead) {
             throw new Error("Lead not found");
         }

@@ -24,6 +24,22 @@ class CountyService {
         });
         return res.data;
     }
+
+    async import(formData: FormData): Promise<{
+        imported: number;
+        rejected: number;
+        errors: string[];
+    }> {
+        const response = await this.api.getApi().post(
+            "/api/counties/admin/import",
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" }
+            }
+        );
+
+        return response.data;
+    }
 }
 
 const countyService = new CountyService(authProvider);

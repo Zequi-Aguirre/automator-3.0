@@ -26,6 +26,15 @@ export default class CountyDAO {
         return await this.db.one<County>(query, data);
     }
 
+    async getById(id: string): Promise<County | null> {
+        const query = `
+        SELECT *
+        FROM counties
+        WHERE id = $1 AND deleted IS NULL
+    `;
+        return await this.db.oneOrNone<County>(query, [id]);
+    }
+
     async getMany(filters: { page: number; limit: number }): Promise<{ counties: County[]; count: number }> {
         const { page, limit } = filters;
         const offset = (page - 1) * limit;

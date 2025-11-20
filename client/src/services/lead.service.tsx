@@ -36,7 +36,7 @@ class LeadService {
     async sendLead(
         leadId: string
     ): Promise<{ success: boolean; message: string }> {
-        const response = await this.api.getApi().patch(`/api/leads/admin/send/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/worker/admin/send-now/${leadId}`);
         return response.data;
     }
 

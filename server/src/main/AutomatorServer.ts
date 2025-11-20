@@ -17,6 +17,7 @@ import AffiliateResource from "./resources/affiliateResource";
 import CountyResource from "./resources/countyResource";
 import LeadFormInputResource from "./resources/leadFormInputResource.ts";
 import VendorReceiveResource from "./resources/vendorReceiveResource.ts";
+import WorkerResource from "./resources/workerResource.ts";
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ export class AutomatorServer {
         this.app.use("/api/leads-form-input", authFunc, cont.resolve(LeadFormInputResource).routes());
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
         this.app.use("/api/settings", cont.resolve(SettingsResource).routes());
+        this.app.use("/api/worker", cont.resolve(WorkerResource).routes());
         this.app.use("/api/mock-vendor", cont.resolve(VendorReceiveResource).routes());
         this.app.use('/static', express.static('public'));
 
