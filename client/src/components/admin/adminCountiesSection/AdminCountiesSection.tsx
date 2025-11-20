@@ -13,7 +13,7 @@ import AdminCountiesTable from './adminCountiesTable/AdminCountiesTable';
 import CustomPagination from '../../Pagination';
 import countyService from '../../../services/county.service';
 import { County } from '../../../types/countyTypes';
-import ImportCountiesDialog from './importCountiesDialog/ImportCountiesDialog';
+import ImportCountiesDialog from './importCountiesDialog/importCountiesDialog.tsx';
 
 const AdminCountiesSection = () => {
     const [counties, setCounties] = useState<County[]>([]);
