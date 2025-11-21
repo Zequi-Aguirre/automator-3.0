@@ -13,6 +13,13 @@ type LeadFilters = {
     status: "new" | "verified" | "sent" | "trash";
 };
 
+type CountyFilters = {
+    page: number;
+    limit: number;
+    search: string;
+    status: "all" | "active" | "blacklisted";
+};
+
 type DataContextType = {
     session: Session | null;
     setSession: React.Dispatch<React.SetStateAction<Session | null>>;
@@ -26,9 +33,11 @@ type DataContextType = {
     setAllowLogin: React.Dispatch<React.SetStateAction<boolean>>;
     leadFilters: LeadFilters;
     setLeadFilters: React.Dispatch<React.SetStateAction<LeadFilters>>;
+    countyFilters: CountyFilters;
+    setCountyFilters: React.Dispatch<React.SetStateAction<CountyFilters>>;
 };
 
-const CURRENT_VERSION = 3;
+const CURRENT_VERSION = 4;
 
 const defaultLeadFilters: LeadFilters = {
     page: 1,
@@ -37,29 +46,35 @@ const defaultLeadFilters: LeadFilters = {
     status: "new"
 };
 
+const defaultCountyFilters: CountyFilters = {
+    page: 1,
+    limit: 100,
+    search: "",
+    status: "all"
+};
+
 const defaultData = {
     session: null,
     loggedInUser: null,
     role: "",
     allowLogin: false,
     leadFilters: defaultLeadFilters,
+    countyFilters: defaultCountyFilters,
     version: CURRENT_VERSION
 };
 
 const loadFromLocalStorage = () => {
     try {
-        const storedData = localStorage.getItem("appData");
-        if (storedData) {
-            const parsed = JSON.parse(storedData);
-            if (parsed.version === CURRENT_VERSION) {
-                return parsed;
-            }
-            return defaultData;
-        }
-    } catch (err) {
-        console.error("Error loading data from local storage:", err);
+        const stored = localStorage.getItem("appData");
+        if (!stored) return defaultData;
+
+        const parsed = JSON.parse(stored);
+        if (parsed.version === CURRENT_VERSION) return parsed;
+
+        return defaultData;
+    } catch {
+        return defaultData;
     }
-    return defaultData;
 };
 
 const DataContext = createContext<DataContextType>({
@@ -74,22 +89,22 @@ const DataContext = createContext<DataContextType>({
     allowLogin: false,
     setAllowLogin: () => {},
     leadFilters: defaultLeadFilters,
-    setLeadFilters: () => {}
+    setLeadFilters: () => {},
+    countyFilters: defaultCountyFilters,
+    setCountyFilters: () => {}
 });
 
-type Props = {
-    children: ReactNode;
-};
-
-export const AppProps = ({ children }: Props) => {
+export const AppProps = ({ children }: { children: ReactNode }) => {
     const initial = loadFromLocalStorage();
 
-    const [session, setSession] = useState<Session | null>(() => initial.session);
-    const [loggedInUser, setLoggedInUser] = useState<User | null>(() => initial.loggedInUser);
-    const [role, setRole] = useState<string>(() => initial.role);
-    const [loginRecord, setLoginRecord] = useState<LoginRecord>({ email: "", password: "" });
-    const [allowLogin, setAllowLogin] = useState<boolean>(() => initial.allowLogin);
-    const [leadFilters, setLeadFilters] = useState<LeadFilters>(() => initial.leadFilters || defaultLeadFilters);
+    const [session, setSession] = useState<Session | null>(initial.session);
+    const [loggedInUser, setLoggedInUser] = useState<User | null>(initial.loggedInUser);
+    const [role, setRole] = useState<string>(initial.role);
+    const [loginRecord, setLoginRecord] = useState({ email: "", password: "" });
+    const [allowLogin, setAllowLogin] = useState<boolean>(initial.allowLogin);
+
+    const [leadFilters, setLeadFilters] = useState(initial.leadFilters);
+    const [countyFilters, setCountyFilters] = useState(initial.countyFilters);
 
     useEffect(() => {
         const data = {
@@ -98,15 +113,11 @@ export const AppProps = ({ children }: Props) => {
             role,
             allowLogin,
             leadFilters,
+            countyFilters,
             version: CURRENT_VERSION
         };
-
-        try {
-            localStorage.setItem("appData", JSON.stringify(data));
-        } catch (err) {
-            console.error("Error saving data to local storage:", err);
-        }
-    }, [session, loggedInUser, role, allowLogin, leadFilters]);
+        localStorage.setItem("appData", JSON.stringify(data));
+    }, [session, loggedInUser, role, allowLogin, leadFilters, countyFilters]);
 
     const contextValue = useMemo(
         () => ({
@@ -121,9 +132,19 @@ export const AppProps = ({ children }: Props) => {
             allowLogin,
             setAllowLogin,
             leadFilters,
-            setLeadFilters
+            setLeadFilters,
+            countyFilters,
+            setCountyFilters
         }),
-        [session, loggedInUser, role, loginRecord, allowLogin, leadFilters]
+        [
+            session,
+            loggedInUser,
+            role,
+            loginRecord,
+            allowLogin,
+            leadFilters,
+            countyFilters
+        ]
     );
 
     return (

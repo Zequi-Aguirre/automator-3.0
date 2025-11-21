@@ -9,8 +9,13 @@ class CountyService {
         return res.data;
     }
 
-    async getMany(filters: { page: number; limit: number }):
-        Promise<{ counties: County[]; count: number }> {
+    async getMany(filters: {
+        page: number;
+        limit: number;
+        search: string;
+        status: "all" | "active" | "blacklisted";
+    }): Promise<{ counties: County[]; count: number }> {
+
         const res = await this.api.getApi().get(
             "/api/counties/admin/get-many",
             { params: filters }
@@ -19,9 +24,10 @@ class CountyService {
     }
 
     async updateBlacklist(id: string, value: boolean): Promise<County> {
-        const res = await this.api.getApi().patch(`/api/counties/admin/blacklist/${id}`, {
-            blacklisted: value
-        });
+        const res = await this.api.getApi().patch(
+            `/api/counties/admin/blacklist/${id}`,
+            { blacklisted: value }
+        );
         return res.data;
     }
 
