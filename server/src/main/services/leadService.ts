@@ -155,7 +155,7 @@ export default class LeadService {
 
         } catch (err: any) {
 
-            await this.leadDAO.updateLead(lead.id, { sent: true });
+            await this.leadDAO.markLeadAsSent(lead.id);
             const errorResponse = err.response?.data || err.message || "Unknown error";
 
             await this.sendLogDAO.updateLog(log.id, {
