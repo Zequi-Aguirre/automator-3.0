@@ -9,6 +9,8 @@ import AdminJobDetailsView from "../../views/adminViews/AdminJobDetailsView.tsx"
 import AdminAffiliatesView from "../../views/adminViews/AdminAffiliatesView.tsx";
 import AdminAffiliateDetailsView from "../../views/adminViews/AdminAffiliatesDetailsView.tsx";
 import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
+import AdminInvestorsView from "../../views/adminViews/AdminInvestorsView.tsx";
+import AdminLogsView from "../../views/adminViews/AdminLogsView.tsx";
 
 const AdminRoutes = () => {
     return (
@@ -39,9 +41,19 @@ const AdminRoutes = () => {
                         <AdminAffiliateDetailsView/>
                     </VerifyAdmin>
                 }/>
+                <Route path="/a/investors" element={
+                    <VerifyAdmin>
+                        <AdminInvestorsView/>
+                    </VerifyAdmin>
+                }/>
                 <Route path="/a/counties" element={
                     <VerifyAdmin>
                         <AdminCountiesView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/logs" element={
+                    <VerifyAdmin>
+                        <AdminLogsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/settings" element={

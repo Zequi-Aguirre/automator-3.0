@@ -29,13 +29,17 @@ export default class InvestorService {
         return await this.investorDAO.getById(id);
     }
 
+    async getMany(filters: { page: number; limit: number }): Promise<{ investors: Investor[]; count: number }> {
+        return this.investorDAO.getMany(filters);
+    }
+
     async getManyByIds(ids: string[]): Promise<Investor[]> {
         return this.investorDAO.getManyByIds(ids);
     }
 
     async updateInvestorMeta(
         id: string,
-        updates: Partial<Pick<Investor, "name" | "whitelisted" | "blacklisted">>
+        updates: Partial<Pick<Investor, "name" | "whitelisted" | "blacklisted" | "rating">>
     ): Promise<Investor> {
         return await this.investorDAO.updateInvestor(id, updates);
     }
