@@ -1,9 +1,9 @@
-import AdminLeadDetails from "../../components/admin/adminLeadDetails/AdminLeadDetails.tsx";
+import LeadDetails from "../../components/common/leadDetails/LeadDetails.tsx";
 
 export default function AdminLeadDetailsView() {
     return (
         <>
-            <AdminLeadDetails />
+            <LeadDetails />
         </>
     );
 }

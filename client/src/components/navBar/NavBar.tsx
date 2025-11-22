@@ -3,127 +3,259 @@ import {
     Box,
     Button,
     Container,
+    Divider,
+    Drawer,
+    IconButton,
+    List,
+    ListItemButton,
+    ListItemText,
     Toolbar,
+    useMediaQuery,
 } from "@mui/material";
-import {useLocation, useNavigate} from "react-router-dom";
-import {useContext, useEffect, useState} from "react";
+import MenuIcon from "@mui/icons-material/Menu";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useContext, useEffect, useMemo, useState } from "react";
 import userService from "../../services/user.service.tsx";
 import DataContext from "../../context/DataContext.tsx";
 
-const adminPages = ['Leads', 'Campaigns', 'Affiliates', 'Investors', 'Counties', 'Logs', 'Settings', 'Worker Jobs'];
-const userPages = ['Leads'];
-const commonPages = ['Logout'];
+const adminPages = [
+    "Leads",
+    "Campaigns",
+    "Affiliates",
+    "Investors",
+    "Counties",
+    "Logs",
+    "Settings",
+    "Worker Jobs",
+];
+
+const userPages = ["Leads"];
 
 export default function NavBar() {
-    const { setSession, setRole, role, setLoggedInUser } = useContext(DataContext)
+    const { setSession, setRole, role, setLoggedInUser } = useContext(DataContext);
     const navigate = useNavigate();
     const location = useLocation();
-    const [isAdmin, setIsAdmin] = useState(role === 'admin' || role === 'superadmin');
-    const [currentPage, setCurrentPage] = useState<string>('');
+
+    const isMobile = useMediaQuery("(max-width:900px)");
+
+    const [isAdmin, setIsAdmin] = useState(role.includes("admin"));
+    const [currentPage, setCurrentPage] = useState<string>("");
+    const [drawerOpen, setDrawerOpen] = useState(false);
+
+    const pages = useMemo(() => {
+        return isAdmin ? adminPages : userPages;
+    }, [isAdmin]);
 
     const handleNavItemClick = (page: string) => {
         switch (page) {
-            case 'Leads':
+            case "Leads":
                 if (isAdmin) {
-                    navigate('/a/leads');
+                    navigate("/a/leads");
                 } else {
-                    navigate('/u/leads');
+                    navigate("/u/leads");
                 }
                 break;
-            case 'Campaigns':
-                navigate('/a/campaigns');
+            case "Campaigns":
+                navigate("/a/campaigns");
                 break;
-            case 'Affiliates':
-                navigate('/a/affiliates');
+            case "Affiliates":
+                navigate("/a/affiliates");
                 break;
-            case 'Counties':
-                navigate('/a/counties');
+            case "Investors":
+                navigate("/a/investors");
                 break;
-            case 'Settings':
-                navigate('/a/settings');
+            case "Counties":
+                navigate("/a/counties");
                 break;
-            case 'Worker Jobs':
-                navigate('/a/worker-jobs');
+            case "Logs":
+                navigate("/a/logs");
                 break;
-            case 'Logout':
+            case "Settings":
+                navigate("/a/settings");
+                break;
+            case "Worker Jobs":
+                navigate("/a/worker-jobs");
+                break;
+            case "Logout":
                 userService.signOut();
-                setRole('');
+                setRole("");
                 setSession(null);
                 setLoggedInUser(null);
-                navigate('/login');
+                navigate("/login");
                 break;
             default:
-            // Handle other cases or do nothing
+            // no-op
         }
+    };
+
+    const closeDrawerAndNavigate = (page: string) => {
+        handleNavItemClick(page);
+        setDrawerOpen(false);
+    };
+
+    useEffect(() => {
+        const admin = role.includes("admin");
+        setIsAdmin(admin);
+
+        const path = location.pathname.toLowerCase();
+
+        switch (true) {
+            case path.includes("/leads"):
+                setCurrentPage("Leads");
+                break;
+            case path.includes("/campaigns"):
+                setCurrentPage("Campaigns");
+                break;
+            case path.includes("/affiliates"):
+                setCurrentPage("Affiliates");
+                break;
+            case path.includes("/investors"):
+                setCurrentPage("Investors");
+                break;
+            case path.includes("/counties"):
+                setCurrentPage("Counties");
+                break;
+            case path.includes("/logs"):
+                setCurrentPage("Logs");
+                break;
+            case path.includes("/settings"):
+                setCurrentPage("Settings");
+                break;
+            case path.includes("/worker-jobs"):
+                setCurrentPage("Worker Jobs");
+                break;
+            default:
+                setCurrentPage("");
+        }
+    }, [location.pathname, role]);
+
+    if (!role) {
+        return null;
     }
 
-    // useEffect to get user role and set current page
-    useEffect(() => {
-        setIsAdmin(role === 'admin' || role === 'superadmin');
-        switch (true) {
-            case location.pathname.includes('leads'):
-                setCurrentPage('Leads');
-                break;
-            case location.pathname.includes('campaigns'):
-                setCurrentPage('Campaigns');
-                break;
-            case location.pathname.includes('settings'):
-                setCurrentPage('Settings');
-                break;
-            case location.pathname.includes('users'):
-                setCurrentPage('Users');
-                break;
-            case location.pathname.includes('worker-jobs'):
-                setCurrentPage('Worker Jobs');
-                break;
-            default:
-                setCurrentPage('');
-        }
-    }, [location.pathname, role])
+    return (
+        <AppBar position="static" sx={{ height: isMobile ? "3rem" : "4rem", minHeight: "2rem" }}>
+            <Container maxWidth={false} disableGutters>
+                <Toolbar
+                    disableGutters
+                    sx={{
+                        height: "3rem",
+                        minHeight: "3rem",
+                        px: 0,
+                        display: "flex",
+                        alignItems: "center",
+                    }}
+                >
+                    {/* Left side */}
+                    <Box
+                        sx={{
+                            ml: 3,
+                            display: "flex",
+                            alignItems: "center",
+                            flexGrow: 1,
+                            gap: 0.5,
+                            height: "100%",
+                        }}
+                    >
+                        {isMobile
+                            ? (
+                            <IconButton
+                                onClick={() => {
+                                    setDrawerOpen(true);
+                                }}
+                                sx={{
+                                    color: "white",
+                                }}
+                                aria-label="open navigation menu"
+                            >
+                                <MenuIcon />
+                            </IconButton>)
+                            : (
+                            pages.map((page) => (
+                                <Button
+                                    key={page}
+                                    onClick={() => {
+                                        handleNavItemClick(page);
+                                    }}
+                                    sx={{
+                                        color: currentPage === page ? "red" : "white",
+                                        fontWeight:
+                                            currentPage === page ? "bold" : "normal",
+                                    }}
+                                >
+                                    {page}
+                                </Button>
+                            ))
+                        )}
+                    </Box>
 
-    return !role
-        ? null
-        : (
-            <AppBar position="static" sx={{
-                height: '3rem',
-                minHeight: '2rem'
-            }}>
-                <Container maxWidth={false} disableGutters={true}>
-                    <Toolbar disableGutters sx={{
-                        height: '2rem',
-                        p: 0,
-                        m: 0,
-                        minHeight: '2rem',
-                        marginTop: '-6px',
-                    }}>
-                        <Box sx={{
-                            ml: 3, flexGrow: 1
-                        }}>
-                            {(isAdmin ? adminPages : userPages).map((page) => (
-                                <Button
-                                    key={page}
+                    {/* Right side logout (desktop only) */}
+                    <Box sx={{ mr: 3, display: "flex", alignItems: "center" }}>
+                        {!isMobile && (
+                            <Button
+                                onClick={() => {
+                                    handleNavItemClick("Logout");
+                                }}
+                                sx={{ color: "white" }}
+                            >
+                                Logout
+                            </Button>
+                        )}
+                    </Box>
+
+                    {/* Mobile drawer */}
+                    <Drawer
+                        anchor="left"
+                        open={drawerOpen}
+                        onClose={() => {
+                            setDrawerOpen(false);
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: 260,
+                                height: "100%",
+                                display: "flex",
+                                flexDirection: "column",
+                            }}
+                        >
+                            {/* Top nav */}
+                            <List sx={{ flexGrow: 1 }}>
+                                {pages.map((page) => (
+                                    <ListItemButton
+                                        key={page}
+                                        selected={currentPage === page}
+                                        onClick={() => {
+                                            closeDrawerAndNavigate(page);
+                                        }}
+                                        sx={{
+                                            "&.Mui-selected": {
+                                                backgroundColor: "rgba(0,0,0,0.08)",
+                                                fontWeight: "bold",
+                                            },
+                                        }}
+                                    >
+                                        <ListItemText primary={page} />
+                                    </ListItemButton>
+                                ))}
+                            </List>
+
+                            <Divider />
+
+                            {/* Bottom logout */}
+                            <List>
+                                <ListItemButton
                                     onClick={() => {
-                                        handleNavItemClick(page);
+                                        closeDrawerAndNavigate("Logout");
                                     }}
-                                    sx={{ color: currentPage === page ? 'red' : 'white', fontWeight: currentPage === page ? 'bold' : 'normal' }}
                                 >
-                                    {page}
-                                </Button>
-                            ))}
-                            {commonPages.map((page) => (
-                                <Button
-                                    key={page}
-                                    onClick={() => {
-                                        handleNavItemClick(page);
-                                    }}
-                                    sx={{ color: 'white' }}
-                                >
-                                    {page}
-                                </Button>
-                            ))}
+                                    <ListItemText primary="Logout" />
+                                </ListItemButton>
+                            </List>
                         </Box>
-                    </Toolbar>
-                </Container>
-            </AppBar>
-        );
+                    </Drawer>
+                </Toolbar>
+            </Container>
+        </AppBar>
+    );
 }

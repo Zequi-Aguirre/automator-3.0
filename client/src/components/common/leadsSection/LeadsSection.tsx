@@ -1,6 +1,6 @@
 import { useEffect, useState, useContext, useCallback } from "react";
 import LeadsService from "../../../services/lead.service";
-import AdminLeadsTable from "./adminLeadsTable/AdminLeadsTable.tsx";
+import LeadsTable from "./leadsTable/LeadsTable.tsx";
 import CustomPagination from "../../Pagination";
 import {
     Box,
@@ -17,8 +17,8 @@ import { Lead } from "../../../types/leadTypes.ts";
 import ImportLeadsDialog from "./importLeadsDialog/importLeadsDialog.tsx";
 import DataContext from "../../../context/DataContext";
 
-const AdminLeadsSection = () => {
-    const { leadFilters, setLeadFilters } = useContext(DataContext);
+const LeadsSection = () => {
+    const { leadFilters, setLeadFilters, role } = useContext(DataContext);
 
     // ------------------------------
     // LOCAL FILTER STATE (UI-driven)
@@ -27,6 +27,7 @@ const AdminLeadsSection = () => {
     const [search, setSearch] = useState(leadFilters.search);
     const [page, setPage] = useState(leadFilters.page);
     const [limit, setLimit] = useState(leadFilters.limit);
+    const isAdmin = role.includes('admin')
 
     // ------------------------------
     // DATA STATES
@@ -66,6 +67,13 @@ const AdminLeadsSection = () => {
         }
     }, [status, search, page, limit, leadFilters, setLeadFilters]);
 
+    useEffect(() => {
+        if (!isAdmin && (status === "sent" || status === "trash")) {
+            setStatus("new");
+            setPage(1);
+        }
+    }, [isAdmin, status]);
+
     // ------------------------------
     // FETCH LEADS when CONTEXT FILTERS CHANGE
     // ------------------------------
@@ -73,19 +81,36 @@ const AdminLeadsSection = () => {
         setLoading(true);
 
         try {
-            const response = await LeadsService.getMany(leadFilters);
+            let response;
+
+            if (isAdmin) {
+                // admin endpoint accepts all statuses
+                response = await LeadsService.getManyAdmin(leadFilters);
+            } else {
+                // user endpoint does NOT accept sent/trash
+                const { status, ...rest } = leadFilters;
+
+                response = await LeadsService.getManyUser({
+                    ...rest,
+                    status:
+                        status === "new" || status === "verified"
+                            ? status
+                            : "new", // strip invalid status
+                });
+            }
+
             setLeads(response.leads);
             setLeadCount(response.count);
-        } catch (err) {
+        } catch (err: any) {
             setSnack({
                 open: true,
                 message: err?.message || "Failed to load leads",
-                severity: "error"
+                severity: "error",
             });
         } finally {
             setLoading(false);
         }
-    }, [leadFilters]);
+    }, [leadFilters, isAdmin]);
 
     useEffect(() => {
         fetchLeads();
@@ -113,6 +138,7 @@ const AdminLeadsSection = () => {
             }.`,
             severity: "success"
         });
+        fetchLeads();
     };
 
     const currentVariant = (cond: boolean): "contained" | "outlined" =>
@@ -165,19 +191,23 @@ const AdminLeadsSection = () => {
                         Verified
                     </Button>
 
-                    <Button
-                        variant={currentVariant(status === "sent")}
-                        onClick={() => { updateStatus("sent"); }}
-                    >
-                        Sent
-                    </Button>
+                    { isAdmin && (
+                            <>
+                                <Button
+                                    variant={currentVariant(status === "sent")}
+                                    onClick={() => { updateStatus("sent"); }}
+                                >
+                                    Sent
+                                </Button>
 
-                    <Button
-                        variant={currentVariant(status === "trash")}
-                        onClick={() => { updateStatus("trash"); }}
-                    >
-                        Trash
-                    </Button>
+                                <Button
+                                    variant={currentVariant(status === "trash")}
+                                    onClick={() => { updateStatus("trash"); }}
+                                >
+                                    Trash
+                                </Button>
+                            </>
+                    )}
 
                     <TextField
                         size="small"
@@ -192,16 +222,16 @@ const AdminLeadsSection = () => {
                 </Stack>
 
                 {/* CONTENT */}
-                {loading
-? (
+                { loading
+                    ? (
                     <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
                         <CircularProgress />
                     </Box>
                 )
-: (
+                    : (
                     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
                         <Box sx={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
-                            <AdminLeadsTable leads={leads} setLeads={setLeads} />
+                            <LeadsTable leads={leads} setLeads={setLeads} />
                         </Box>
 
                         <Box sx={{ backgroundColor: "background.paper" }}>
@@ -243,4 +273,4 @@ const AdminLeadsSection = () => {
     );
 };
 
-export default AdminLeadsSection;
+export default LeadsSection;

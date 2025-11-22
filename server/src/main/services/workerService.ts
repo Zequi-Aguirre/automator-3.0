@@ -1,4 +1,4 @@
-import {injectable} from "tsyringe";
+import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
 import LeadService from "../services/leadService";
 import CountyService from "../services/countyService";
@@ -7,11 +7,11 @@ import SendLogDAO from "../data/sendLogDAO";
 import InvestorService from "../services/investorService";
 import CampaignService from "../services/campaignService";
 import AffiliateService from "../services/affiliateService";
-import {Lead} from "../types/leadTypes";
-import {Investor} from "../types/investorTypes";
-import {County} from "../types/countyTypes";
-import {Campaign} from "../types/campaignTypes";
-import {Affiliate} from "../types/affiliateTypes";
+import { Lead } from "../types/leadTypes";
+import { Investor } from "../types/investorTypes";
+import { County } from "../types/countyTypes";
+import { Campaign } from "../types/campaignTypes";
+import { Affiliate } from "../types/affiliateTypes";
 
 @injectable()
 export default class WorkerService {

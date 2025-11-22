@@ -100,7 +100,7 @@ export default class LeadDAO {
                 modified = NOW()
             WHERE deleted IS NULL
               AND sent = FALSE
-              AND imported_at <= NOW() - ($[expireHours]::int * INTERVAL '1 hour')
+              AND created <= NOW() - ($[expireHours]::int * INTERVAL '1 hour')
             RETURNING id;
         `;
 

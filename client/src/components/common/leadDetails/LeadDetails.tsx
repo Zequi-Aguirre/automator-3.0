@@ -33,7 +33,7 @@ import {
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
 
-const AdminLeadDetails = () => {
+const LeadDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
@@ -454,4 +454,4 @@ const AdminLeadDetails = () => {
     );
 };
 
-export default AdminLeadDetails;
+export default LeadDetails;

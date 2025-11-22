@@ -11,14 +11,15 @@ import {
     formatRemaining,
     getUrgency,
     colorForUrgency,
-} from "../../../../utils/leadExpiry"; // adjust the relative path if needed
+} from "../../../../utils/leadExpiry";
+import {parseUtcToZone} from "../../../../utils/dates.ts"; // adjust the relative path if needed
 
 interface LeadsTableProps {
     leads: Lead[];
     setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
 }
 
-const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
+const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     const navigate = useNavigate();
     const [loadingLeads, setLoadingLeads] = useState<Record<string, boolean>>({});
     const [snackbar, setSnackbar] = useState({
@@ -99,26 +100,9 @@ const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         },
         county: lead.county ?? "No county saved",
         state: lead.state,
-        imported_at: lead.imported_at
-            ? {
-                date: DateTime.fromISO(lead.imported_at, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("yyyy-MM-dd"),
-                time: DateTime.fromISO(lead.imported_at, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("HH:mm"),
-            }
-            : null,
-        daySent: lead.sent_date
-            ? {
-                date: DateTime.fromISO(lead.sent_date, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("yyyy-MM-dd"),
-                time: DateTime.fromISO(lead.sent_date, { zone: "utc" })
-                    .setZone("America/New_York")
-                    .toFormat("HH:mm"),
-            }
-            : null,
+        imported_at: parseUtcToZone(lead.imported_at),
+        daySent: parseUtcToZone(lead.sent_date),
+        created: parseUtcToZone(lead.created),
         raw: lead,
     }));
 
@@ -169,7 +153,7 @@ const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         { field: "county", headerName: "County", flex: 1, sortingOrder: ["asc", "desc"] },
         { field: "state", headerName: "State", flex: 0.7 },
         {
-            field: "imported_at",
+            field: "created",
             headerName: "Received",
             flex: 1,
             sortable: false,
@@ -341,4 +325,4 @@ const AdminLeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     );
 };
 
-export default AdminLeadsTable;
+export default LeadsTable;

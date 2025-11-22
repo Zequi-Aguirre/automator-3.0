@@ -18,7 +18,8 @@ import {
     DialogTitle,
     DialogContent,
     DialogContentText,
-    DialogActions
+    DialogActions,
+    Typography
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
@@ -73,6 +74,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         setLoading(true);
         try {
             const response = await leadFormInputService.getByLeadId(leadId);
+
             if (response) {
                 setExists(true);
                 setForm(response);
@@ -119,7 +121,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     };
 
     const handleListedNo = async () => {
-        if (isLocked) {
+        if (isLocked || saving || exists) {
             return;
         }
 
@@ -173,11 +175,8 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         }
     };
 
-    const handleChange = (field: string, value: any) => {
-        if (!form) {
-            return;
-        }
-        if (isLocked) {
+    const handleChange = (field: keyof LeadFormInput, value: any) => {
+        if (!form || isLocked) {
             return;
         }
 
@@ -198,10 +197,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     };
 
     const handleSave = async () => {
-        if (!form) {
-            return;
-        }
-        if (isLocked) {
+        if (!form || isLocked) {
             return;
         }
 
@@ -219,16 +215,13 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     };
 
     const handleVerify = async () => {
-        if (!form) {
-            return;
-        }
-        if (isLocked) {
+        if (!form || isLocked) {
             return;
         }
 
-        const missing = REQUIRED_FIELDS.filter(
-            (field) => form[field] == null || form[field] === ""
-        );
+        const missing = REQUIRED_FIELDS.filter((field) => {
+            return form[field] == null || form[field] === "";
+        });
 
         if (missing.length > 0) {
             setVerifyError("Missing required fields: " + missing.join(", "));
@@ -252,22 +245,13 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     };
 
     const handleUnverify = async () => {
-        if (!form) {
-            return;
-        }
-        if (!isVerified) {
-            return;
-        }
-        if (isSent) {
+        if (!form || !isVerified || isSent) {
             return;
         }
 
         try {
             setError(null);
             setVerifyError(null);
-
-            console.log(">>> UNVERIFY CALL: about to unverify lead and remove it from the queue.");
-            console.log(">>> Lead id:", leadId);
 
             await leadsService.unverifyLead(leadId);
 
@@ -282,8 +266,61 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         }
     };
 
+    const isFilled = (field: keyof LeadFormInput): boolean => {
+        if (!form) {
+            return false;
+        }
+
+        const val = form[field];
+
+        if (val == null) {
+            return false;
+        }
+
+        // Multiselect stores "\n" separated string in your schema
+        if (typeof val === "string") {
+            return val.trim() !== "";
+        }
+
+        return false;
+    };
+
+    const isRequired = (field: keyof LeadFormInput): boolean => {
+        return REQUIRED_FIELDS.includes(field as any);
+    };
+
+    const RequiredHeader = ({ field }: { field: keyof LeadFormInput }) => {
+        const required = isRequired(field);
+        const filled = isFilled(field);
+
+        if (!required) {
+            return null;
+        }
+
+        const color = filled ? "success.main" : "error.main";
+
+        return (
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                <Box
+                    sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        backgroundColor: color,
+                        flexShrink: 0
+                    }}
+                />
+                <Typography sx={{ color, fontWeight: 800, fontSize: "0.95rem", letterSpacing: 0.5 }}>
+                    REQUIRED
+                </Typography>
+            </Stack>
+        );
+    };
+
     const isVerifiable = form
-        ? REQUIRED_FIELDS.every((field) => form[field] && form[field] !== "")
+        ? REQUIRED_FIELDS.every((field) => {
+            return form[field] && form[field] !== "";
+        })
         : false;
 
     if (loading) {
@@ -315,228 +352,251 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
                     {exists && form && (
                         <Stack spacing={3}>
 
-                            {/* TYPE OF HOUSE */}
-                            <TextField
-                                select
-                                fullWidth
-                                label="Type of house (Required)"
-                                value={form.form_multifamily ?? ""}
-                                disabled={isLocked}
-                                onChange={e => {
-                                    handleChange("form_multifamily", e.target.value);
-                                }}
-                            >
-                                {TYPE_OF_HOUSE_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
+                            {/* LISTED FIRST (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_listed" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Listed?"
+                                    value={form.form_listed ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_listed", e.target.value);
+                                    }}
+                                >
+                                    {LISTED_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
 
-                            {/* REPAIRS MULTISELECT */}
-                            <Select
-                                multiple
-                                fullWidth
-                                displayEmpty
-                                disabled={isLocked}
-                                value={form.form_repairs ? form.form_repairs.split("\n") : []}
-                                onChange={e => {
-                                    const val = (e.target.value as string[]).join("\n");
-                                    handleChange("form_repairs", val);
-                                }}
-                                renderValue={(selected) =>
-                                    !selected || selected.length === 0
-                                        ? "Repairs needed (Required)"
-                                        : (selected).join(", ")
-                                }
-                            >
-                                {REPAIRS_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>
-                                        <Checkbox checked={form.form_repairs?.includes(opt) ?? false} />
-                                        <ListItemText primary={opt} />
-                                    </MenuItem>
-                                ))}
-                            </Select>
+                            {/* REQUIRED BLOCK */}
 
-                            {/* SQUARE FOOTAGE */}
+                            {/* TYPE OF HOUSE (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_multifamily" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Type of house"
+                                    value={form.form_multifamily ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_multifamily", e.target.value);
+                                    }}
+                                >
+                                    {TYPE_OF_HOUSE_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
+                            {/* REPAIRS MULTISELECT (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_repairs" />
+                                <Select
+                                    multiple
+                                    fullWidth
+                                    displayEmpty
+                                    disabled={isLocked}
+                                    value={form.form_repairs ? form.form_repairs.split("\n") : []}
+                                    onChange={(e) => {
+                                        const val = (e.target.value as string[]).join("\n");
+                                        handleChange("form_repairs", val);
+                                    }}
+                                    renderValue={(selected) =>
+                                        !selected || selected.length === 0
+                                            ? "Repairs needed"
+                                            : (selected).join(", ")
+                                    }
+                                >
+                                    {REPAIRS_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>
+                                            <Checkbox checked={form.form_repairs?.includes(opt) ?? false} />
+                                            <ListItemText primary={opt} />
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </Box>
+
+                            {/* OCCUPIED (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_occupied" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Occupied"
+                                    value={form.form_occupied ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_occupied", e.target.value);
+                                    }}
+                                >
+                                    {OCCUPIED_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
+                            {/* SELL FAST (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_sell_fast" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="How fast"
+                                    value={form.form_sell_fast ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_sell_fast", e.target.value);
+                                    }}
+                                >
+                                    {SELL_FAST_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
+                            {/* GOAL MULTISELECT (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_goal" />
+                                <Select
+                                    multiple
+                                    fullWidth
+                                    displayEmpty
+                                    disabled={isLocked}
+                                    value={form.form_goal ? form.form_goal.split("\n") : []}
+                                    onChange={(e) => {
+                                        const val = (e.target.value as string[]).join("\n");
+                                        handleChange("form_goal", val);
+                                    }}
+                                    renderValue={(selected) =>
+                                        !selected || selected.length === 0
+                                            ? "Goal"
+                                            : (selected).join(", ")
+                                    }
+                                >
+                                    {GOAL_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>
+                                            <Checkbox checked={form.form_goal?.includes(opt) ?? false} />
+                                            <ListItemText primary={opt} />
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </Box>
+
+                            {/* OWNER (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_owner" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Owner"
+                                    value={form.form_owner ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_owner", e.target.value);
+                                    }}
+                                >
+                                    {OWNER_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
+                            {/* OWNED YEARS (Required) */}
+                            <Box>
+                                <RequiredHeader field="form_owned_years" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Owned years"
+                                    value={form.form_owned_years ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_owned_years", e.target.value);
+                                    }}
+                                >
+                                    {OWNED_YEARS_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
+                            {/* OPTIONAL FIELDS */}
+
                             <TextField
                                 select
                                 fullWidth
                                 label="Square footage"
                                 value={form.form_square ?? ""}
                                 disabled={isLocked}
-                                onChange={e => {
+                                onChange={(e) => {
                                     handleChange("form_square", e.target.value);
                                 }}
                             >
-                                {SQUARE_OPTIONS.map(opt => (
+                                {SQUARE_OPTIONS.map((opt) => (
                                     <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                 ))}
                             </TextField>
 
-                            {/* YEAR BUILT RANGE */}
                             <TextField
                                 select
                                 fullWidth
                                 label="Year built range"
                                 value={form.form_year ?? ""}
                                 disabled={isLocked}
-                                onChange={e => {
+                                onChange={(e) => {
                                     handleChange("form_year", e.target.value);
                                 }}
                             >
-                                {YEAR_RANGE_OPTIONS.map(opt => (
+                                {YEAR_RANGE_OPTIONS.map((opt) => (
                                     <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                 ))}
                             </TextField>
 
-                            {/* GARAGE */}
                             <TextField
                                 select
                                 fullWidth
                                 label="Garage"
                                 value={form.form_garage ?? ""}
                                 disabled={isLocked}
-                                onChange={e => {
+                                onChange={(e) => {
                                     handleChange("form_garage", e.target.value);
                                 }}
                             >
-                                {GARAGE_OPTIONS.map(opt => (
+                                {GARAGE_OPTIONS.map((opt) => (
                                     <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                 ))}
                             </TextField>
 
-                            {/* BEDROOMS */}
                             <TextField
                                 select
                                 fullWidth
                                 label="Bedrooms"
                                 value={form.form_bedrooms ?? ""}
                                 disabled={isLocked}
-                                onChange={e => {
+                                onChange={(e) => {
                                     handleChange("form_bedrooms", e.target.value);
                                 }}
                             >
-                                {BEDROOM_OPTIONS.map(opt => (
+                                {BEDROOM_OPTIONS.map((opt) => (
                                     <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                 ))}
                             </TextField>
 
-                            {/* BATHROOMS */}
                             <TextField
                                 select
                                 fullWidth
                                 label="Bathrooms"
                                 value={form.form_bathrooms ?? ""}
                                 disabled={isLocked}
-                                onChange={e => {
+                                onChange={(e) => {
                                     handleChange("form_bathrooms", e.target.value);
                                 }}
                             >
-                                {BATHROOM_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            {/* OCCUPIED */}
-                            <TextField
-                                select
-                                fullWidth
-                                label="Occupied (Required)"
-                                value={form.form_occupied ?? ""}
-                                disabled={isLocked}
-                                onChange={e => {
-                                    handleChange("form_occupied", e.target.value);
-                                }}
-                            >
-                                {OCCUPIED_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            {/* SELL FAST */}
-                            <TextField
-                                select
-                                fullWidth
-                                label="How fast (Required)"
-                                value={form.form_sell_fast ?? ""}
-                                disabled={isLocked}
-                                onChange={e => {
-                                    handleChange("form_sell_fast", e.target.value);
-                                }}
-                            >
-                                {SELL_FAST_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            {/* GOAL MULTISELECT */}
-                            <Select
-                                multiple
-                                fullWidth
-                                displayEmpty
-                                disabled={isLocked}
-                                value={form.form_goal ? form.form_goal.split("\n") : []}
-                                onChange={e => {
-                                    const val = (e.target.value as string[]).join("\n");
-                                    handleChange("form_goal", val);
-                                }}
-                                renderValue={(selected) =>
-                                    !selected || selected.length === 0
-                                        ? "Goal (Required)"
-                                        : (selected).join(", ")
-                                }
-                            >
-                                {GOAL_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>
-                                        <Checkbox checked={form.form_goal?.includes(opt) ?? false} />
-                                        <ListItemText primary={opt} />
-                                    </MenuItem>
-                                ))}
-                            </Select>
-
-                            {/* OWNER */}
-                            <TextField
-                                select
-                                fullWidth
-                                label="Owner (Required)"
-                                value={form.form_owner ?? ""}
-                                disabled={isLocked}
-                                onChange={e => {
-                                    handleChange("form_owner", e.target.value);
-                                }}
-                            >
-                                {OWNER_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            {/* OWNED YEARS */}
-                            <TextField
-                                select
-                                fullWidth
-                                label="Owned years (Required)"
-                                value={form.form_owned_years ?? ""}
-                                disabled={isLocked}
-                                onChange={e => {
-                                    handleChange("form_owned_years", e.target.value);
-                                }}
-                            >
-                                {OWNED_YEARS_OPTIONS.map(opt => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            {/* LISTED */}
-                            <TextField
-                                select
-                                fullWidth
-                                label="Listed (Required)"
-                                value={form.form_listed ?? ""}
-                                disabled={isLocked}
-                                onChange={e => {
-                                    handleChange("form_listed", e.target.value);
-                                }}
-                            >
-                                {LISTED_OPTIONS.map(opt => (
+                                {BATHROOM_OPTIONS.map((opt) => (
                                     <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                 ))}
                             </TextField>
@@ -585,7 +645,6 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
                                     </Button>
                                 </Stack>
                             )}
-
                         </Stack>
                     )}
                 </CardContent>
@@ -604,9 +663,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button
-                        onClick={handleListedYes}
-                    >
+                    <Button onClick={handleListedYes}>
                         Yes it's listed
                     </Button>
                     <Button
