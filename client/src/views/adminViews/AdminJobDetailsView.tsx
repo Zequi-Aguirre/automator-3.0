@@ -224,7 +224,7 @@ const AdminJobDetailsView = () => {
                 try {
                     await jobService.deleteJob(id);
                     showNotification('Job deleted successfully', 'success');
-                    navigate('/admin/jobs');
+                    navigate('/a/worker-jobs');
                 } catch (err) {
                     console.error('Error deleting job:', err);
                     showNotification('Failed to delete job', 'error');
@@ -268,7 +268,7 @@ const AdminJobDetailsView = () => {
                 <Stack spacing={3}>
                     <Stack direction="row" alignItems="center" spacing={2}>
                         <IconButton onClick={() => {
-                            navigate('/admin/jobs');
+                            navigate('/a/worker-jobs');
                         }} size="large">
                             <ArrowBack/>
                         </IconButton>
@@ -279,7 +279,8 @@ const AdminJobDetailsView = () => {
                         <CardHeader
                             title="Job Information"
                             action={
-                                editMode ? (
+                                editMode
+                                    ? (
                                     <Stack direction="row" spacing={1}>
                                         <Button
                                             startIcon={<Save />}
@@ -296,7 +297,8 @@ const AdminJobDetailsView = () => {
                                             Cancel
                                         </Button>
                                     </Stack>
-                                ) : (
+                                )
+                                : (
                                     <>
                                         <Button
                                             variant="contained"

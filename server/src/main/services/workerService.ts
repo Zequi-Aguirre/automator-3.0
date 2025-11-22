@@ -62,7 +62,7 @@ export default class WorkerService {
         const expireHours =
             Number(settings.expire_after_hours) || 18;
 
-        const reason = "expired";
+        const reason = "EXPIRED_LEAD";
 
         return await this.leadDAO.trashExpiredLeads(
             expireHours,

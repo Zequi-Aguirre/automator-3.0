@@ -12,11 +12,6 @@ const shortenId = (id: string | null) => {
     return `${id.slice(0, 8)}...${id.slice(-4)}`;
 };
 
-const formatMoney = (cents: number | null) => {
-    if (cents === null || cents === undefined) return "—";
-    return `$${(cents / 100).toFixed(2)}`;
-};
-
 const formatDate = (iso: string) => {
     if (!iso) return "—";
     const d = new Date(iso);
