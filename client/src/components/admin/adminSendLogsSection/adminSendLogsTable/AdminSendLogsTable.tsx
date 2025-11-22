@@ -1,6 +1,6 @@
 import { Box, Typography, Chip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { SendLog } from "../../../../../../server/src/main/types/sendLogTypes.ts";
+import {SendLog} from "../../../../types/sendLogTypes.ts";
 
 interface Props {
     logs: SendLog[];

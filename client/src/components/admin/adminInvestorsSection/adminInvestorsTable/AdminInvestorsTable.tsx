@@ -8,7 +8,7 @@ import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { Cancel, CheckCircle, Star } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import investorService from "../../../../services/investor.service.tsx";
-import {Investor} from "../../../../../../server/src/main/types/investorTypes.ts";
+import {Investor} from "../../../../types/investorTypes.ts";
 
 interface Props {
     investors: Investor[];

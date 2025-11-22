@@ -1,5 +1,5 @@
 import { authProvider, AxiosProvider } from "../config/axiosProvider";
-import {Investor} from "../../../server/src/main/types/investorTypes.ts";
+import {Investor} from "../types/investorTypes.ts";
 
 class InvestorService {
     constructor(private readonly api: AxiosProvider) {}

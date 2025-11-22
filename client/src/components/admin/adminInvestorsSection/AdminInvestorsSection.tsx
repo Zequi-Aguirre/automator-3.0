@@ -11,7 +11,7 @@ import {
 import AdminInvestorsTable from './adminInvestorsTable/AdminInvestorsTable.tsx';
 import CustomPagination from '../../Pagination';
 import investorService from "../../../services/investor.service.tsx";
-import { Investor } from "../../../../../server/src/main/types/investorTypes.ts";
+import { Investor } from "../../../types/investorTypes.ts";
 
 const AdminInvestorsSection = () => {
     const [investors, setInvestors] = useState<Investor[]>([]);

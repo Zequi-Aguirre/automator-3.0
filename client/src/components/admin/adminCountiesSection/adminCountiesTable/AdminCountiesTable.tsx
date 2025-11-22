@@ -3,7 +3,6 @@ import {
     Button,
     Snackbar,
     Alert,
-    Box
 } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { County } from '../../../../types/countyTypes';
