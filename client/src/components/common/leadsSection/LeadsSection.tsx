@@ -120,8 +120,8 @@ const LeadsSection = () => {
     // EVENT HANDLERS
     // ------------------------------
 
-    const updateStatus = (newStatus) => {
-        setStatus(newStatus);
+    const updateStatus = (newStatus: string) => {
+        setStatus(newStatus as "new" | "verified" | "sent" | "trash");
         setPage(1);
     };
 

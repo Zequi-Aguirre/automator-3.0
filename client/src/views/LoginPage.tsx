@@ -82,6 +82,7 @@ export default function LoginPage() {
         importSucceededRef.current = true;
         setImportStatus("success");
         setImportOpen(false);
+        console.log("Import summary:", summary);
     };
 
     return (
