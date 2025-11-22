@@ -41,6 +41,7 @@ const AdminJobsTableActions = ({
                             handleDeleteJob,
                         }: JobActionsCellProps) => {
     const { role } = useContext(DataContext)
+    const isSuperAdmin = role === 'superadmin';
     const [dialogConfig, setDialogConfig] = useState<DialogConfig>({
         open: false,
         title: '',
@@ -149,7 +150,7 @@ const AdminJobsTableActions = ({
                     {params.row.is_paused ? 'Resume' : 'Hold'}
                 </Button>
                 {
-                    role === 'superadmin' && (
+                    isSuperAdmin && (
                         <Button
                             variant="contained"
                             color="error"

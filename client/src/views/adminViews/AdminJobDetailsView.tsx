@@ -41,6 +41,7 @@ const AdminJobDetailsView = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { role } = useContext(DataContext);
+    const isSuperAdmin = role === 'superadmin';
     const [editedJob, setEditedJob] = useState({
         name: '',
         description: '',
@@ -191,8 +192,8 @@ const AdminJobDetailsView = () => {
                 confirmButtonColor: 'error',
                 onConfirm: async () => {
                     try {
-                        const updatedJob = await jobService.pauseJob(id);
-                        setJob(updatedJob);
+                        await jobService.pauseJob(id);
+                        fetchJob();
                         showNotification('Job paused successfully', 'success');
                     } catch (err) {
                         console.error('Error pausing job:', err);
@@ -202,8 +203,8 @@ const AdminJobDetailsView = () => {
             });
         } else {
             try {
-                const updatedJob = await jobService.resumeJob(id);
-                setJob(updatedJob);
+                await jobService.resumeJob(id);
+                fetchJob();
                 showNotification('Job resumed successfully', 'success');
             } catch (err) {
                 console.error('Error resuming job:', err);
@@ -310,7 +311,7 @@ const AdminJobDetailsView = () => {
                                             {job.is_paused ? 'Resume' : 'Hold'}
                                         </Button>
                                         {
-                                            role === 'superadmin' && (
+                                            isSuperAdmin && (
                                                 <Button
                                                     variant="contained"
                                                     color="error"
@@ -341,7 +342,7 @@ const AdminJobDetailsView = () => {
                                     name="name"
                                     value={editMode ? editedJob.name : (job.name ?? '')}
                                     onChange={handleTextInputChange}
-                                    disabled={!editMode}
+                                    disabled={!editMode || !isSuperAdmin}
                                     required
                                 />
                                 <TextField
@@ -350,7 +351,7 @@ const AdminJobDetailsView = () => {
                                     name="description"
                                     value={editMode ? editedJob.description : (job.description ?? '')}
                                     onChange={handleTextInputChange}
-                                    disabled={!editMode}
+                                    disabled={!editMode || !isSuperAdmin}
                                     multiline
                                     rows={3}
                                 />

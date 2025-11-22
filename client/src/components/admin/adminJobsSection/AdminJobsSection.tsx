@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import {useCallback, useContext, useEffect, useState} from "react";
 import jobService from "../../../services/job.service";
 import workerService from "../../../services/worker.service.tsx";
 import AdminJobsTable from "./adminJobsTable/AdminJobsTable.tsx";
@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { Job } from "../../../types/jobTypes";
+import DataContext from "../../../context/DataContext.tsx";
 
 const INITIAL_JOB_STATE = {
     name: "",
@@ -32,6 +33,8 @@ const INITIAL_JOB_STATE = {
 };
 
 const AdminJobsSection = () => {
+    const { role } = useContext(DataContext)
+    const isSuperAdmin = role === 'superadmin';
     const [jobs, setJobs] = useState<Job[]>([]);
     const [page, setPage] = useState(1);
     const [jobCount, setJobCount] = useState(0);
@@ -264,34 +267,38 @@ const AdminJobsSection = () => {
                                 />
                             )}
 
-                            <TextField
-                                size="small"
-                                label="Cron Schedule"
-                                value={cronDraft}
-                                onChange={(e) => {
-                                    setCronDraft(e.target.value);
-                                }}
-                                disabled={workerEnabled || workerLoading}
-                                sx={{ flex: "1 1 360px" }} // grows but has a decent minimum width
-                                helperText={
-                                    workerEnabled
-                                        ? "Disable worker to edit cron schedule"
-                                        : "Example: */5 * * * *"
-                                }
-                            />
+                            { isSuperAdmin && (
+                                <>
+                                <TextField
+                                    size="small"
+                                    label="Cron Schedule"
+                                    value={cronDraft}
+                                    onChange={(e) => {
+                                        setCronDraft(e.target.value);
+                                    }}
+                                    disabled={workerEnabled || workerLoading}
+                                    sx={{ flex: "1 1 360px" }} // grows but has a decent minimum width
+                                    helperText={
+                                        workerEnabled
+                                            ? "Disable worker to edit cron schedule"
+                                            : "Example: */5 * * * *"
+                                    }
+                                />
 
-                            <Button
-                                variant="contained"
-                                onClick={handleSaveCron}
-                                disabled={
-                                    workerEnabled ||
-                                    workerLoading ||
-                                    cronDraft.trim() === cronSchedule.trim()
-                                }
-                                sx={{ whiteSpace: "nowrap" }}
-                            >
-                                Save
-                            </Button>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveCron}
+                                    disabled={
+                                        workerEnabled ||
+                                        workerLoading ||
+                                        cronDraft.trim() === cronSchedule.trim()
+                                    }
+                                    sx={{ whiteSpace: "nowrap" }}
+                                >
+                                    Save
+                                </Button>
+                            </>)
+                        }
                         </Box>
                     </CardContent>
                 </Card>
@@ -308,15 +315,17 @@ const AdminJobsSection = () => {
                     <Typography variant="h4" component="h2" sx={{ fontWeight: "bold" }}>
                         Jobs
                     </Typography>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => {
-                            setCreateModalOpen(true);
-                        }}
-                    >
-                        Create New
-                    </Button>
+                    { isSuperAdmin && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => {
+                                setCreateModalOpen(true);
+                            }}
+                        >
+                            Create New
+                        </Button>
+                    )}
                 </Box>
 
                 {loading
