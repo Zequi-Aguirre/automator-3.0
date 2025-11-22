@@ -131,7 +131,7 @@ export default class LeadService {
 
             await this.sendLogDAO.updateLog(log.id, {
                 response_code: axiosResponse.status,
-                response_body: JSON.stringify(response.data),
+                response_body: JSON.stringify(response),
                 payout_cents: payoutCents,
                 status: "sent"
             });

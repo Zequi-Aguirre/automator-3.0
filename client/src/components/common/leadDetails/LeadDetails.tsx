@@ -414,11 +414,13 @@ const LeadDetails = () => {
                 </Stack>
             </Box>
 
-            <LeadVerificationForm
-                leadId={id!}
-                lead={lead}
-                refreshLead={fetchLead}
-            />
+            {!editMode && lead && (
+                <LeadVerificationForm
+                    leadId={id!}
+                    lead={lead}
+                    refreshLead={fetchLead}
+                />)
+            }
 
             <Dialog
                 open={confirmDialogOpen}

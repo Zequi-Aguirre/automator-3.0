@@ -41,18 +41,6 @@ const AdminSendLogsTable = ({ logs }: Props) => {
             },
         },
         {
-            field: "payout_cents",
-            headerName: "Payout",
-            minWidth: 120,
-            renderCell: (params) => {
-                return (
-                    <Typography sx={{ fontWeight: 500 }}>
-                        {formatMoney(params.row.payout_cents)}
-                    </Typography>
-                );
-            },
-        },
-        {
             field: "response_code",
             headerName: "Resp. Code",
             minWidth: 120,
