@@ -209,9 +209,9 @@ export default class WorkerService {
     }
 
     async forceSendLead(leadId: string): Promise<Lead> {
-        const sent = await this.leadService.sendLead(leadId);
+        const sentLead = await this.leadService.sendLead(leadId);
         await this.scheduleNext();
-        return sent;
+        return sentLead;
     }
 
     private async scheduleNext(): Promise<void> {

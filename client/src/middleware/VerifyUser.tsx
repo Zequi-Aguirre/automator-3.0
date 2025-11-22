@@ -19,15 +19,6 @@ const VerifyUser = ({ children }: Props) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Global kill-switch: if logins are not allowed, boot everyone except superadmin
-        if (!allowLogin && role !== "user") {
-            setSession(null);
-            setLoggedInUser(null);
-            setRole("");
-            navigate("/");
-            return;
-        }
-
         // Not logged in? go to login
         if (!session) {
             navigate("/login");
