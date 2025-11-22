@@ -85,6 +85,7 @@ const buildEditableFromSettings = (settings: WorkerSettings): EditableWorkerSett
         business_hours_end: minutesToHHMM(settings.business_hours_end),
         minutes_range_start: settings.minutes_range_start ?? 0,
         minutes_range_end: settings.minutes_range_end ?? 0,
+        expire_after_hours: settings.expire_after_hours ?? 0,
         delay_same_state: settings.delay_same_state ?? 0,
         delay_same_county: settings.delay_same_county ?? 0,
         delay_same_investor: settings.delay_same_investor ?? 0,
@@ -101,6 +102,7 @@ const WorkerSettingsPanel = () => {
         business_hours_end: '',
         minutes_range_start: 0,
         minutes_range_end: 0,
+        expire_after_hours: 0,
         delay_same_state: 0,
         delay_same_county: 0,
         delay_same_investor: 0,
@@ -204,6 +206,7 @@ const WorkerSettingsPanel = () => {
                 business_hours_end: hhmmToMinutes(editedSettings.business_hours_end),
                 minutes_range_start: editedSettings.minutes_range_start,
                 minutes_range_end: editedSettings.minutes_range_end,
+                expire_after_hours: editedSettings.expire_after_hours,
                 delay_same_state: editedSettings.delay_same_state,
                 delay_same_county: editedSettings.delay_same_county,
                 delay_same_investor: editedSettings.delay_same_investor,
@@ -345,6 +348,20 @@ const WorkerSettingsPanel = () => {
                                         editMode
                                             ? editedSettings.minutes_range_end
                                             : settings.minutes_range_end
+                                    }
+                                    onChange={handleInputChange}
+                                    disabled={!editMode}
+                                />
+
+                                <TextField
+                                    fullWidth
+                                    label="Expire After (hours)"
+                                    name="expire_after_hours"
+                                    type="number"
+                                    value={
+                                        editMode
+                                            ? editedSettings.expire_after_hours
+                                            : settings.expire_after_hours
                                     }
                                     onChange={handleInputChange}
                                     disabled={!editMode}

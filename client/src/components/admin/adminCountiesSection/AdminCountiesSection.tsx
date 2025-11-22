@@ -105,7 +105,6 @@ const AdminCountiesSection = () => {
     return (
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
                         Counties
@@ -143,20 +142,17 @@ const AdminCountiesSection = () => {
                 </Stack>
 
                 {loading
-? (
+                ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                         <CircularProgress />
                     </Box>
                 )
-: (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', height: "100%" }}>
-                        <Box sx={{ flexGrow: 1, overflow: "auto" }}>
-                            <AdminCountiesTable
-                                counties={counties}
-                                setCounties={setCounties}
+                : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', height: "100%", overflow: 'hidden' }}>
+                        <Box sx={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
+                            <AdminCountiesTable counties={counties} setCounties={setCounties}
                             />
                         </Box>
-
                         <Box sx={{ backgroundColor: "background.paper" }}>
                             <CustomPagination
                                 page={page}

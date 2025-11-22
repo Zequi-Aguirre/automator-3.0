@@ -131,11 +131,18 @@ const AdminAffiliatesTable = ({ affiliates, setAffiliates }: Props) => {
             <DataGrid
                 rows={affiliates}
                 columns={columns}
-                hideFooter={true}
-                getRowId={(row) => {
-                    return row.id;
-                }}
                 disableRowSelectionOnClick
+                hideFooter
+                onSortModelChange={(params) => {
+                    console.log("Sort model changed:", params[0]);
+                }}
+                onFilterModelChange={(params) => {
+                    console.log("Filter model changed:", params);
+                }}
+                sx={{
+                    "& .MuiDataGrid-cell": { py: 2 },
+                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
+                }}
             />
     );
 };

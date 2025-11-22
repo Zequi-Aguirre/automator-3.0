@@ -32,6 +32,7 @@ import {
     colorForUrgency
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
+import workingsService from "../../../services/settings.service.tsx";
 
 const LeadDetails = () => {
     const { id } = useParams<{ id: string }>();
@@ -60,12 +61,25 @@ const LeadDetails = () => {
     });
 
     const [now, setNow] = useState(DateTime.utc());
+    const [leadExpireHours, setLeadExpireHours] = useState(18); // default to 18 hours
+
     useEffect(() => {
-        const intervalId = setInterval(() => {
+        // Fetch worker settings to get expire_after_hours
+        const fetchSettings = async () => {
+            try {
+                const settings = await workingsService.getWorkerSettings();
+                setLeadExpireHours(settings.expire_after_hours);
+            } catch (error) {
+                console.error("Error fetching worker settings:", error);
+            }
+        };
+        fetchSettings();
+
+        const id = setInterval(() => {
             setNow(DateTime.utc());
-        }, 1000);
+        }, 60_000);
         return () => {
-            clearInterval(intervalId);
+            clearInterval(id);
         };
     }, []);
 
@@ -175,7 +189,7 @@ const LeadDetails = () => {
 
     const renderExpiresBanner = () => {
         if (!lead?.created) return null;
-        const ms = remainingMs(lead.created, now);
+        const ms = remainingMs(lead.created, now, leadExpireHours);
         const label = formatRemaining(ms);
         const urgency = getUrgency(ms);
         const color = colorForUrgency(urgency);

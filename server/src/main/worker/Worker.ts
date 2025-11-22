@@ -87,6 +87,7 @@ export class Worker {
                     `[${humanReadableTime}] Cron job executed (Schedule: ${cron_schedule}, ${humanReadableSchedule})`
                 );
 
+                // trash expired leads on initialization run
                 await this.checkAndRunJobs();
                 await this.workerSettingsService.updateLastWorkerRun(
                     currentSettings.id

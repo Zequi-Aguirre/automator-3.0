@@ -12,7 +12,8 @@ import {
     getUrgency,
     colorForUrgency,
 } from "../../../../utils/leadExpiry";
-import {parseUtcToZone} from "../../../../utils/dates.ts"; // adjust the relative path if needed
+import { parseUtcToZone } from "../../../../utils/dates.ts"; // adjust the relative path if needed
+import workingsService from "../../../../services/settings.service.tsx";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -30,7 +31,20 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
 
     // one ticking clock for all rows
     const [now, setNow] = useState(DateTime.utc());
+    const [leadExpireHours, setLeadExpireHours] = useState(18); // default to 18 hours
+
     useEffect(() => {
+        // Fetch worker settings to get expire_after_hours
+        const fetchSettings = async () => {
+            try {
+                const settings = await workingsService.getWorkerSettings();
+                setLeadExpireHours(settings.expire_after_hours);
+            } catch (error) {
+                console.error("Error fetching worker settings:", error);
+            }
+        };
+        fetchSettings();
+
         const id = setInterval(() => {
             setNow(DateTime.utc());
         }, 60_000);
@@ -179,7 +193,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             renderCell: (params: GridRenderCellParams) => {
                 const importedISO: string | null = params.row.raw?.created ?? null;
                 if (!importedISO) return "—";
-                const ms = remainingMs(importedISO, now);
+                const ms = remainingMs(importedISO, now, leadExpireHours);
                 const label = formatRemaining(ms);
                 const urgency = getUrgency(ms);
                 const color = colorForUrgency(urgency);

@@ -1,10 +1,8 @@
 // src/utils/leadExpiry.ts
 import { DateTime, Duration } from "luxon";
-
-export const EXPIRE_HOURS = 18 as const; // TODO this should be a setting in the DB
 export type Urgency = "expired" | "critical" | "warn" | "ok";
 
-export function remainingMs(importedISO: string, nowUtc: DateTime = DateTime.utc()): number {
+export function remainingMs(importedISO: string, nowUtc: DateTime = DateTime.utc(), EXPIRE_HOURS: number): number {
     const imported = DateTime.fromISO(importedISO, { zone: "utc" });
     const expiresAt = imported.plus({ hours: EXPIRE_HOURS });
     return expiresAt.toMillis() - nowUtc.toMillis();

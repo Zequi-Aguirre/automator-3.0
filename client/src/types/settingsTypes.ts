@@ -5,6 +5,7 @@ export type WorkerSettings = {
     business_hours_end: number;
     minutes_range_start: number;
     minutes_range_end: number;
+    expire_after_hours: number;
     delay_same_state: number;
     delay_same_county: number;
     delay_same_investor: number;
@@ -25,6 +26,7 @@ export type EditableWorkerSettings = {
     business_hours_end: string;
     minutes_range_start: number;
     minutes_range_end: number;
+    expire_after_hours: number;
     delay_same_state: number;
     delay_same_county: number;
     delay_same_investor: number;

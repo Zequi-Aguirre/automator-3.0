@@ -95,16 +95,22 @@ const AdminCountiesTable = ({ counties, setCounties }: Props) => {
 
     return (
         <>
-            <Box sx={{ width: '100%', minWidth: 800, mx: 'auto' }}>
-                <DataGrid
-                    rows={counties}
-                    columns={columns}
-                    getRowId={(row) => row.id}
-                    disableRowSelectionOnClick
-                    hideFooter
-                    autoHeight
-                />
-            </Box>
+            <DataGrid
+                rows={counties}
+                columns={columns}
+                disableRowSelectionOnClick
+                hideFooter
+                onSortModelChange={(params) => {
+                    console.log("Sort model changed:", params[0]);
+                }}
+                onFilterModelChange={(params) => {
+                    console.log("Filter model changed:", params);
+                }}
+                sx={{
+                    "& .MuiDataGrid-cell": { py: 2 },
+                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
+                }}
+            />
 
             <Snackbar
                 open={snack.open}
