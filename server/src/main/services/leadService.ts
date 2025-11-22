@@ -136,7 +136,7 @@ export default class LeadService {
                 status: "sent"
             });
 
-            const updatedLead = await this.leadDAO.updateLead(lead.id, { sent: true });
+            const updatedLead = await this.leadDAO.markLeadAsSent(lead.id);
 
             // One-time whitelist consumption
             if (investor.whitelisted) {
