@@ -22,6 +22,16 @@ export default class CampaignDAO {
         return await this.db.one<Campaign>(query, { campaignId });
     }
 
+    async getManyByIds(ids: string[]): Promise<Campaign[]> {
+        if (ids.length === 0) return [];
+        const query = `
+            SELECT *
+            FROM campaigns
+            WHERE id IN ($[ids:csv]) AND deleted IS NULL;
+        `;
+        return this.db.any<Campaign>(query, { ids });
+    }
+
     async getByAffiliateId(affiliateId: string): Promise<Campaign[]> {
         const query = `
         SELECT *

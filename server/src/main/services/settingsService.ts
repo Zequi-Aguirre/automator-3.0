@@ -14,12 +14,18 @@ export default class SettingsService {
         name: string;
         business_hours_start: number;
         business_hours_end: number;
+        cron_schedule: string;
+        worker_enabled: boolean;
     }): Promise<WorkerSettings> {
         return this.workerSettingsDAO.createSettings(settings);
     }
 
     async getWorkerSettings(): Promise<WorkerSettings | null> {
-        return this.workerSettingsDAO.getCurrentSettings();
+        try {
+            return await this.workerSettingsDAO.getCurrentSettings();
+        } catch {
+            return null;
+        }
     }
 
     async getWorkerId(): Promise<string> {

@@ -57,13 +57,13 @@ export default class LeadDAO {
     // Mark lead as verified
     async verifyLead(leadId: string): Promise<Lead> {
         const query = `
-        UPDATE leads
-        SET verified = TRUE,
-            modified = NOW()
-        WHERE id = $[leadId]
-        AND deleted IS NULL
-        RETURNING *;
-    `;
+            UPDATE leads
+            SET verified = TRUE,
+                modified = NOW()
+            WHERE id = $[leadId]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
         const result = await this.db.oneOrNone<Lead>(query, { leadId });
         if (!result) {
             throw new Error("Lead not found or verify failed");
@@ -74,18 +74,42 @@ export default class LeadDAO {
 // Mark lead as unverified
     async unverifyLead(leadId: string): Promise<Lead> {
         const query = `
-        UPDATE leads
-        SET verified = FALSE,
-            modified = NOW()
-        WHERE id = $[leadId]
-        AND deleted IS NULL
-        RETURNING *;
-    `;
+            UPDATE leads
+            SET verified = FALSE,
+                modified = NOW()
+            WHERE id = $[leadId]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
         const result = await this.db.oneOrNone<Lead>(query, { leadId });
         if (!result) {
             throw new Error("Lead not found or unverify failed");
         }
         return result;
+    }
+
+    async trashExpiredLeads(
+        expireHours: number,
+        reason: string
+    ): Promise<number> {
+        const query = `
+            UPDATE leads
+            SET
+                deleted = NOW(),
+                deleted_reason = $[reason],
+                modified = NOW()
+            WHERE deleted IS NULL
+              AND sent = FALSE
+              AND imported_at <= NOW() - ($[expireHours]::int * INTERVAL '1 hour')
+            RETURNING id;
+        `;
+
+        const rows = await this.db.manyOrNone<{ id: string }>(query, {
+            expireHours,
+            reason
+        });
+
+        return rows.length;
     }
 
     private async getUpdatedLeadFields(
@@ -220,8 +244,7 @@ export default class LeadDAO {
             WHERE verified = TRUE
             AND deleted IS NULL
             AND sent = FALSE
-            ORDER BY RANDOM()
-            LIMIT 50;
+            ORDER BY RANDOM();
         `;
 
         return await this.db.manyOrNone<Lead>(query);
@@ -281,5 +304,41 @@ export default class LeadDAO {
 
             return results;
         });
+    }
+
+    async trashLeadWithReason(id: string, reason: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET deleted = NOW(),
+                deleted_reason = $[reason]
+            WHERE id = $[id]
+            RETURNING *;
+        `;
+
+        return this.db.one(query, { id, reason });
+    }
+
+    async createTrashedLead(lead: parsedLeadFromCSV, reason: string): Promise<Lead> {
+        return this.db.one(
+            `
+            INSERT INTO leads (
+                first_name, last_name, email, phone,
+                address, city, state, zipcode,
+                county, county_id,
+                imported_at,
+                investor_id, campaign_id,
+                deleted, deleted_reason
+            )
+            VALUES (
+                $[first_name], $[last_name], $[email], $[phone],
+                $[address], $[city], $[state], $[zipcode],
+                $[county], $[county_id],
+                NOW(),
+                $[investor_id], $[campaign_id],
+                NOW(), $[reason]
+            )
+            RETURNING *;
+        `, { ...lead, reason }
+        );
     }
 }

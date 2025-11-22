@@ -13,6 +13,9 @@ export type WorkerSettings = {
     states_on_hold: string[];
     send_next_lead_at: Date;
     last_worker_run: string;
+    worker_enabled: boolean;
+    cron_schedule: string;
+    expire_after_hours: number;
     created: Date;
     modified: Date;
     deleted: Date | null;
@@ -29,6 +32,9 @@ export type WorkerSettingsUpdateAllowedFieldsType = {
     states_on_hold: string[];
     delay_same_investor: number | null;
     delay_same_county: number | null;
+    worker_enabled: boolean | null;
+    cron_schedule: string | null;
+    expire_after_hours: number | null;
 };
 
 export type EnvSettings = {
@@ -44,7 +50,6 @@ export type EnvSettingsUpdateAllowedFieldsType = {
     name: string;
     allow_login: boolean;
 };
-
 
 export type AllowedOrigin = {
     url: string;

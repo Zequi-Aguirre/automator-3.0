@@ -122,6 +122,7 @@ const WorkerSettingsPanel = () => {
             setError(null);
 
             const response = await workerSettingsService.getWorkerSettings();
+            console.log('Fetched worker settings:', response);
 
             if (response) {
                 setSettings(response);
@@ -183,9 +184,7 @@ const WorkerSettingsPanel = () => {
 
         const values = Array.isArray(value)
             ? value
-            : typeof value === 'string'
-                ? value.split(',').map((v) => v.trim()).filter((v) => v.length > 0)
-                : [];
+            : value.split(',').map((v) => v.trim()).filter((v) => v.length > 0);
 
         setEditedSettings((prev) => ({
             ...prev,

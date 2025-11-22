@@ -16,25 +16,21 @@ export default class CountyService {
         const existingCounties = await this.countyDAO.getAllCounties();
         const countyMap = new Map<string, County>();
 
-        // Build map from existing records
         for (const county of existingCounties) {
             const key = `${county.name.toLowerCase()}_${county.state.toLowerCase()}`;
             countyMap.set(key, county);
         }
 
         for (const lead of leads) {
-            // Clean incoming values
             const rawCounty = (lead.county ?? "").trim().replace(/^,/, "").trim();
             const rawState = (lead.state ?? "").trim();
 
-            // Skip if either is missing or empty after cleanup
             if (!rawCounty || !rawState) {
                 continue;
             }
 
             const key = `${rawCounty.toLowerCase()}_${rawState.toLowerCase()}`;
 
-            // Insert only if not already in map
             if (!countyMap.has(key)) {
                 const newCounty = await this.countyDAO.insertCounty({
                     name: rawCounty,
@@ -55,7 +51,7 @@ export default class CountyService {
         rejected: number;
         errors: string[];
     }> {
-        const rows = parseCsvToCounties(csvContent); // you must add this parser
+        const rows = parseCsvToCounties(csvContent);
         const existing = await this.countyDAO.getAllCounties();
 
         const existingMap = new Map<string, County>();
@@ -83,7 +79,6 @@ export default class CountyService {
                 const key = `${name.toLowerCase()}_${state.toLowerCase()}`;
 
                 if (existingMap.has(key)) {
-                    // Skip duplicates
                     continue;
                 }
 
@@ -106,7 +101,18 @@ export default class CountyService {
     }
 
     async updateCountyBlacklistStatus(id: string, blacklisted: boolean): Promise<County> {
-        return this.countyDAO.updateCountyBlacklistStatus(id, blacklisted);
+        return await this.countyDAO.updateCountyBlacklistStatus(id, blacklisted);
+    }
+
+    async updateCountyMeta(
+        id: string,
+        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted">>
+    ): Promise<County> {
+        return await this.countyDAO.updateCounty(id, updates);
+    }
+
+    async getManyByIds(ids: string[]): Promise<County[]> {
+        return this.countyDAO.getManyByIds(ids);
     }
 
     async getMany(filters: {

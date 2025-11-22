@@ -23,6 +23,16 @@ export default class AffiliateDAO {
         return await this.db.one<Affiliate>(query, data);
     }
 
+    async getManyByIds(ids: string[]): Promise<Affiliate[]> {
+        if (ids.length === 0) return [];
+        const query = `
+            SELECT *
+            FROM affiliates
+            WHERE id IN ($[ids:csv]) AND deleted IS NULL;
+        `;
+        return this.db.any<Affiliate>(query, { ids });
+    }
+
     async getMany(filters: { page: number; limit: number }): Promise<{ affiliates: Affiliate[]; count: number }> {
         const { page, limit } = filters;
         const offset = (page - 1) * limit;
@@ -48,11 +58,11 @@ export default class AffiliateDAO {
 
     async getAffiliateById(id: string): Promise<Affiliate> {
         const query = `
-        SELECT *
-        FROM affiliates
-        WHERE id = $[id]
-          AND deleted IS NULL;
-    `;
+            SELECT *
+            FROM affiliates
+            WHERE id = $[id]
+              AND deleted IS NULL;
+        `;
         return await this.db.one<Affiliate>(query, { id });
     }
 
@@ -82,12 +92,12 @@ export default class AffiliateDAO {
 
         const setClause = fields.join(', ');
         const query = `
-        UPDATE affiliates
-        SET ${setClause},
-            modified = NOW()
-        WHERE id = $[id]
-        RETURNING *;
-    `;
+            UPDATE affiliates
+            SET ${setClause},
+                modified = NOW()
+            WHERE id = $[id]
+            RETURNING *;
+        `;
 
         return await this.db.one<Affiliate>(query, { ...updates, id });
     }

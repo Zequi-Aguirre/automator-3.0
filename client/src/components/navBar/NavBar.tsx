@@ -10,7 +10,7 @@ import {useContext, useEffect, useState} from "react";
 import userService from "../../services/user.service.tsx";
 import DataContext from "../../context/DataContext.tsx";
 
-const adminPages = ['Leads', 'Campaigns', 'Affiliates', 'Counties', 'Settings', 'Worker Jobs'];
+const adminPages = ['Leads', 'Campaigns', 'Affiliates', 'Investors', 'Counties', 'Logs', 'Settings', 'Worker Jobs'];
 const userPages = ['Leads'];
 const commonPages = ['Logout'];
 
@@ -18,24 +18,17 @@ export default function NavBar() {
     const { setSession, setRole, role, setLoggedInUser } = useContext(DataContext)
     const navigate = useNavigate();
     const location = useLocation();
-    const [isAdmin, setIsAdmin] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(role === 'admin' || role === 'superadmin');
     const [currentPage, setCurrentPage] = useState<string>('');
-
-    useEffect(() => {
-        if (isAdmin) {
-            userService.getUserInfo().then((response) => {
-                setLoggedInUser(response)
-            })
-        }
-    }, [isAdmin, setLoggedInUser]);
 
     const handleNavItemClick = (page: string) => {
         switch (page) {
             case 'Leads':
-                navigate('/a/leads');
-                break;
-            case 'Buyers':
-                navigate('/a/buyers');
+                if (isAdmin) {
+                    navigate('/a/leads');
+                } else {
+                    navigate('/u/leads');
+                }
                 break;
             case 'Campaigns':
                 navigate('/a/campaigns');
@@ -68,8 +61,8 @@ export default function NavBar() {
     useEffect(() => {
         setIsAdmin(role === 'admin' || role === 'superadmin');
         switch (true) {
-            case location.pathname.includes('dashboard'):
-                setCurrentPage('Dashboard');
+            case location.pathname.includes('leads'):
+                setCurrentPage('Leads');
                 break;
             case location.pathname.includes('campaigns'):
                 setCurrentPage('Campaigns');

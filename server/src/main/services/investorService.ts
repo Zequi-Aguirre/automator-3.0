@@ -26,7 +26,17 @@ export default class InvestorService {
     }
 
     async getById(id: string): Promise<Investor | null> {
-        return this.investorDAO.getById(id);
+        return await this.investorDAO.getById(id);
     }
 
+    async getManyByIds(ids: string[]): Promise<Investor[]> {
+        return this.investorDAO.getManyByIds(ids);
+    }
+
+    async updateInvestorMeta(
+        id: string,
+        updates: Partial<Pick<Investor, "name" | "whitelisted" | "blacklisted">>
+    ): Promise<Investor> {
+        return await this.investorDAO.updateInvestor(id, updates);
+    }
 }
