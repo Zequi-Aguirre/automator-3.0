@@ -1,7 +1,7 @@
-import axios, { AxiosResponse } from "axios";
-import { injectable } from "tsyringe";
-import { EnvConfig } from "../config/envConfig";
-import { ISpeedToLeadResponse } from "../types/ispeedToLeadTypes.ts";
+import axios, {AxiosResponse} from "axios";
+import {injectable} from "tsyringe";
+import {EnvConfig} from "../config/envConfig";
+import {ISpeedToLeadResponse} from "../types/ispeedToLeadTypes.ts";
 
 export type ISpeedToLeadPayload = Record<string, any>;
 
@@ -40,8 +40,7 @@ export default class ISpeedToLeadIAO {
                 headers: {
                     "Content-Type": "application/json"
                 }
-            });
-
+            })
         } catch (err: any) {
             // Bubble up error with original axios details preserved
             if (err.response) {

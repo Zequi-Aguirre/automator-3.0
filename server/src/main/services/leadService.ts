@@ -107,6 +107,9 @@ export default class LeadService {
 
         delete payload.created;
         delete payload.modified;
+        delete payload.deleted;
+        delete payload.lead_id;
+        delete payload.id;
 
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
@@ -121,7 +124,7 @@ export default class LeadService {
             const response = axiosResponse.data;
 
             const payoutCents = (() => {
-                const payout = response.data?.payout;
+                const payout = response?.payout;
                 if (!payout) {
                     return null;
                 }
