@@ -73,7 +73,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     // Handle the header row and patch the last column name
     const headerColumns = lines[0].split(",");
     if (headerColumns.length > 0) {
-        headerColumns[headerColumns.length - 1] = "Imported"; // replace last empty with 'Imported'
+        headerColumns[headerColumns.length] = "Imported"; // replace last empty with 'Imported'
         lines[0] = headerColumns.join(",");
     }
 
