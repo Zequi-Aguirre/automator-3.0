@@ -12,7 +12,7 @@ class LeadService {
         status?: "new" | "verified" | "sent" | "trash"
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
-            '/api/leads/admin/get-many',
+            '/api/leads/get-many',
             { params: filters }
         );
         return response.data;

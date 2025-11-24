@@ -7,7 +7,7 @@ class SettingsService {
 
     // Get current settings
     async getWorkerSettings(): Promise<WorkerSettings> {
-        const response = await this.api.getApi().get('/api/settings/admin/worker-settings');
+        const response = await this.api.getApi().get('/api/settings/worker-settings');
         return response.data;
     }
 

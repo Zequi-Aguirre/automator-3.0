@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import {useCallback, useContext, useEffect, useState} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -33,11 +33,13 @@ import {
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
 import workingsService from "../../../services/settings.service.tsx";
+import DataContext from "../../../context/DataContext.tsx";
 
 const LeadDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-
+    const { role } = useContext(DataContext)
+    const isAdmin = role.includes('admin')
     const [lead, setLead] = useState<Lead | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -134,7 +136,8 @@ const LeadDetails = () => {
         try {
             if (!id) return;
             await leadsService.trashLead(id);
-            navigate('/a/leads');
+            const url = isAdmin ? '/a/leads' : '/u/leads';
+            navigate(url);
             showNotification('Lead moved to trash successfully', 'success');
         } catch (error) {
             showNotification('Failed to trash lead', 'error');
@@ -308,7 +311,8 @@ const LeadDetails = () => {
                     <Stack direction="row" alignItems="center" spacing={2}>
                         <IconButton
                             onClick={() => {
-                                navigate('/a/leads');
+                                const url = isAdmin ? '/a/leads' : '/u/leads';
+                                navigate(url);
                             }}
                             size="large"
                         >

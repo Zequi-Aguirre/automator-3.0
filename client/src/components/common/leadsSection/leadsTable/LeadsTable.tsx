@@ -4,7 +4,7 @@ import { Button, Snackbar, Alert, Typography } from "@mui/material";
 import { Lead } from "../../../../types/leadTypes.ts";
 import { Link, useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
-import { useEffect, useState } from "react";
+import {useContext, useEffect, useState} from "react";
 import { DateTime } from "luxon";
 import {
     remainingMs,
@@ -14,6 +14,7 @@ import {
 } from "../../../../utils/leadExpiry";
 import { parseUtcToZone } from "../../../../utils/dates.ts"; // adjust the relative path if needed
 import workingsService from "../../../../services/settings.service.tsx";
+import DataContext from "../../../../context/DataContext.tsx";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -32,6 +33,8 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     // one ticking clock for all rows
     const [now, setNow] = useState(DateTime.utc());
     const [leadExpireHours, setLeadExpireHours] = useState(18); // default to 18 hours
+    const { role } = useContext(DataContext)
+    const isAdmin = role.includes('admin')
 
     useEffect(() => {
         // Fetch worker settings to get expire_after_hours
@@ -96,7 +99,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     };
 
     const handleRowClick = (params: Lead) => {
-        navigate(`/a/leads/${params.id}`);
+        navigate(`/${isAdmin ? 'a' : 'u'}/leads/${params.id}`);
     };
 
     const rows = leads.map((lead) => ({
@@ -238,7 +241,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                             size="small"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/a/leads/${params.row.id}`);
+                                navigate(`/${isAdmin ? 'a' : 'u'}/leads/${params.row.id}`);
                             }}
                         >
                             Verify Lead
@@ -273,7 +276,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 <div className="flex gap-2">
                     <Button
                         component={Link}
-                        to={`/a/leads/${params.row.id}`}
+                        to={`/${isAdmin ? 'a' : 'u'}/leads/${params.row.id}`}
                         variant="contained"
                         color="primary"
                         size="small"

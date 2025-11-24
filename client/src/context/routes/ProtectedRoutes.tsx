@@ -1,7 +1,6 @@
 import {Routes, Route} from "react-router-dom";
 import UserDashboard from "../../views/userViews/UserLeadsView.tsx";
 import VerifyUser from "../../middleware/VerifyUser"
-import VerifyAdmin from "../../middleware/VerifyAdmin.tsx";
 import AdminLeadDetailsView from "../../views/adminViews/AdminLeadDetailsView.tsx";
 
 const ProtectedRoutes = () => {
@@ -14,9 +13,9 @@ const ProtectedRoutes = () => {
                     </VerifyUser>
                 }/>
                 <Route path="/u/leads/:id" element={
-                    <VerifyAdmin>
+                    <VerifyUser>
                         <AdminLeadDetailsView/>
-                    </VerifyAdmin>
+                    </VerifyUser>
                 }/>
             </Routes>
         </>
