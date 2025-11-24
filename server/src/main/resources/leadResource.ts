@@ -128,7 +128,7 @@ export default class LeadResource {
         });
 
         // Trash lead with oldDatabase support
-        this.router.patch("/admin/trash/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/trash/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const response = await this.leadService.trashLead(leadId);

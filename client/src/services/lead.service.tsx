@@ -59,7 +59,7 @@ class LeadService {
     async trashLead(
         leadId: string
     ): Promise<Lead> {
-        const response = await this.api.getApi().patch(`/api/leads/admin/trash/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/leads/trash/${leadId}`);
         return response.data;
     }
 
