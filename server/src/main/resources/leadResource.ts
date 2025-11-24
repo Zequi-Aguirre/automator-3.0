@@ -13,27 +13,7 @@ export default class LeadResource {
 
     private initializeRoutes() {
         // Get many leads with pagination and oldDatabase support
-        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
-            try {
-                const filters = {
-                    page: Number(req.query.page) || 1,
-                    limit: Number(req.query.limit) || 10,
-                    search: req.query.search ? String(req.query.search) : "",
-                    status: req.query.status ? String(req.query.status) as any : 'new'
-                };
-
-                const result = await this.leadService.getMany(filters);
-                return res.status(200).send(result);
-            } catch (error) {
-                console.error('Error in get-many:', error);
-                return res.status(500).send({
-                    message: 'Failed to fetch leads',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
-            }
-        });
-
-        this.router.get("/user/get-many", async (req: Request, res: Response) => {
+        this.router.get("/get-many", async (req: Request, res: Response) => {
             try {
                 const filters = {
                     page: Number(req.query.page) || 1,

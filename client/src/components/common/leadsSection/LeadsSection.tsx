@@ -81,23 +81,12 @@ const LeadsSection = () => {
         setLoading(true);
 
         try {
-            let response;
-
-            if (isAdmin) {
-                // admin endpoint accepts all statuses
-                response = await LeadsService.getManyAdmin(leadFilters);
-            } else {
-                // user endpoint does NOT accept sent/trash
-                const { status, ...rest } = leadFilters;
-
-                response = await LeadsService.getManyUser({
-                    ...rest,
-                    status:
-                        status === "new" || status === "verified"
-                            ? status
-                            : "new", // strip invalid status
-                });
-            }
+            const { status, ...rest } = leadFilters;
+            const verifiedStatus = isAdmin ? status : (status === "new" || status === "verified" ? status : "new");
+            const response = await LeadsService.getMany({
+                ...rest,
+                status: verifiedStatus
+            });
 
             setLeads(response.leads);
             setLeadCount(response.count);

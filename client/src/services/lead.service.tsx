@@ -5,7 +5,7 @@ class LeadService {
     constructor(private readonly api: AxiosProvider) {}
 
     // Get many with filters, limit and page
-    async getManyAdmin(filters: {
+    async getMany(filters: {
         page: number,
         limit: number,
         search?: string,
@@ -13,19 +13,6 @@ class LeadService {
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
             '/api/leads/admin/get-many',
-            { params: filters }
-        );
-        return response.data;
-    }
-
-    async getManyUser(filters: {
-        page: number,
-        limit: number,
-        search?: string,
-        status?: "new" | "verified"
-    }): Promise<{ leads: Lead[], count: number }> {
-        const response = await this.api.getApi().get(
-            '/api/leads/user/get-many',
             { params: filters }
         );
         return response.data;
