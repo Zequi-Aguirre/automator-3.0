@@ -13,12 +13,12 @@ const ProtectedRoutes = () => {
                         <UserDashboard/>
                     </VerifyUser>
                 }/>
+                <Route path="/u/leads/:id" element={
+                    <VerifyAdmin>
+                        <AdminLeadDetailsView/>
+                    </VerifyAdmin>
+                }/>
             </Routes>
-            <Route path="/u/leads/:id" element={
-                <VerifyAdmin>
-                    <AdminLeadDetailsView/>
-                </VerifyAdmin>
-            }/>
         </>
     );
 };
