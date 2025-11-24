@@ -54,7 +54,7 @@ export default class LeadResource {
         });
 
         // Get single lead by ID with oldDatabase support
-        this.router.get("/admin/get/:leadId", async (req: Request, res: Response) => {
+        this.router.get("/get/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const lead = await this.leadService.getLeadById(leadId);
@@ -74,7 +74,7 @@ export default class LeadResource {
         });
 
         // Update lead with oldDatabase support
-        this.router.patch("/admin/update/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/update/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const leadData = req.body;
@@ -106,7 +106,7 @@ export default class LeadResource {
         });
 
         // Verify lead
-        this.router.patch("/admin/verify/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/verify/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const result = await this.leadService.verifyLead(leadId);
@@ -117,7 +117,7 @@ export default class LeadResource {
         });
 
         // Unverify lead
-        this.router.patch("/admin/unverify/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/unverify/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const result = await this.leadService.unverifyLead(leadId);

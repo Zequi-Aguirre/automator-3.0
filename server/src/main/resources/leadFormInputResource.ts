@@ -14,7 +14,7 @@ export default class LeadFormInputResource {
 
     private initializeRoutes() {
         // GET: Retrieve form input for a lead
-        this.router.get("/admin/get-by-lead-id/:leadId", async (req: Request, res: Response) => {
+        this.router.get("/get-by-lead-id/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const result = await this.leadFormInputService.getByLeadId(leadId);
@@ -34,7 +34,7 @@ export default class LeadFormInputResource {
         });
 
         // POST: Create form input for a lead
-        this.router.post("/admin/create", async (req: Request, res: Response) => {
+        this.router.post("/create", async (req: Request, res: Response) => {
             try {
                 const data: LeadFormInputCreate = req.body;
                 const result = await this.leadFormInputService.create(data);
@@ -49,7 +49,7 @@ export default class LeadFormInputResource {
         });
 
         // PATCH: Update form input for a lead
-        this.router.patch("/admin/update/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/update/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const updates: LeadFormInputUpdate = req.body;
@@ -66,7 +66,7 @@ export default class LeadFormInputResource {
         });
 
         // DELETE: Soft delete form input for a lead
-        this.router.delete("/admin/form-input/:leadId", async (req: Request, res: Response) => {
+        this.router.delete("/form-input/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 await this.leadFormInputService.delete(leadId);

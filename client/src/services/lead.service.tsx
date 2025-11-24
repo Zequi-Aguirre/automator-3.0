@@ -33,7 +33,7 @@ class LeadService {
 
     // Get lead by id
     async getLeadById(leadId: string): Promise<Lead> {
-        const response = await this.api.getApi().get(`/api/leads/admin/get/${leadId}`);
+        const response = await this.api.getApi().get(`/api/leads/get/${leadId}`);
         return response.data;
     }
 
@@ -43,7 +43,7 @@ class LeadService {
         leadData: Partial<Lead>
     ): Promise<Lead> {
         const response = await this.api.getApi().patch(
-            `/api/leads/admin/update/${leadId}`, leadData);
+            `/api/leads/update/${leadId}`, leadData);
         return response.data;
     }
 
@@ -65,13 +65,13 @@ class LeadService {
 
     // Verify lead by id (uses saved form data in backend)
     async verifyLead(leadId: string): Promise<Lead> {
-        const response = await this.api.getApi().patch(`/api/leads/admin/verify/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/leads/verify/${leadId}`);
         return response.data;
     }
 
     // Unverify lead by id
     async unverifyLead(leadId: string): Promise<Lead> {
-        const response = await this.api.getApi().patch(`/api/leads/admin/unverify/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/leads/unverify/${leadId}`);
         return response.data;
     }
 
