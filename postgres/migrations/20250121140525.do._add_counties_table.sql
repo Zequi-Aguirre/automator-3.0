@@ -7,29 +7,15 @@ CREATE TABLE counties (
     created timestamp with time zone DEFAULT now() NOT NULL,
     modified timestamp with time zone DEFAULT now() NOT NULL,
     deleted timestamp with time zone,
-    timezone varchar(255)
+    timezone varchar(255),
+    blacklisted BOOLEAN DEFAULT FALSE NOT NULL
 );
 
 -- Step 2: Insert counties data
-INSERT INTO counties (id, name, state, population, timezone)
+INSERT INTO counties (id, name, state, blacklisted)
 VALUES
-    ('123e4567-e89a-12d3-b456-226600001101', 'El Paso', 'TX', 868763, 'America/Denver'),
-    ('123e4567-e89a-12d3-b456-226600001102', 'El Paso', 'CO', 740567, 'America/Denver'),
-    ('123e4567-e89a-12d3-b456-226600001103', 'Clark', 'NV', 2266715, 'America/Los_Angeles'),
-    ('123e4567-e89a-12d3-b456-226600001104', 'St. Lucie', 'FL', 328297, 'America/New_York'),
-    ('123e4567-e89a-12d3-b456-226600001105', 'Fresno', 'CA', 1015190, 'America/Los_Angeles'),
-    ('123e4567-e89a-12d3-b456-226600001106', 'Broward', 'FL', 1947026, 'America/New_York'),
-    ('123e4567-e89a-12d3-b456-226600001107', 'Miami-Dade', 'FL', 2673837, 'America/New_York'),
-    ('32abaeba-d48e-469a-90bb-6056205a7f2d', 'Saint Charles', 'MO', 413803, 'America/Chicago'),
-    ('f61011c6-ab10-4312-ae2e-1dc00fcb315e', 'New Haven', 'CT', 863700, 'America/New_York'),
-    ('e22b8842-f110-4c7c-9b2e-869e4f80f7ea', 'Hartford', 'CT', 896854, 'America/New_York'),
-    ('585d5e59-6ee8-4871-a7e0-83aa5428eeee', 'Prince Georges', 'MD', 946971, 'America/New_York'),
-    ('8f397aaa-d316-44ea-83b2-575f4e556d90', 'Jefferson', 'LA', 425884, 'America/Chicago'),
-    ('65711c3d-b882-4266-8ce1-29fd5a2587d2', 'East Baton Rouge', 'LA', 450544, 'America/Chicago'),
-    ('123e4567-e89a-12d3-b456-226600001109', 'Cook', 'IL', 5150233, 'America/Chicago'),
-    ('123e4567-e89a-12d3-b456-226600001110', 'New York', 'NY', 8336817, 'America/New_York'),
-    ('123e4567-e89a-12d3-b456-226600001111', 'Klamath', 'OR', 68238, 'America/Los_Angeles'),
-    ('123e4567-e89a-12d3-b456-226600001112', 'Lake', 'OR', 7895, 'America/Los_Angeles')
+    ('123e4567-e89a-12d3-b456-226600001106', 'BROWARD', 'FL', true),
+    ('123e4567-e89a-12d3-b456-226600001107', 'MIAMI-DADE', 'FL', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Step 3: Add nullable county_id column to leads
@@ -37,11 +23,6 @@ ALTER TABLE leads ADD COLUMN county_id uuid;
 
 -- Step 4: Create index before populating data (helps with the update performance)
 CREATE INDEX idx_leads_county_id ON leads(county_id);
-
--- Step 5: Update all existing leads to New York county
-UPDATE leads
-SET county_id = '123e4567-e89a-12d3-b456-226600001110'
-WHERE county_id IS NULL;
 
 -- Step 6: Now that data is populated, add NOT NULL constraint
 ALTER TABLE leads
@@ -54,28 +35,16 @@ FOREIGN KEY (county_id)
 REFERENCES counties(id)
 ON DELETE RESTRICT;  -- Prevents deletion of a county if leads reference it
 
-INSERT INTO public."campaigns" (id, external_id, name, is_active)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000401', '123e4567-e89b-12d3-b456-226600000401', 'Mock Campaign', true)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public."campaigns" (id, external_id, name, is_active)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000402', '2338c3d4d7', 'An Phan', true)
-ON CONFLICT (id) DO NOTHING;
-
--- add a tamble called enviroment_settings and start with 1 column allow_login
-CREATE TABLE env_settings (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    name varchar NOT NULL,
-    allow_login boolean NOT NULL DEFAULT TRUE,
-    created timestamp with time zone DEFAULT now() NOT NULL,
-    modified timestamp with time zone DEFAULT now() NOT NULL,
-    deleted timestamp with time zone
+-- 1. Create enum type for U.S. states
+CREATE TYPE us_state AS ENUM (
+    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+    'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+    'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'
 );
 
--- insert a row into the enviroment_settings table
-INSERT INTO env_settings (id, allow_login, name)
-VALUES
-    ('123e4567-e89b-12d3-b456-226600000402', true, 'Env Settings 1.0')
-ON CONFLICT (id) DO NOTHING;
+-- 3. Alter column to use the ENUM type
+ALTER TABLE counties
+ALTER COLUMN state TYPE us_state
+USING state::us_state;

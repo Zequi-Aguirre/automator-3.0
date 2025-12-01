@@ -12,29 +12,16 @@ export default class LeadResource {
     }
 
     private initializeRoutes() {
-        // Get all leads with oldDatabase support
-        this.router.get("/admin/get-all", async (req: Request, res: Response) => {
-            try {
-                const oldDatabase = req.query.oldDatabase === 'true';
-                const leads = await this.leadService.getAllLeads(oldDatabase);
-                return res.status(200).send(leads);
-            } catch (error) {
-                console.error('Error in get-all:', error);
-                return res.status(500).send({
-                    message: 'Failed to fetch leads',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
-            }
-        });
-
         // Get many leads with pagination and oldDatabase support
-        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
+        this.router.get("/get-many", async (req: Request, res: Response) => {
             try {
                 const filters = {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 10,
-                    oldDatabase: req.query.oldDatabase === 'true'
+                    search: req.query.search ? String(req.query.search) : "",
+                    status: req.query.status ? String(req.query.status) as any : 'new'
                 };
+
                 const result = await this.leadService.getMany(filters);
                 return res.status(200).send(result);
             } catch (error) {
@@ -47,11 +34,10 @@ export default class LeadResource {
         });
 
         // Get single lead by ID with oldDatabase support
-        this.router.get("/admin/get/:leadId", async (req: Request, res: Response) => {
+        this.router.get("/get/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const oldDatabase = req.query.oldDatabase === 'true';
-                const lead = await this.leadService.getLeadById(leadId, oldDatabase);
+                const lead = await this.leadService.getLeadById(leadId);
 
                 if (!lead) {
                     return res.status(404).send({ message: 'Lead not found' });
@@ -68,7 +54,7 @@ export default class LeadResource {
         });
 
         // Update lead with oldDatabase support
-        this.router.patch("/admin/update/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/update/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const leadData = req.body;
@@ -87,10 +73,8 @@ export default class LeadResource {
         this.router.patch("/admin/send/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const oldDatabase = req.query.oldDatabase === 'true';
-                const userId = req.user.id;  // Assuming user is attached to request by auth middleware
-
-                const response = await this.leadService.sendLeadWithDelay(leadId, userId, oldDatabase);
+                const userId = req.user.id; // Assuming user is attached to request by auth middleware
+                const response = `${leadId} - ${userId}` // await this.leadService.sendLeadWithDelay(leadId, userId);
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error sending lead:', error);
@@ -101,36 +85,38 @@ export default class LeadResource {
             }
         });
 
-        // Trash lead with oldDatabase support
-        this.router.patch("/admin/trash/:leadId", async (req: Request, res: Response) => {
+        // Verify lead
+        this.router.patch("/verify/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const oldDatabase = req.query.oldDatabase === 'true';
+                const result = await this.leadService.verifyLead(leadId);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(400).send({ message: error instanceof Error ? error.message : "Verification failed" });
+            }
+        });
 
-                const response = await this.leadService.trashLead(leadId, oldDatabase);
+        // Unverify lead
+        this.router.patch("/unverify/:leadId", async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const result = await this.leadService.unverifyLead(leadId);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(400).send({ message: error instanceof Error ? error.message : "Unverify failed" });
+            }
+        });
+
+        // Trash lead with oldDatabase support
+        this.router.patch("/trash/:leadId", async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const response = await this.leadService.trashLead(leadId);
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error trashing lead:', error);
                 return res.status(500).send({
                     message: 'Failed to trash lead',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
-            }
-        });
-
-        // Migrate lead from old database to new
-        this.router.post("/admin/migrate/:leadId", async (req: Request, res: Response) => {
-            try {
-                const leadId = req.params.leadId;
-                const newLead = await this.leadService.migrateLead(leadId);
-                return res.status(200).send({
-                    message: 'Lead migrated successfully',
-                    newId: newLead.id // Assuming the migrated lead returns an ID
-                });
-            } catch (error) {
-                console.error('Error migrating lead:', error);
-                return res.status(500).send({
-                    message: 'Failed to migrate lead',
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

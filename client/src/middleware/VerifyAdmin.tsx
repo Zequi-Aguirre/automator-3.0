@@ -7,15 +7,9 @@ type Props = {
 };
 
 const VerifyAdmin = ({children}: Props) => {
-    const { session, setSession, role, setRole, setLoggedInUser, allowLogin} = useContext(DataContext);
+    const { session, setSession, role, setRole, setLoggedInUser } = useContext(DataContext);
     const navigate = useNavigate();
     useEffect(() => {
-        if (!allowLogin && role !== 'superadmin') {
-            setSession(null);
-            setLoggedInUser(null);
-            setRole('');
-            navigate('/');
-        }
         if (!session) {
             navigate('/login');
         } else {

@@ -6,7 +6,6 @@ import LoginPage from "./views/LoginPage";
 import AdminRoutes from "./context/routes/AdminRoutes";
 import ProtectedRoutes from "./context/routes/ProtectedRoutes";
 import NavBar from "./components/navBar/NavBar.tsx";
-import FormSection from "./components/formSection/FormSection.tsx";
 
 const App: React.FC = () => {
     const theme = createTheme({
@@ -43,7 +42,7 @@ const App: React.FC = () => {
         <ThemeProvider theme={theme}>
             <NavBar />
             <Routes>
-                <Route path="/" element={<FormSection/>}/>
+                <Route path="/" element={<LoginPage/>}/>
                 <Route path="/login" element={<LoginPage/>}/>
             </Routes>
             <ProtectedRoutes />

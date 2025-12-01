@@ -1,11 +1,15 @@
-import { CronJob } from 'cron';
-import JobService from '../services/jobService';
-import { container, injectable } from 'tsyringe';
-import SendLeadsJob from './jobs/SendLeadsJob';
+import { CronJob } from "cron";
+import JobService from "../services/jobService";
+import { container, injectable } from "tsyringe";
+import SendLeadsJob from "./jobs/SendLeadsJob";
 import { Job } from "../types/jobTypes";
-import { isValidCronFormat, translateCronExpression } from "./util/workerInitializeHelpers.ts";
-import moment from 'moment';
+import {
+    isValidCronFormat,
+    translateCronExpression
+} from "./util/workerInitializeHelpers.ts";
+import moment from "moment";
 import SettingsService from "../services/settingsService.ts";
+import TrashExpireLeadsJob from "./jobs/TrashExpireLeadsJob.ts";
 
 interface JobHandler {
     execute: () => Promise<void>;
@@ -17,8 +21,10 @@ type JobHandlerConstructor = new (...args: any[]) => JobHandler;
 @injectable()
 export class Worker {
     private cronJob: CronJob | null = null;
+
     private readonly handlers: Record<string, JobHandlerConstructor> = {
-        'sendLeads': SendLeadsJob
+        sendLeads: SendLeadsJob,
+        trashExpireLeads: TrashExpireLeadsJob
     };
 
     constructor(
@@ -27,62 +33,125 @@ export class Worker {
     ) {}
 
     public initialize = async (): Promise<void> => {
-        const cronSchedule = process.env.USE_WORKER_CRON;
-        const workerId = await this.jobService.getWorkerId();
-        const currentSettings = await this.workerSettingsService.getWorkerSettings();
-
-        if (!workerId) {
-            console.error('Error: Worker ID not found. worker must have an user in the DB to record its ID');
-            throw new Error('Worker ID not found');
-        }
+        const currentSettings =
+            await this.workerSettingsService.getWorkerSettings();
 
         if (!currentSettings) {
-            console.error('Error: Worker settings not found. Worker settings must be initialized');
-            throw new Error('Worker settings not found');
+            console.error(
+                "Error: Worker settings not found. Worker settings must be initialized"
+            );
+            throw new Error("Worker settings not found");
         }
 
-        if (cronSchedule) {
-            if (isValidCronFormat(cronSchedule)) {
-                const humanReadableSchedule = translateCronExpression(cronSchedule);
-                console.log(`Using provided cron schedule: ${cronSchedule} (${humanReadableSchedule})`);
-            } else {
-                console.error('Error: Invalid cron format provided in USE_WORKER_CRON');
-                throw new Error('Invalid cron format provided in USE_WORKER_CRON');
-            }
-        } else {
-            console.error('Error: No cron schedule provided in USE_WORKER_CRON');
-            throw new Error('No cron schedule provided in USE_WORKER_CRON');
+        const { cron_schedule, worker_enabled } = currentSettings;
+
+        if (!worker_enabled) {
+            console.log("Worker is disabled in settings. Skipping initialization.");
+            return;
+        }
+
+        if (!cron_schedule) {
+            console.error(
+                "Error: No cron schedule found in worker settings (cron_schedule)"
+            );
+            throw new Error("No cron schedule found in worker settings");
+        }
+
+        if (!isValidCronFormat(cron_schedule)) {
+            console.error(
+                `Error: Invalid cron format in settings: ${cron_schedule}`
+            );
+            throw new Error("Invalid cron format provided in settings");
+        }
+
+        const humanReadableSchedule =
+            translateCronExpression(cron_schedule);
+
+        console.log(
+            `Worker cron schedule from DB: ${cron_schedule} (${humanReadableSchedule})`
+        );
+
+        // If a cron job already exists (restart), stop it first
+        if (this.cronJob) {
+            this.cronJob.stop();
+            this.cronJob = null;
         }
 
         this.cronJob = new CronJob(
-            cronSchedule,
-            () => {
-                const humanReadableTime = moment().format('YYYY-MM-DD HH:mm:ss');
-                const humanReadableSchedule = translateCronExpression(cronSchedule);
-                console.log(`[${humanReadableTime}] Cron job executed (Schedule: ${cronSchedule}, ${humanReadableSchedule})`);
-                this.checkAndRunJobs();
-                this.workerSettingsService.updateLastWorkerRun(currentSettings.id);
+            cron_schedule,
+            async () => {
+                const humanReadableTime =
+                    moment().format("YYYY-MM-DD HH:mm:ss");
+
+                console.log(
+                    `[${humanReadableTime}] Cron job executed (Schedule: ${cron_schedule}, ${humanReadableSchedule})`
+                );
+
+                // trash expired leads on initialization run
+                await this.checkAndRunJobs();
+                await this.workerSettingsService.updateLastWorkerRun(
+                    currentSettings.id
+                );
             },
             null,
             true
         );
 
-        console.log('Worker initialized successfully');
+        console.log("Worker initialized successfully");
+    };
+
+    public restartIfScheduleChanged = async (): Promise<void> => {
+        const currentSettings =
+            await this.workerSettingsService.getWorkerSettings();
+
+        if (!currentSettings) {
+            console.error("Worker settings missing during restart check");
+            return;
+        }
+
+        if (!currentSettings.worker_enabled) {
+            this.stop();
+            return;
+        }
+
+        const newSchedule = currentSettings.cron_schedule;
+        if (!newSchedule) {
+            console.error("cron_schedule missing during restart check");
+            this.stop();
+            return;
+        }
+
+        if (!isValidCronFormat(newSchedule)) {
+            console.error(`Invalid cron_schedule in DB: ${newSchedule}`);
+            this.stop();
+            return;
+        }
+
+        const activeSchedule =
+            this.cronJob ? (this.cronJob.cronTime.source as string) : null;
+
+        if (activeSchedule !== newSchedule) {
+            console.log(
+                `Cron schedule changed from ${activeSchedule} to ${newSchedule}. Restarting worker.`
+            );
+            await this.initialize();
+        }
     };
 
     public checkAndRunJobs = async (): Promise<void> => {
         try {
-            console.log('Checking jobs');
+            console.log("Checking jobs");
             const pendingJobs = await this.jobService.getAllJobs();
+
             for (const job of pendingJobs) {
                 console.log(`Checking job ${job.name}`);
                 await this.executeJob(job);
             }
         } catch (error: unknown) {
             if (error instanceof Error) {
-                console.error('Error checking jobs:', error.message);
+                console.error("Error checking jobs:", error.message);
             } else {
-                console.error('Error checking jobs:', error);
+                console.error("Error checking jobs:", error);
             }
         }
     };
@@ -110,9 +179,15 @@ export class Worker {
             }
         } catch (error: unknown) {
             if (error instanceof Error) {
-                console.error(`Error executing job ${job.name}:`, error.message);
+                console.error(
+                    `Error executing job ${job.name}:`,
+                    error.message
+                );
             } else {
-                console.error(`Error executing job ${job.name}:`, error);
+                console.error(
+                    `Error executing job ${job.name}:`,
+                    error
+                );
             }
         }
     };
@@ -120,7 +195,12 @@ export class Worker {
     public stop = (): void => {
         if (this.cronJob) {
             this.cronJob.stop();
-            console.log('Worker stopped');
+            this.cronJob = null;
+            console.log("Worker stopped");
         }
+    };
+
+    public isRunning = (): boolean => {
+        return this.cronJob !== null;
     };
 }
