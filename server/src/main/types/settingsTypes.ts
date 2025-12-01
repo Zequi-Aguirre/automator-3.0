@@ -1,23 +1,24 @@
 export type WorkerSettings = {
     id: string;
     name: string;
-    send_next_lead_at: Date;
-    last_worker_run: string;
-    minutes_range_start: number;
-    minutes_range_end: number;
     business_hours_start: number;
     business_hours_end: number;
-    delay_same_county: number;
+    minutes_range_start: number;
+    minutes_range_end: number;
     delay_same_state: number;
+    delay_same_county: number;
+    delay_same_investor: number;
     min_delay: number;
     max_delay: number;
-    getting_leads: boolean;
-    pause_app: boolean;
-    counties_on_hold: string[];
     states_on_hold: string[];
-    created: string | null;
-    modified: string | null;
-    deleted: string | null;
+    send_next_lead_at: Date;
+    last_worker_run: string;
+    worker_enabled: boolean;
+    cron_schedule: string;
+    expire_after_hours: number;
+    created: Date;
+    modified: Date;
+    deleted: Date | null;
 };
 
 export type WorkerSettingsUpdateAllowedFieldsType = {
@@ -28,10 +29,12 @@ export type WorkerSettingsUpdateAllowedFieldsType = {
     business_hours_start: number | null;
     business_hours_end: number | null;
     delay_same_state: number | null;
-    getting_leads: boolean;
-    pause_app: boolean;
-    counties_on_hold: string[];
     states_on_hold: string[];
+    delay_same_investor: number | null;
+    delay_same_county: number | null;
+    worker_enabled: boolean | null;
+    cron_schedule: string | null;
+    expire_after_hours: number | null;
 };
 
 export type EnvSettings = {
@@ -47,7 +50,6 @@ export type EnvSettingsUpdateAllowedFieldsType = {
     name: string;
     allow_login: boolean;
 };
-
 
 export type AllowedOrigin = {
     url: string;

@@ -7,20 +7,20 @@ class LeadService {
     // Get many with filters, limit and page
     async getMany(filters: {
         page: number,
-        limit: number
+        limit: number,
+        search?: string,
+        status?: "new" | "verified" | "sent" | "trash"
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
-            '/api/leads/admin/get-many',
-            {
-                params: filters
-            }
+            '/api/leads/get-many',
+            { params: filters }
         );
         return response.data;
     }
 
     // Get lead by id
     async getLeadById(leadId: string): Promise<Lead> {
-        const response = await this.api.getApi().get(`/api/leads/admin/get/${leadId}`);
+        const response = await this.api.getApi().get(`/api/leads/get/${leadId}`);
         return response.data;
     }
 
@@ -30,7 +30,7 @@ class LeadService {
         leadData: Partial<Lead>
     ): Promise<Lead> {
         const response = await this.api.getApi().patch(
-            `/api/leads/admin/update/${leadId}`, leadData);
+            `/api/leads/update/${leadId}`, leadData);
         return response.data;
     }
 
@@ -38,7 +38,7 @@ class LeadService {
     async sendLead(
         leadId: string
     ): Promise<{ success: boolean; message: string }> {
-        const response = await this.api.getApi().patch(`/api/leads/admin/send/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/worker/admin/send-now/${leadId}`);
         return response.data;
     }
 
@@ -46,11 +46,38 @@ class LeadService {
     async trashLead(
         leadId: string
     ): Promise<Lead> {
-        const response = await this.api.getApi().patch(`/api/leads/admin/trash/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/leads/trash/${leadId}`);
+        return response.data;
+    }
+
+    // Verify lead by id (uses saved form data in backend)
+    async verifyLead(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/verify/${leadId}`);
+        return response.data;
+    }
+
+    // Unverify lead by id
+    async unverifyLead(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/unverify/${leadId}`);
+        return response.data;
+    }
+
+    // 🚀 Import leads from CSV
+    async importLeads(formData: FormData): Promise<{
+        imported: number;
+        rejected?: number;
+        errors?: string[];
+    }> {
+        const response = await this.api.getApi().post(
+            '/api/leads-open/import',
+            formData,
+            {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            }
+        );
         return response.data;
     }
 }
 
 const leadsService = new LeadService(authProvider);
-
 export default leadsService;

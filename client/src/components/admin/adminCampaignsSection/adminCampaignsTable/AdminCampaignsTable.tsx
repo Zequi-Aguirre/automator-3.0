@@ -1,152 +1,164 @@
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { Button, Snackbar, Alert, Typography, Box, styled } from "@mui/material";
-import { faCheck, faTimes } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Campaign } from "../../../../types/campaignTypes.ts";
-import { Link } from "react-router-dom";
-import campaignService from "../../../../services/campaign.service";
-import { useState } from "react";
+import {useState} from 'react';
+import {Alert, Box, Button, IconButton, Snackbar, Typography,} from '@mui/material';
+import {DataGrid, GridColDef} from '@mui/x-data-grid';
+import {Cancel, CheckCircle} from '@mui/icons-material';
+import StarIcon from '@mui/icons-material/Star';
+import {Link} from 'react-router-dom';
 
-interface CampaignsTableProps {
+import {Campaign} from '../../../../types/campaignTypes';
+import {Affiliate} from '../../../../types/affiliateTypes.ts';
+import campaignService from '../../../../services/campaign.service';
+
+interface Props {
     campaigns: Campaign[];
-    setCampaigns: React.Dispatch<React.SetStateAction<Campaign[]>>;
+    setCampaigns: (campaigns: (prev: Campaign[]) => Campaign[]) => void;
+    affiliates: Affiliate[];
 }
 
-const AdminCampaignsTable = ({ campaigns, setCampaigns }: CampaignsTableProps) => {
-    const [loadingCampaigns, setLoadingCampaigns] = useState<Record<string, boolean>>({});
-    const [snackbar, setSnackbar] = useState({
+const AdminCampaignsTable = ({ campaigns, setCampaigns, affiliates }: Props) => {
+    const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
         open: false,
         message: '',
-        severity: 'success' as 'success' | 'error'
+        severity: 'success'
     });
 
-    const handleCloseSnackbar = () => {
-        setSnackbar(prev => ({ ...prev, open: false }));
-    };
-
-    const showNotification = (message: string, severity: 'success' | 'error') => {
-        setSnackbar({
-            open: true,
-            message,
-            severity
+    const updateMeta = async (id: string, updates: Partial<Pick<Campaign, 'blacklisted' | 'rating'>>) => {
+        const updated = await campaignService.updateCampaignMeta(id, updates);
+        setCampaigns((prev) => {
+            return prev.map((c) => {
+                return c.id === id ? updated : c;
+            });
         });
     };
-
-    const handleToggleActive = async (campaignId: string, currentStatus: boolean) => {
-        setLoadingCampaigns(prev => ({ ...prev, [campaignId]: true }));
-
-        try {
-            const updatedCampaign = await campaignService.updateCampaignStatus(
-                campaignId,
-                !currentStatus
-            );
-
-            setCampaigns((prevCampaigns) =>
-                prevCampaigns.map((campaign) =>
-                    campaign.id === campaignId ? updatedCampaign : campaign
-                )
-            );
-            showNotification('Campaign status updated successfully', 'success');
-        } catch (error) {
-            showNotification('Failed to update campaign status', 'error');
-            console.error("Error updating campaign status:", error);
-        } finally {
-            setLoadingCampaigns(prev => ({ ...prev, [campaignId]: false }));
-        }
-    };
-
-    const StatusCircle = styled(Box)<{ isActive: boolean }>(({ theme, isActive }) => ({
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: isActive ? theme.palette.success.main : theme.palette.error.main,
-        color: theme.palette.common.white,
-        '& svg': {
-            fontSize: 16
-        }
-    }));
 
     const columns: GridColDef[] = [
         {
             field: 'name',
-            headerName: 'Name',
+            headerName: 'Campaign Name',
             flex: 1,
-            sortingOrder: ['asc', 'desc'],
-            renderCell: (params) => (
-                <Typography>
-                    {params.value}
-                </Typography>
-            )
+            minWidth: 180,
+            maxWidth: 300
         },
         {
-            field: 'external_id',
-            headerName: 'External ID',
-            flex: 1,
-            sortingOrder: ['asc', 'desc']
-        },
-        {
-            field: 'is_active',
-            headerName: 'Active',
-            flex: 1,
-            sortingOrder: ['asc', 'desc'],
-            renderCell: (params) => (
-                <Box display="flex" alignItems="center" justifyContent="center">
-                    <StatusCircle isActive={params.value}>
-                        <FontAwesomeIcon
-                            icon={params.value ? faCheck : faTimes}
-                        />
-                    </StatusCircle>
-                </Box>
-            )
-        },
-        {
-            field: 'action',
-            headerName: 'Action',
-            flex: 1,
+            field: 'rating',
+            headerName: 'Rating',
+            minWidth: 260,
             sortable: false,
             renderCell: (params) => {
-                const getButtonColor = (isActive: boolean): "success" | "error" => {
-                    return !isActive ? "success" : "error";
-                };
+                const rating = params.value || 0;
+                const id = params.row.id;
+
+                const affiliate = affiliates.find((a) => {
+                    return a.id === params.row.affiliate_id;
+                });
+
+                const disabled = affiliate?.blacklisted === true || params.row.blacklisted === true;
+
+                return (
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {[1, 2, 3, 4, 5].map((star) => {
+                            const color = disabled
+                                ? 'grey.400'
+                                : star <= rating
+                                    ? 'gold'
+                                    : 'grey.400';
+
+                            return (
+                                <IconButton
+                                    key={star}
+                                    size="small"
+                                    disabled={disabled}
+                                    sx={{ color }}
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!disabled) {
+                                            await updateMeta(id, { rating: star });
+                                        }
+                                    }}
+                                >
+                                    <StarIcon />
+                                </IconButton>
+                            );
+                        })}
+                    </Box>
+                );
+            }
+        },
+        {
+            field: 'blacklisted',
+            headerName: 'Status',
+            minWidth: 300,
+            renderCell: (params) => {
+                const campaign = params.row;
+
+                const affiliate = affiliates.find((a) => {
+                    return a.id === campaign.affiliate_id;
+                });
+
+                const affiliateBlacklisted = affiliate?.blacklisted === true;
+
+                if (affiliateBlacklisted) {
+                    return (
+                        <Button
+                            variant="contained"
+                            color="error"
+                            component={Link}
+                            to={`/a/affiliates/${affiliate?.id}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
+                            startIcon={<Cancel />}
+                        >
+                            Blacklisted Affiliate
+                        </Button>
+                    );
+                }
+
+                const isBlacklisted = campaign.blacklisted;
 
                 return (
                     <Button
                         variant="contained"
-                        color={getButtonColor(params.row.is_active)}
-                        size="small"
-                        onClick={(e) => {
+                        color={(isBlacklisted ? 'error' : 'success') as 'error' | 'success'}
+                        onClick={async (e) => {
                             e.stopPropagation();
-                            handleToggleActive(params.row.id, params.row.is_active);
+                            await updateMeta(campaign.id, { blacklisted: !isBlacklisted });
                         }}
-                        disabled={loadingCampaigns[params.row.id]}
+                        startIcon={isBlacklisted ? <Cancel /> : <CheckCircle />}
                     >
-                        {params.row.is_active ? 'Deactivate' : 'Activate'}
+                        {isBlacklisted ? 'Blacklisted' : 'Active'}
                     </Button>
                 );
             }
         },
         {
-            field: 'details',
-            headerName: 'Details',
+            field: 'affiliate_id',
+            headerName: 'Affiliate',
             flex: 1,
-            sortable: false,
-            renderCell: (params) => (
-                <Button
-                    component={Link}
-                    to={`/a/campaigns/${params.row.id}`}
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={(e) => {
-                        e.stopPropagation()
-                    }}
-                >
-                    Details
-                </Button>
-            )
+            minWidth: 180,
+            renderCell: (params) => {
+                const affiliate = affiliates.find((a) => {
+                    return a.id === params.value;
+                });
+
+                if (!affiliate) {
+                    return <Typography>{params.value}</Typography>;
+                }
+
+                return (
+                    <Button
+                        component={Link}
+                        to={`/a/affiliates/${affiliate.id}`}
+                        size="small"
+                        variant="text"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
+                    >
+                        {affiliate.name}
+                    </Button>
+                );
+            }
         }
     ];
 
@@ -157,30 +169,38 @@ const AdminCampaignsTable = ({ campaigns, setCampaigns }: CampaignsTableProps) =
                 columns={columns}
                 disableRowSelectionOnClick
                 hideFooter
-                autoHeight
+                onSortModelChange={(params) => {
+                    console.log("Sort model changed:", params[0]);
+                }}
+                onFilterModelChange={(params) => {
+                    console.log("Filter model changed:", params);
+                }}
                 sx={{
-                    '& .MuiDataGrid-cell': {
-                        py: 2
-                    },
-                    '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: 'action.hover'
-                    }
+                    "& .MuiDataGrid-cell": { py: 2 },
+                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
                 }}
             />
 
             <Snackbar
-                open={snackbar.open}
-                autoHideDuration={3000}
-                onClose={handleCloseSnackbar}
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                open={snack.open}
+                autoHideDuration={5000}
+                onClose={() => {
+                    setSnack((s) => {
+                        return { ...s, open: false };
+                    });
+                }}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
                 <Alert
-                    onClose={handleCloseSnackbar}
-                    severity={snackbar.severity}
-                    variant="filled"
+                    onClose={() => {
+                        setSnack((s) => {
+                            return { ...s, open: false };
+                        });
+                    }}
+                    severity={snack.severity}
                     sx={{ width: '100%' }}
                 >
-                    {snackbar.message}
+                    {snack.message}
                 </Alert>
             </Snackbar>
         </>

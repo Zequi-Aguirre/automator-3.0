@@ -15,7 +15,7 @@ export default class SettingsResource {
 
     private initializeRoutes() {
         // Get current settings
-        this.router.get("/admin/worker-settings", async (_req: Request, res: Response) => {
+        this.router.get("/worker-settings", async (_req: Request, res: Response) => {
             const settings = await this.settingsService.getWorkerSettings();
             res.status(200).send(settings);
         });

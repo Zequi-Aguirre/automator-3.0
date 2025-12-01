@@ -1,6 +1,5 @@
 import {authProvider, AxiosProvider} from "../config/axiosProvider";
-import {WorkerSettings, EnvironmentSettings} from "../types/settingsTypes";
-import {TemplateResponse} from "../utils/TemplateSwitcher.ts";
+import {WorkerSettings} from "../types/settingsTypes";
 
 class SettingsService {
     constructor(private readonly api: AxiosProvider) {
@@ -8,23 +7,7 @@ class SettingsService {
 
     // Get current settings
     async getWorkerSettings(): Promise<WorkerSettings> {
-        const response = await this.api.getApi().get('/api/settings/admin/worker-settings');
-        return response.data;
-    }
-
-    async getEnvSettings(): Promise<EnvironmentSettings> {
-        const response = await this.api.getApi().get('/api/settings/env-settings');
-        return response.data;
-    }
-
-    async getTemplateSettings(): Promise<TemplateResponse> {
-        const response = await this.api.getApi().get('/api/settings/template-settings');
-        return response.data;
-    }
-
-    // isAllowedLogin by url
-    async isAllowedLogin(): Promise<boolean> {
-        const response = await this.api.getApi().get(`/api/settings/is-allowed-login`);
+        const response = await this.api.getApi().get('/api/settings/worker-settings');
         return response.data;
     }
 

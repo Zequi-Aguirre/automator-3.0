@@ -7,16 +7,14 @@ export class EnvConfig {
     public readonly environment: string;
     public readonly jwtSecret: string;
     public readonly serverUrl: string;
-    public readonly useWorker: string;
-    public readonly useWorkerCron: string;
+    public readonly leadVendorURL: string;
 
     constructor() {
         this.dbConfig = new DBConfig();
         this.environment = process.env.ENVIRONMENT!;
         this.jwtSecret = process.env.JWT_SECRET!;
         this.serverUrl = process.env.VITE_SERVER_URL!;
-        this.useWorker = process.env.USE_WORKER!;
-        this.useWorkerCron = process.env.USE_WORKER_CRON!;
+        this.leadVendorURL = process.env.LEAD_VENDOR_URL!;
     }
 }
 

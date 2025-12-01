@@ -13,13 +13,15 @@ export default class LeadResource {
 
     private initializeRoutes() {
         // Get many leads with pagination and oldDatabase support
-        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
+        this.router.get("/get-many", async (req: Request, res: Response) => {
             try {
                 const filters = {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 10,
-                    oldDatabase: req.query.oldDatabase === 'true'
+                    search: req.query.search ? String(req.query.search) : "",
+                    status: req.query.status ? String(req.query.status) as any : 'new'
                 };
+
                 const result = await this.leadService.getMany(filters);
                 return res.status(200).send(result);
             } catch (error) {
@@ -32,7 +34,7 @@ export default class LeadResource {
         });
 
         // Get single lead by ID with oldDatabase support
-        this.router.get("/admin/get/:leadId", async (req: Request, res: Response) => {
+        this.router.get("/get/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const lead = await this.leadService.getLeadById(leadId);
@@ -52,7 +54,7 @@ export default class LeadResource {
         });
 
         // Update lead with oldDatabase support
-        this.router.patch("/admin/update/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/update/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const leadData = req.body;
@@ -72,7 +74,6 @@ export default class LeadResource {
             try {
                 const leadId = req.params.leadId;
                 const userId = req.user.id; // Assuming user is attached to request by auth middleware
-
                 const response = `${leadId} - ${userId}` // await this.leadService.sendLeadWithDelay(leadId, userId);
                 return res.status(200).send(response);
             } catch (error) {
@@ -84,8 +85,30 @@ export default class LeadResource {
             }
         });
 
+        // Verify lead
+        this.router.patch("/verify/:leadId", async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const result = await this.leadService.verifyLead(leadId);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(400).send({ message: error instanceof Error ? error.message : "Verification failed" });
+            }
+        });
+
+        // Unverify lead
+        this.router.patch("/unverify/:leadId", async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const result = await this.leadService.unverifyLead(leadId);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(400).send({ message: error instanceof Error ? error.message : "Unverify failed" });
+            }
+        });
+
         // Trash lead with oldDatabase support
-        this.router.patch("/admin/trash/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/trash/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const response = await this.leadService.trashLead(leadId);

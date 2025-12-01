@@ -1,496 +1,479 @@
 import { injectable } from "tsyringe";
-import moment from 'moment-timezone';
 import LeadDAO from "../data/leadDAO";
-import { FlatLead, Lead, LeadDateField, LeadFilters } from "../types/leadTypes";
+import { Lead, LeadFilters } from "../types/leadTypes";
+import { parseCsvToLeads } from "../middleware/parseCsvToLeads.ts";
+import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
+import CountyService from "../services/countyService.ts";
+import CampaignService from "../services/campaignService.ts";
+import AffiliateService from "../services/affiliateService.ts";
+import InvestorService from "../services/investorService.ts";
+import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
+import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
+import SendLogDAO from "../data/sendLogDAO.ts";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
-import { BuyerLead } from "../types/buyerLeadTypes.ts";
-import { EnvConfig } from "../config/envConfig.ts";
-import { levenshteinDistance, parsedLeadFromCSV } from "../controllers/validateLeads.ts";
-import { CountiesSingletonFactory } from "../data/countiesSingleton.ts";
+import { Affiliate } from "../types/affiliateTypes.ts";
+import { Campaign } from "../types/campaignTypes.ts";
+import { County } from "../types/countyTypes.ts";
+import { Investor } from "../types/investorTypes.ts";
 
-type LeadFromCSV = {
-    Name: string;
-    'Phone Number': string;
-    'Email Address': string;
-    Address: string;
-    City: string;
-    State: string;
-    'Zip Code': string;
-    County: string;
-    'Private Notes': string;
-    'Buyer Notes'?: string;
-    Category?: string;
-};
+type LeadTrashReason =
+    | "BLACKLISTED_AFFILIATE"
+    | "BLACKLISTED_CAMPAIGN"
+    | "BLACKLISTED_COUNTY"
+    | "BLACKLISTED_INVESTOR"
+    | "COUNTY_COOLDOWN"
+    | "INVESTOR_COOLDOWN"
+    | "EXPIRED_18_HOURS"
+    | "MANUAL_USER_DELETE";
 
 @injectable()
 export default class LeadService {
-    private readonly isTestEnvironment: boolean;
 
     constructor(
         private readonly leadDAO: LeadDAO,
-        private readonly workerSettingsDAO: WorkerSettingsDAO,
-        private readonly countiesSingletonFactory: CountiesSingletonFactory,
-        private readonly config: EnvConfig
-    ) {
-        this.config = config;
-        this.isTestEnvironment = this.config.environment === 'local' || this.config.environment === 'staging';
-    }
+        private readonly leadFormInputDAO: LeadFormInputDAO,
+        private readonly countyService: CountyService,
+        private readonly campaignService: CampaignService,
+        private readonly affiliateService: AffiliateService,
+        private readonly investorService: InvestorService,
+        private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
+        private readonly sendLogDAO: SendLogDAO,
+        private readonly workerSettingsDAO: WorkerSettingsDAO
+    ) {}
 
     // Lead Management Methods
     async getLeadById(leadId: string): Promise<Lead | null> {
         try {
-            // For PostgreSQL operations, use the existing implementation
-            const pgLead = await this.leadDAO.getById(leadId);
-
-            // Log successful PostgreSQL retrievals in test environments
-            if (this.isTestEnvironment && pgLead) {
-                console.log('Successfully retrieved lead from PostgreSQL:', {
-                    id: pgLead.id,
-                    state: pgLead.state,
-                    city: pgLead.city
-                });
-            }
-
-            return pgLead;
+            return await this.leadDAO.getById(leadId);
         } catch (error) {
-            // Provide detailed error logging while maintaining security
-            console.error('Error fetching lead by ID:', {
+            console.error("Error fetching lead by ID:", {
                 leadId,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error ? error.message : "Unknown error"
             });
 
             throw new Error(
-                `Failed to fetch lead ${leadId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+                `Failed to fetch lead ${leadId}: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                }`
             );
         }
-    }
-
-    async insertManyLeads(
-        csvLeads: string[],
-        adminId: string,
-    ): Promise<{
-        status: number;
-        data: {
-            invalidLeads: parsedLeadFromCSV[],
-            postedLeads: Lead[],
-            duplicatedLeads: Partial<Lead>[],
-            failedParsingLeads: string[]
-        }
-    }> {
-
-        // Get category configuration
-        const csvLeadsWithoutDoubleQuotes = csvLeads.map(e => {
-            return e.replace(/"/g, '')
-        })
-
-        const parseAndTransformCSV = (dataString: string): { leads: parsedLeadFromCSV[], failedParsingLeads: string[] } => {
-            let leadsArray = dataString.split('\n')
-            leadsArray = leadsArray.filter(line => line.trim() !== ''); // this removes empty lines with filter
-            const keys = leadsArray[0].split(',').map((key) => key.trim());
-            const leads: parsedLeadFromCSV[] = [];
-            const failedParsingLeads: string[] = [];
-
-            for (let i = 1; i <= leadsArray.length -1; i++) {
-                try {
-                    const leadValues = leadsArray[i].split(',');
-                    const leadObject: Partial<LeadFromCSV> = {};
-                    keys?.forEach((key, index) => {
-                        leadObject[key as keyof LeadFromCSV] = leadValues[index].trim();
-                    });
-
-                    const transformedLead: parsedLeadFromCSV = {
-                        name: leadObject.Name ?? '',
-                        phone: leadObject['Phone Number'] ?? '',
-                        email: leadObject['Email Address'] ?? '',
-                        address: leadObject.Address ?? '',
-                        city: leadObject.City ?? '',
-                        state: leadObject.State ?? '',
-                        zip_code: leadObject['Zip Code'] ?? '',
-                        county: leadObject.County ?? '',
-                    };
-
-                    leads.push(transformedLead);
-                } catch (e) {
-                    console.warn('Lead parsing failed', { error: e,lead: leadsArray[i] });
-                    failedParsingLeads.push(leadsArray[i]);
-                }
-            }
-
-            return { leads, failedParsingLeads };
-        }
-
-        // Function to normalize county names by removing apostrophes, replacing "St." with "Saint", and removing "Parish"
-        const leads = parseAndTransformCSV(csvLeadsWithoutDoubleQuotes[0]);
-        const { invalidLeads, validLeads } = this.validateLeads(leads.leads);
-
-        const normalizeCountyName = (name: string): string => {
-            // TODO remove unnecessary function
-            return this.countiesSingletonFactory.normalizeCountyName(name)
-        }
-
-        const attachLeadsToCountyId = async (leads: parsedLeadFromCSV[]): Promise<parsedLeadFromCSV[]> => {
-            const singleton = await this.countiesSingletonFactory.singleton();
-            const counties = singleton.getAllCountiesOrderedByState();
-            const linkedLeads: parsedLeadFromCSV[] = [];
-
-            leads.forEach(lead => {
-                const normalizedLeadCounty = normalizeCountyName(lead.county);
-                const stateCounties = counties[lead.state.toUpperCase()];
-                if (!stateCounties) { return invalidLeads.push(lead); }
-                const closestCounty = this.findClosestCounty(stateCounties, lead.state, normalizedLeadCounty);
-
-                if (closestCounty !== undefined) {
-                    lead.county = closestCounty.name;
-                    linkedLeads.push({ ...lead, county_id: closestCounty.id, county: closestCounty.name });
-                } else {
-                    invalidLeads.push(lead);
-                }
-            });
-
-            return linkedLeads;
-        };
-
-        const postedLeads: Lead[] = [];
-        const duplicatedLeads: Partial<Lead>[] = [];
-        const attachedLeads = await attachLeadsToCountyId(validLeads);
-
-        const results = await this.leadDAO.createLeads(
-            attachedLeads,
-            adminId
-        );
-
-        results.forEach(result => {
-            if (result.success) {
-                postedLeads.push(result.lead!);
-            } else {
-                const failedLead = result.failedLead!;
-                delete failedLead.county_id;
-
-                console.warn(`lead failed to be created: ${result.error}`, { lead: failedLead });
-                if ((result.error?.toLowerCase()?.includes('duplicate lead')) === true) {
-                    duplicatedLeads.push(failedLead);
-                } else {
-                    invalidLeads.push(failedLead)
-                }
-            }
-        });
-
-        return {
-            status: 200,
-            data: {
-                invalidLeads,
-                postedLeads,
-                duplicatedLeads,
-                failedParsingLeads: leads.failedParsingLeads
-            }
-        };
-    }
-
-    findClosestCounty(counties: { state: string; name: string, normalizedName: string; id: string }[], leadState: string, normalizedLeadCounty: string): { name: string; id: string } | undefined {
-        if (!leadState || !normalizedLeadCounty || !counties) { return undefined; }
-        let closestCounty: { name: string; id: string } | undefined;
-        let maxPercentage = 55; // Start with the lowest possible match percentage
-
-        counties.forEach(county => {
-            if (county.state.toLowerCase() === leadState.toLowerCase()) {
-                const distance = levenshteinDistance(county.normalizedName, normalizedLeadCounty);
-                const maxLength = Math.max(county.normalizedName.length, normalizedLeadCounty.length);
-                const similarityPercentage = (1 - (distance / maxLength)) * 100;
-
-                if (similarityPercentage > maxPercentage) {
-                    maxPercentage = similarityPercentage;
-                    closestCounty = { name: county.name, id: county.id };
-                }
-            }
-        });
-
-        return closestCounty;
     }
 
     async updateLead(leadId: string, leadData: Partial<Lead>): Promise<Lead> {
         return await this.leadDAO.updateLead(leadId, leadData);
     }
 
-    // services/leadService.ts
-    async trashLead(leadId: string): Promise<Lead> {
-        try {
-            // If using new database, proceed normally
-                return await this.leadDAO.trashLead(leadId);
-        } catch (error) {
-            console.error('Error during lead trash process:', error);
-            throw new Error(`Failed to trash lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    async sendLead(leadId: string): Promise<Lead> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) {
+            throw new Error("Lead not found");
         }
-    }
-
-    private getRandomLead(leads: Lead[]): Lead | null {
-        if (!leads.length) {
-            return null;
+        if (lead.sent) {
+            throw new Error("Lead already sent");
         }
-        return leads[Math.floor(Math.random() * leads.length)];
-    }
+        if (!lead.verified) {
+            throw new Error("Lead must be verified first");
+        }
 
-    private async flatToNestedLead(flatLead: FlatLead): Promise<Lead> {
-        const buyerLead: BuyerLead | null = flatLead['buyer_lead.id']
-            ? {
-                id: flatLead['buyer_lead.id'],
-                buyer_id: flatLead['buyer_lead.buyer_id'],
-                campaign_id: flatLead['buyer_lead.campaign_id'],
-                company_name: flatLead['buyer_lead.company_name'],
-                error_message: flatLead['buyer_lead.error_message'],
-                lead_id: flatLead.id,
-                payout: flatLead['buyer_lead.payout'],
-                ping_date: flatLead['buyer_lead.ping_date'] ? flatLead['buyer_lead.ping_date'] : null,
-                ping_id: flatLead['buyer_lead.ping_id'],
-                ping_message: flatLead['buyer_lead.ping_message'],
-                ping_result: flatLead['buyer_lead.ping_result'],
-                post_date: flatLead['buyer_lead.post_date'] ? flatLead['buyer_lead.post_date'] : null,
-                post_message: flatLead['buyer_lead.post_message'],
-                post_result: flatLead['buyer_lead.post_result'],
-                sent_by_user_id: flatLead['buyer_lead.sent_by_user_id'],
-                status: flatLead['buyer_lead.status']
-            } as BuyerLead
-            : null;
+        const form = await this.leadFormInputDAO.getByLeadId(lead.id);
+        if (!form) {
+            throw new Error("Lead missing form data");
+        }
 
-        return {
-            id: flatLead.id,
-            address: flatLead.address,
-            city: flatLead.city,
-            state: flatLead.state,
-            county: flatLead.county ?? '',
-            county_id: flatLead.county_id,
-            zipcode: flatLead.zipcode,
-            first_name: flatLead.first_name,
-            last_name: flatLead.last_name,
-            phone: flatLead.phone,
-            email: flatLead.email,
-            is_test: flatLead.is_test,
-            created: flatLead.created.toISOString(),
-            buyer_lead: buyerLead,
-            vendor_lead_id: flatLead.vendor_lead_id ?? ''
+        const campaign = await this.campaignService.getById(lead.campaign_id);
+        if (!campaign) {
+            throw new Error("Campaign not found for lead");
+        }
+
+        const affiliate = await this.affiliateService.getById(campaign.affiliate_id);
+        const investor = await this.investorService.getById(lead.investor_id);
+        const county = await this.countyService.getById(lead.county_id);
+
+        if (!affiliate || !investor || !county) {
+            throw new Error("Affiliate, investor, or county not found for lead");
+        }
+
+        const payload: any = {
+            form_first_name: lead.first_name,
+            form_last_name: lead.last_name,
+            form_phone: lead.phone,
+            form_email: lead.email,
+            form_address: lead.address,
+            form_city: lead.city,
+            form_state: lead.state,
+            form_zip: lead.zipcode,
+            ...form
         };
 
-    }
+        delete payload.created;
+        delete payload.modified;
+        delete payload.deleted;
+        delete payload.lead_id;
+        delete payload.id;
 
-    // Worker Lead Selection Methods
-    async getLeadsToSendByWorker(): Promise<Lead[]> {
-        const currentSettings = await this.workerSettingsDAO.getCurrentSettings();
-        if (!currentSettings) {
-            throw new Error("Worker settings not found");
-        }
-
-        const { delay_same_county: countyDelay, delay_same_state: stateDelay } = currentSettings;
-        // Get all leads sent within the maximum delay window
-        const maxDelay = Math.max(countyDelay!, stateDelay!);
-        const flatLeadsSent = await this.leadDAO.getLeadsWithBuyerDataByTimeWindow(maxDelay, LeadDateField.PING_DATE);
-
-        // Convert flat leads to nested leads
-        const leadsSent = await Promise.all(flatLeadsSent.map(lead => this.flatToNestedLead(lead)));
-        // Get blacklisted states and counties using the helper functions
-        const blacklistedStates = this.getBlacklistedStates(leadsSent, stateDelay!);
-        const blacklistedCounties = this.getBlacklistedCounties(leadsSent, countyDelay!, stateDelay!);
-
-        // Convert Maps to arrays of keys (locations)
-        const blacklistedStatesList = Array.from(blacklistedStates.keys());
-        const blacklistedCountiesList = Array.from(blacklistedCounties.keys());
-
-        // Get leads that aren't in blacklisted locations and haven't been sent
-        console.log('Getting available leads...');
-        const availableLeads = await this.leadDAO.getNotBlacklistedLeads(
-            blacklistedStatesList,
-            blacklistedCountiesList
-        );
-
-        // Apply timezone filtering
-        const timezone = 'America/New_York';
-        // get the bussines hours from the county timezone and check if in bussines hours
-        const qualifiedLeads = availableLeads.filter(async lead => {
-            if (await this.isWithinBusinessHours(timezone)) {
-                return lead;
-            }
-        })
-
-        // Select random lead from qualified leads
-        const selectedLead = await this.getRandomLead(qualifiedLeads);
-        return selectedLead ? [selectedLead] : [];
-    }
-
-    // Helper function to update state blacklist
-    updateStateBlacklist(
-        state: string,
-        postDate: Date,
-        stateDelay: number,
-        blacklistedStates: Map<string, Date>
-    ) {
-        const expirationTime = new Date(postDate);
-        expirationTime.setHours(expirationTime.getHours() + stateDelay);
-
-        // Only update if new expiration is later than existing
-        const existingExpiration = blacklistedStates.get(state);
-        if (!existingExpiration || expirationTime > existingExpiration) {
-            blacklistedStates.set(state, expirationTime);
-        }
-    }
-
-    // Helper function to update county blacklist
-    updateCountyBlacklist(
-        countyId: string,
-        pingDate: Date,
-        postDate: Date | null,
-        isPingAndPostSuccess: boolean,
-        countyDelay: number,
-        stateDelay: number,
-        blacklistedCounties: Map<string, Date>
-    ) {
-        const basePingDate = new Date(pingDate);
-        const basePostDate = postDate ? new Date(postDate) : basePingDate;
-
-        // Set expiration based on success/failure
-        const expirationTime = new Date(isPingAndPostSuccess ? basePostDate : basePingDate);
-        expirationTime.setHours(expirationTime.getHours() + (isPingAndPostSuccess ? countyDelay : stateDelay));
-
-        // Only update if new expiration is later than existing
-        const existingExpiration = blacklistedCounties.get(countyId);
-        if (!existingExpiration || expirationTime > existingExpiration) {
-            blacklistedCounties.set(countyId, expirationTime);
-        }
-    }
-
-    // Main blacklist functions using the update helpers
-    getBlacklistedStates(leadsSent: Lead[], stateDelay: number) {
-        const blacklistedStates = new Map<string, Date>();
-        leadsSent.forEach(lead => {
-            if (!lead.state || !lead.buyer_lead) return;
-
-            const isPingAndPostSuccess = lead.buyer_lead.ping_result === 'success' &&
-                lead.buyer_lead.post_result === 'success';
-
-            if (isPingAndPostSuccess && lead.buyer_lead.post_date) {
-                this.updateStateBlacklist(
-                    lead.state,
-                    lead.buyer_lead.post_date,
-                    stateDelay,
-                    blacklistedStates
-                );
-            }
+        const log = await this.sendLogDAO.createLog({
+            lead_id: lead.id,
+            affiliate_id: affiliate.id,
+            campaign_id: campaign.id,
+            investor_id: investor.id,
+            status: "sent"
         });
 
-        return blacklistedStates;
+        try {
+            const axiosResponse = await this.iSpeedToLeadIAO.sendLead(payload);
+            const response = axiosResponse.data;
+
+            const payoutCents = (() => {
+                const payout = response?.payout;
+                if (!payout) {
+                    return null;
+                }
+                const num = Number(payout);
+                return Number.isFinite(num) ? Math.round(num * 100) : null;
+            })();
+
+            await this.sendLogDAO.updateLog(log.id, {
+                response_code: axiosResponse.status,
+                response_body: JSON.stringify(response),
+                payout_cents: payoutCents,
+                status: "sent"
+            });
+
+            const updatedLead = await this.leadDAO.markLeadAsSent(lead.id);
+
+            // One-time whitelist consumption
+            if (investor.whitelisted) {
+                await this.investorService.updateInvestorMeta(investor.id, {
+                    whitelisted: false
+                });
+            }
+
+            if (county.whitelisted) {
+                await this.countyService.updateCountyMeta(county.id, {
+                    whitelisted: false
+                });
+            }
+
+            return updatedLead;
+
+        } catch (err: any) {
+            await this.leadDAO.markLeadAsSent(lead.id);
+            const errorResponse = err.response?.data || err.message || "Unknown error";
+
+            await this.sendLogDAO.updateLog(log.id, {
+                response_code: err.response?.status ?? 0,
+                response_body: JSON.stringify(errorResponse),
+                payout_cents: null,
+                status: "failed"
+            });
+
+            throw new Error(
+                typeof errorResponse === "string" ? errorResponse : JSON.stringify(errorResponse)
+            );
+        }
+    }
+
+    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE"): Promise<Lead> {
+        try {
+            const lead = await this.leadDAO.getById(leadId);
+            if (!lead) {
+                throw new Error("Lead not found");
+            }
+
+            // Hard block: sent leads cannot be trashed
+            if (lead.sent) {
+                throw new Error("Lead already sent");
+            }
+
+            return await this.leadDAO.trashLeadWithReason(leadId, reason);
+
+        } catch (error) {
+            console.error("Error during lead trash process:", error);
+            throw new Error(
+                error instanceof Error ? error.message : "Failed to trash lead"
+            );
+        }
     }
 
     async getMany(filters: LeadFilters): Promise<{ leads: Lead[]; count: number }> {
         try {
-            const page = Math.max(1, filters.page || 1);
-            const limit = Math.max(1, Math.min(filters.limit || 10, 100));
-            // Always perform PostgreSQL operations normally
-            return await this.leadDAO.getMany({ page, limit });
+            return await this.leadDAO.getMany(filters);
         } catch (error) {
-            console.error('Error fetching leads:', error);
-            throw new Error(`Failed to fetch leads: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error fetching leads:", error);
+            throw new Error(
+                `Failed to fetch leads: ${error instanceof Error ? error.message : "Unknown error"}`
+            );
         }
     }
 
-    getBlacklistedCounties(leadsSent: Lead[], countyDelay: number, stateDelay: number) {
-        const blacklistedCounties = new Map<string, Date>();
+    async verifyLead(leadId: string): Promise<Lead> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) {
+            throw new Error("Lead not found");
+        }
+        if (lead.sent) {
+            throw new Error("Lead already sent");
+        }
+        if (lead.verified) {
+            throw new Error("Lead is already verified");
+        }
 
-        leadsSent.forEach(lead => {
-            if (!lead.county_id || !lead.buyer_lead) return;
+        const form = await this.leadFormInputDAO.getByLeadId(leadId);
+        if (!form) {
+            throw new Error("Missing form for lead");
+        }
 
-            const isPingAndPostSuccess = lead.buyer_lead.ping_result === 'success' &&
-                lead.buyer_lead.post_result === 'success';
+        const REQUIRED_FIELDS = [
+            "form_multifamily",
+            "form_repairs",
+            "form_occupied",
+            "form_sell_fast",
+            "form_goal",
+            "form_owner",
+            "form_owned_years",
+            "form_listed"
+        ];
 
-            if (lead.buyer_lead.ping_date) {
-                this.updateCountyBlacklist(
-                    lead.county_id,
-                    lead.buyer_lead.ping_date,
-                    lead.buyer_lead.post_date,
-                    isPingAndPostSuccess,
-                    countyDelay,
-                    stateDelay,
-                    blacklistedCounties
-                );
+        const formObj = form as unknown as Record<string, any>;
+
+        const missing: string[] = REQUIRED_FIELDS.filter(
+            f => !formObj[f] || String(formObj[f]).trim() === ""
+        );
+
+        if (missing.length > 0) {
+            throw new Error(`Missing required fields: ${missing.join(", ")}`);
+        }
+
+        return await this.leadDAO.verifyLead(leadId);
+    }
+
+    async unverifyLead(leadId: string): Promise<Lead> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) {
+            throw new Error("Lead not found");
+        }
+        if (lead.sent) {
+            throw new Error("Lead already sent");
+        }
+        if (!lead.verified) {
+            throw new Error("Lead is not verified");
+        }
+
+        return await this.leadDAO.unverifyLead(leadId);
+    }
+
+    async importLeads(csvContent: string) {
+        const { leads, affiliates, campaigns, investors } = parseCsvToLeads(csvContent);
+
+        // Load / create ref data
+        const investorMap = await this.investorService.loadOrCreateInvestors(investors);
+        const affiliateMap = await this.affiliateService.loadOrCreateAffiliates(affiliates);
+        const campaignMap = await this.campaignService.loadOrCreateCampaigns(campaigns, affiliateMap);
+        const countyMap = await this.countyService.loadOrCreateCounties(leads);
+
+        const resolvedLeads: parsedLeadFromCSV[] = [];
+
+        for (const lead of leads) {
+            const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
+            const county = countyMap.get(countyKey);
+            const investor = investorMap.get(lead.investor_id?.toLowerCase() || "");
+            const campaign = campaignMap.get(lead.campaign_id?.toLowerCase() || "");
+
+            if (!county || !investor || !campaign) {
+                continue;
             }
+
+            lead.county_id = county.id;
+            lead.investor_id = investor.id;
+            lead.campaign_id = campaign.id;
+
+            resolvedLeads.push(lead);
+        }
+
+        if (resolvedLeads.length === 0) {
+            return {
+                imported: 0,
+                rejected: 0,
+                trashed: 0,
+                errors: ["No valid leads to import after resolving references"]
+            };
+        }
+
+        // Build maps by ID for filtering logic
+        const affiliatesById = new Map<string, Affiliate>();
+        affiliateMap.forEach((a: Affiliate) => {
+            affiliatesById.set(a.id, a);
         });
 
-        return blacklistedCounties;
-    }
+        const campaignsById = new Map<string, Campaign>();
+        campaignMap.forEach((c: Campaign) => {
+            campaignsById.set(c.id, c);
+        });
 
-    isLeadEmpty = (lead: parsedLeadFromCSV): boolean => {
-        if (lead.name.trim() !== "") return false;
-        if (lead.phone.trim() !== "") return false;
-        if (lead.email.trim() !== "") return false;
-        if (lead.address.trim() !== "") return false;
-        if (lead.city.trim() !== "") return false;
-        if (lead.state.trim() !== "") return false;
-        if (lead.zip_code.trim() !== "") return false;
-        return lead.county.trim() === "";
-    };
+        const countiesById = new Map<string, County>();
+        countyMap.forEach((c: County) => {
+            countiesById.set(c.id, c);
+        });
 
-    private async isWithinBusinessHours(timezone: string): Promise<boolean> {
-        const currentSettings = await this.workerSettingsDAO.getCurrentSettings();
-        const localTime = moment().tz(timezone);
+        const investorsById = new Map<string, Investor>();
+        investorMap.forEach((i: Investor) => {
+            investorsById.set(i.id, i);
+        });
 
-        // Create moment objects for start and end times
-        const startTime = moment(currentSettings!.business_hours_start, 'HH:mm').tz(timezone);
-        const endTime = moment(currentSettings!.business_hours_end, 'HH:mm').tz(timezone);
+        // SETTINGS
+        const settings = await this.workerSettingsDAO.getCurrentSettings();
+        const delaySameInvestorMs = settings.delay_same_investor * 24 * 60 * 60 * 1000;
+        const delaySameCountyMs = settings.delay_same_county * 60 * 60 * 1000;
 
-        // Set the dates to today to compare just the times
-        startTime.year(localTime.year()).month(localTime.month()).date(localTime.date());
-        endTime.year(localTime.year()).month(localTime.month()).date(localTime.date());
+        // LOGS FOR COOLDOWNS
+        const investorIds = [...new Set(resolvedLeads.map(l => l.investor_id!))];
+        const countyIds = [...new Set(resolvedLeads.map(l => l.county_id!))];
 
-        return localTime.isBetween(startTime, endTime, 'minute', '[)');
-    }
+        const recentInvestorLogs = await this.sendLogDAO.getLatestLogsByInvestorIds(investorIds);
+        const recentCountyLogs = await this.sendLogDAO.getLatestLogsByCountyIds(countyIds);
 
-    private validateLeads(leads: parsedLeadFromCSV[]): { validLeads: parsedLeadFromCSV[], invalidLeads: parsedLeadFromCSV[] } {
-        const validLeads: parsedLeadFromCSV[] = [];
-        const invalidLeads: parsedLeadFromCSV[] = [];
-
-        // Function to check if a lead is valid
-        function isValidLead(lead: parsedLeadFromCSV): boolean {
-            // Validation rules: Example rules (modify as needed)
-            const isValidName = lead.name.trim() !== '';
-            const isValidPhone = lead.phone.trim() !== '';
-            const isValidEmail = lead.email.trim() !== '' && lead.email.includes('@');
-            const isValidAddress = lead.address.trim() !== '';
-            const hasZipCode = lead.zip_code.trim() !== '';
-
-            // Add more validation rules as required
-
-            // attach reasons for invalid leads
-            if (!isValidName) {
-                lead.reason = 'Invalid name';
+        const investorLogsByInvestorId = new Map<string, any>();
+        for (const log of recentInvestorLogs) {
+            if (log.investor_id) {
+                investorLogsByInvestorId.set(log.investor_id, log);
             }
-            if (!isValidPhone) {
-                lead.reason = lead.reason !== undefined ? lead.reason + ', phone ' : 'Invalid phone';
-            }
-            if (!isValidEmail) {
-                lead.reason = lead.reason !== undefined ? lead.reason + ', email ' : 'Invalid email';
-            }
-            if (!isValidAddress) {
-                lead.reason = lead.reason !== undefined ? lead.reason + ', address ' : 'Invalid address';
-            }
-            if (!hasZipCode) {
-                lead.reason = lead.reason !== undefined ? lead.reason + ', zip_code ' : 'Invalid zip_code';
-            }
-
-            return isValidName && isValidPhone && isValidEmail && isValidAddress && hasZipCode; // Add more conditions based on your validation criteria
         }
 
-        // Iterate through each lead
-        leads.forEach(lead => {
-            // Check if lead is empty
-            if (this.isLeadEmpty(lead)) {
-                return;
+        const countyLogsByCountyId = new Map<string, any>();
+        for (const log of recentCountyLogs) {
+            if (log.county_id) {
+                countyLogsByCountyId.set(log.county_id, log);
             }
-            if (isValidLead(lead)) {
-                validLeads.push(lead);
+        }
+
+        const survivors: parsedLeadFromCSV[] = [];
+        const errors: string[] = [];
+        let trashedCount = 0;
+
+        for (const lead of resolvedLeads) {
+            const reason = this.getTrashReasonForImport(
+                lead,
+                {
+                    investorsById,
+                    campaignsById,
+                    affiliatesById,
+                    countiesById,
+                    investorLogsByInvestorId,
+                    countyLogsByCountyId,
+                    delaySameInvestorMs,
+                    delaySameCountyMs
+                }
+            );
+
+            if (reason) {
+                try {
+                    await this.leadDAO.createTrashedLead(lead, reason);
+                    trashedCount++;
+                } catch (e) {
+                    errors.push(
+                        e instanceof Error
+                            ? `Failed to insert trashed lead (${reason}): ${e.message}`
+                            : "Failed to insert trashed lead (unknown error)"
+                    );
+                }
             } else {
-                invalidLeads.push(lead);
+                survivors.push(lead);
             }
-        });
+        }
+
+        const insertResults = await this.leadDAO.createLeads(survivors);
+
+        const successCount = insertResults.filter(r => r.success).length;
+        const failedInsertCount = insertResults.length - successCount;
+
+        errors.push(
+            ...insertResults
+                .filter(r => !r.success)
+                .map(r => r.error || "Unknown error")
+        );
 
         return {
-            validLeads,
-            invalidLeads
+            imported: successCount,
+            rejected: trashedCount + failedInsertCount,
+            trashed: trashedCount,
+            errors
         };
+    }
+
+    private getTrashReasonForImport(
+        lead: parsedLeadFromCSV,
+        deps: {
+            investorsById: Map<string, Investor>;
+            campaignsById: Map<string, Campaign>;
+            affiliatesById: Map<string, Affiliate>;
+            countiesById: Map<string, County>;
+            investorLogsByInvestorId: Map<string, any>;
+            countyLogsByCountyId: Map<string, any>;
+            delaySameInvestorMs: number;
+            delaySameCountyMs: number;
+        }
+    ): LeadTrashReason | null {
+
+        const campaignId = lead.campaign_id;
+        const investorId = lead.investor_id;
+        const countyId = lead.county_id;
+
+        if (!campaignId || !investorId || !countyId) {
+            return null;
+        }
+
+        const campaign = deps.campaignsById.get(campaignId);
+        const county = deps.countiesById.get(countyId);
+        const investor = deps.investorsById.get(investorId);
+        const affiliate = campaign ? deps.affiliatesById.get(campaign.affiliate_id) : undefined;
+
+        // 1. Blacklists (absolute rules)
+        if (affiliate && affiliate.blacklisted) {
+            return "BLACKLISTED_AFFILIATE";
+        }
+
+        if (campaign && campaign.blacklisted) {
+            return "BLACKLISTED_CAMPAIGN";
+        }
+
+        if (county && county.blacklisted) {
+            return "BLACKLISTED_COUNTY";
+        }
+
+        if (investor && investor.blacklisted) {
+            return "BLACKLISTED_INVESTOR";
+        }
+
+        // 2. Whitelists: only affect cooldowns
+        const investorIsWhitelisted = !!(investor && investor.whitelisted);
+        const countyIsWhitelisted = !!(county && county.whitelisted);
+
+        // 3. Investor cooldown (unless whitelisted)
+        if (!investorIsWhitelisted) {
+            const investorLog = deps.investorLogsByInvestorId.get(investorId);
+
+            if (investorLog && deps.delaySameInvestorMs > 0) {
+                const last = new Date(investorLog.created).getTime();
+
+                if (Date.now() - last <= deps.delaySameInvestorMs) {
+                    return "INVESTOR_COOLDOWN";
+                }
+            }
+        }
+
+        // 4. County cooldown (unless whitelisted)
+        if (!countyIsWhitelisted) {
+            const countyLog = deps.countyLogsByCountyId.get(countyId);
+
+            if (countyLog && deps.delaySameCountyMs > 0) {
+                const last = new Date(countyLog.created).getTime();
+
+                if (Date.now() - last <= deps.delaySameCountyMs) {
+                    return "COUNTY_COOLDOWN";
+                }
+            }
+        }
+
+        return null;
     }
 }

@@ -1,5 +1,6 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useContext, useEffect, useState} from "react";
 import jobService from "../../../services/job.service";
+import workerService from "../../../services/worker.service.tsx";
 import AdminJobsTable from "./adminJobsTable/AdminJobsTable.tsx";
 import CustomPagination from "../../Pagination";
 import {
@@ -16,94 +17,136 @@ import {
     FormControlLabel,
     Switch,
     Alert,
-    Snackbar
+    Snackbar,
+    Card,
+    CardContent,
 } from "@mui/material";
-import {Add as AddIcon} from '@mui/icons-material';
-import {Job} from "../../../types/jobTypes";
+import { Add as AddIcon } from "@mui/icons-material";
+import { Job } from "../../../types/jobTypes";
+import DataContext from "../../../context/DataContext.tsx";
 
 const INITIAL_JOB_STATE = {
-    name: '',
-    description: '',
+    name: "",
+    description: "",
     interval_minutes: 60,
     is_paused: false
 };
 
 const AdminJobsSection = () => {
+    const { role } = useContext(DataContext)
+    const isSuperAdmin = role === 'superadmin';
     const [jobs, setJobs] = useState<Job[]>([]);
     const [page, setPage] = useState(1);
     const [jobCount, setJobCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [limit, setLimit] = useState(50);
+
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [newJob, setNewJob] = useState(INITIAL_JOB_STATE);
+
     const [snackbar, setSnackbar] = useState({
         open: false,
-        message: '',
-        severity: 'success' as 'success' | 'error'
+        message: "",
+        severity: "success" as "success" | "error"
     });
 
-    const showNotification = useCallback((message: string, severity: 'success' | 'error') => {
-        setSnackbar({
-            open: true,
-            message,
-            severity
-        });
-    }, []);
+    // Worker UI state
+    const [workerLoading, setWorkerLoading] = useState(true);
+    const [workerEnabled, setWorkerEnabled] = useState(false);
+    const [cronSchedule, setCronSchedule] = useState("");
+    const [cronDraft, setCronDraft] = useState("");
+
+    const showNotification = useCallback(
+        (message: string, severity: "success" | "error") => {
+            setSnackbar({
+                open: true,
+                message,
+                severity
+            });
+        },
+        []
+    );
 
     const fetchJobs = useCallback(async () => {
         try {
             const response = await jobService.getAll();
             setJobs(response);
             setJobCount(response.length);
-            setLoading(false);
         } catch (error) {
-            console.error('Error fetching jobs:', error);
-            showNotification('Failed to fetch jobs', 'error');
+            console.error("Error fetching jobs:", error);
+            showNotification("Failed to fetch jobs", "error");
+        } finally {
+            setLoading(false);
+        }
+    }, [showNotification]);
+
+    const fetchWorkerStatus = useCallback(async () => {
+        try {
+            setWorkerLoading(true);
+
+            const status = await workerService.getStatus();
+            const enabled = Boolean(status.worker_enabled);
+            const cron = status.cron_schedule ?? "";
+
+            setWorkerEnabled(enabled);
+            setCronSchedule(cron);
+            setCronDraft(cron);
+        } catch (error) {
+            console.error("Error fetching worker status:", error);
+            showNotification("Failed to fetch worker status", "error");
+        } finally {
+            setWorkerLoading(false);
         }
     }, [showNotification]);
 
     useEffect(() => {
         fetchJobs();
-    }, [fetchJobs]);
+        fetchWorkerStatus();
+    }, [fetchJobs, fetchWorkerStatus]);
 
     const handleCreateModalClose = useCallback(() => {
         setCreateModalOpen(false);
         setNewJob(INITIAL_JOB_STATE);
     }, []);
 
-    const handleInputChange = useCallback((
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-    ) => {
-        const {name, value, type} = e.target;
+    const handleInputChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+            const { name, value, type } = e.target;
 
-        if (name === 'interval_minutes') {
-            const numValue = parseInt(value, 10);
-            if (isNaN(numValue) || numValue < 1) {
+            if (name === "interval_minutes") {
+                const numValue = parseInt(value, 10);
+                if (Number.isNaN(numValue) || numValue < 1) {
+                    return;
+                }
+                setNewJob(prev => ({
+                    ...prev,
+                    [name]: numValue
+                }));
                 return;
             }
+
+            const inputValue =
+                type === "checkbox"
+                    ? (e.target as HTMLInputElement).checked
+                    : value;
+
             setNewJob(prev => ({
                 ...prev,
-                [name]: numValue
+                [name]: inputValue
             }));
-            return;
-        }
-
-        const inputValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-        setNewJob(prev => ({
-            ...prev,
-            [name]: inputValue
-        }));
-    }, []);
+        },
+        []
+    );
 
     const handleCreateJob = useCallback(async () => {
         try {
             if (!newJob.name.trim()) {
-                showNotification('Job name is required', 'error');
+                showNotification("Job name is required", "error");
                 return;
             }
 
             if (!newJob.interval_minutes || newJob.interval_minutes < 1) {
-                showNotification('Valid interval minutes are required', 'error');
+                showNotification("Valid interval minutes are required", "error");
                 return;
             }
 
@@ -115,63 +158,209 @@ const AdminJobsSection = () => {
 
             setJobs(prev => [createdJob, ...prev]);
             setJobCount(prev => prev + 1);
+
             handleCreateModalClose();
-            showNotification('Job created successfully', 'success');
+            showNotification("Job created successfully", "success");
         } catch (error) {
-            console.error('Error creating job:', error);
-            showNotification('Failed to create job', 'error');
+            console.error("Error creating job:", error);
+            showNotification("Failed to create job", "error");
         }
     }, [newJob, showNotification, handleCreateModalClose]);
 
     const handleSnackbarClose = useCallback(() => {
-        setSnackbar(prev => ({...prev, open: false}));
+        setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
 
+    const handleToggleWorker = useCallback(async () => {
+        try {
+            setWorkerLoading(true);
+
+            if (workerEnabled) {
+                await workerService.stopWorker();
+                showNotification("Worker stopped", "success");
+            } else {
+                await workerService.startWorker();
+                showNotification("Worker started", "success");
+            }
+
+            await fetchWorkerStatus();
+        } catch (error) {
+            console.error("Error toggling worker:", error);
+            showNotification("Failed to toggle worker", "error");
+        } finally {
+            setWorkerLoading(false);
+        }
+    }, [workerEnabled, fetchWorkerStatus, showNotification]);
+
+    const handleSaveCron = useCallback(async () => {
+        try {
+            if (!cronDraft.trim()) {
+                showNotification("Cron schedule cannot be empty", "error");
+                return;
+            }
+
+            setWorkerLoading(true);
+            await workerService.updateCronSchedule(cronDraft.trim());
+            showNotification("Cron schedule updated", "success");
+
+            await fetchWorkerStatus();
+        } catch (error) {
+            console.error("Error updating cron schedule:", error);
+            showNotification("Failed to update cron schedule", "error");
+        } finally {
+            setWorkerLoading(false);
+        }
+    }, [cronDraft, fetchWorkerStatus, showNotification]);
+
     return (
-        <Container maxWidth={false} sx={{height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0}}>
-            <Box sx={{p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden'}}>
-                <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3}}>
-                    <Typography variant="h4" component="h2" sx={{fontWeight: 'bold'}}>
+        <Container
+            maxWidth={false}
+            sx={{
+                height: "calc(100vh - 64px)",
+                display: "flex",
+                flexDirection: "column",
+                p: 0
+            }}
+        >
+            <Box
+                sx={{
+                    p: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    overflow: "hidden",
+                    gap: 3
+                }}
+            >
+                {/* Worker Controls */}
+                <Card variant="outlined">
+                    <CardContent sx={{ py: 1.5 }}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                                flexWrap: "wrap" // wraps nicely on small screens
+                            }}
+                        >
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}
+                            >
+                                Worker Controls
+                            </Typography>
+
+                            {workerLoading
+                            ? (
+                                <CircularProgress size={20} />
+                            )
+                            : (
+                                <FormControlLabel
+                                    sx={{ m: 0, whiteSpace: "nowrap" }}
+                                    control={
+                                        <Switch
+                                            checked={workerEnabled}
+                                            onChange={handleToggleWorker}
+                                        />
+                                    }
+                                    label={workerEnabled ? "Worker ON" : "Worker OFF"}
+                                />
+                            )}
+
+                            { isSuperAdmin && (
+                                <>
+                                <TextField
+                                    size="small"
+                                    label="Cron Schedule"
+                                    value={cronDraft}
+                                    onChange={(e) => {
+                                        setCronDraft(e.target.value);
+                                    }}
+                                    disabled={workerEnabled || workerLoading}
+                                    sx={{ flex: "1 1 360px" }} // grows but has a decent minimum width
+                                    helperText={
+                                        workerEnabled
+                                            ? "Disable worker to edit cron schedule"
+                                            : "Example: */5 * * * *"
+                                    }
+                                />
+
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveCron}
+                                    disabled={
+                                        workerEnabled ||
+                                        workerLoading ||
+                                        cronDraft.trim() === cronSchedule.trim()
+                                    }
+                                    sx={{ whiteSpace: "nowrap" }}
+                                >
+                                    Save
+                                </Button>
+                            </>)
+                        }
+                        </Box>
+                    </CardContent>
+                </Card>
+
+                {/* Jobs Header */}
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 1
+                    }}
+                >
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: "bold" }}>
                         Jobs
                     </Typography>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon/>}
-                        onClick={() => {
-                            setCreateModalOpen(true);
-                        }}
-                    >
-                        Create New
-                    </Button>
+                    { isSuperAdmin && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => {
+                                setCreateModalOpen(true);
+                            }}
+                        >
+                            Create New
+                        </Button>
+                    )}
                 </Box>
 
                 {loading
-                    ? (
-                        <Box sx={{display: 'flex', justifyContent: 'center', p: 4}}>
-                            <CircularProgress/>
+? (
+                    <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                        <CircularProgress />
+                    </Box>
+                )
+: (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            height: "100%",
+                            overflow: "hidden"
+                        }}
+                    >
+                        <Box sx={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
+                            <AdminJobsTable jobs={jobs} setJobs={setJobs} />
                         </Box>
-                    )
-                    : (
-                        <Box sx={{display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden'}}>
-                            <Box sx={{flexGrow: 1, overflow: 'auto', minHeight: 0}}>
-                                <AdminJobsTable
-                                    jobs={jobs}
-                                    setJobs={setJobs}
-                                />
-                            </Box>
-                            <Box sx={{backgroundColor: 'background.paper'}}>
-                                <CustomPagination
-                                    page={page}
-                                    setPage={setPage}
-                                    rows={jobCount}
-                                    limit={limit}
-                                    setLimit={setLimit}
-                                />
-                            </Box>
+
+                        <Box sx={{ backgroundColor: "background.paper" }}>
+                            <CustomPagination
+                                page={page}
+                                setPage={setPage}
+                                rows={jobCount}
+                                limit={limit}
+                                setLimit={setLimit}
+                            />
                         </Box>
-                    )}
+                    </Box>
+                )}
             </Box>
 
+            {/* Create Job Modal */}
             <Dialog
                 open={createModalOpen}
                 onClose={handleCreateModalClose}
@@ -180,7 +369,14 @@ const AdminJobsSection = () => {
             >
                 <DialogTitle>Create New Job</DialogTitle>
                 <DialogContent>
-                    <Box sx={{mt: 2, display: 'flex', flexDirection: 'column', gap: 2}}>
+                    <Box
+                        sx={{
+                            mt: 2,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2
+                        }}
+                    >
                         <TextField
                             fullWidth
                             label="Job Name"
@@ -189,6 +385,7 @@ const AdminJobsSection = () => {
                             onChange={handleInputChange}
                             required
                         />
+
                         <TextField
                             fullWidth
                             label="Description"
@@ -198,6 +395,7 @@ const AdminJobsSection = () => {
                             multiline
                             rows={3}
                         />
+
                         <TextField
                             fullWidth
                             label="Interval (minutes)"
@@ -206,8 +404,9 @@ const AdminJobsSection = () => {
                             value={newJob.interval_minutes}
                             onChange={handleInputChange}
                             required
-                            inputProps={{min: 1}}
+                            inputProps={{ min: 1 }}
                         />
+
                         <FormControlLabel
                             control={
                                 <Switch
@@ -225,6 +424,7 @@ const AdminJobsSection = () => {
                         />
                     </Box>
                 </DialogContent>
+
                 <DialogActions>
                     <Button onClick={handleCreateModalClose}>Cancel</Button>
                     <Button
@@ -237,17 +437,14 @@ const AdminJobsSection = () => {
                 </DialogActions>
             </Dialog>
 
+            {/* Snackbar */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
                 onClose={handleSnackbarClose}
-                anchorOrigin={{vertical: 'top', horizontal: 'right'}}
+                anchorOrigin={{ vertical: "top", horizontal: "right" }}
             >
-                <Alert
-                    onClose={handleSnackbarClose}
-                    severity={snackbar.severity}
-                    variant="filled"
-                >
+                <Alert onClose={handleSnackbarClose} severity={snackbar.severity} variant="filled">
                     {snackbar.message}
                 </Alert>
             </Snackbar>

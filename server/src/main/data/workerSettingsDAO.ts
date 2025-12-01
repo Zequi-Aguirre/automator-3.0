@@ -1,13 +1,19 @@
 import { injectable } from "tsyringe";
-import { IDatabase } from 'pg-promise';
+import { IDatabase } from "pg-promise";
 import { DBContainer } from "../config/DBContainer";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import { WorkerSettings, WorkerSettingsUpdateAllowedFieldsType } from "../types/settingsTypes";
+import {
+    WorkerSettings,
+    WorkerSettingsUpdateAllowedFieldsType
+} from "../types/settingsTypes";
 
-type CreateWorkerSettingsDTO = Pick<WorkerSettings,
-    'name' |
-    'business_hours_start' |
-    'business_hours_end'
+type CreateWorkerSettingsDTO = Pick<
+    WorkerSettings,
+    "name" |
+    "business_hours_start" |
+    "business_hours_end" |
+    "cron_schedule" |
+    "worker_enabled"
 >;
 
 @injectable()
@@ -18,38 +24,47 @@ export default class WorkerSettingsDAO {
         this.db = db.database();
     }
 
-    // Create worker settings
     async createSettings(settings: CreateWorkerSettingsDTO): Promise<WorkerSettings> {
         const query = `
             INSERT INTO worker_settings (
                 name,
-                business_hours_start::text,
-                business_hours_end::text
-               
+                business_hours_start,
+                business_hours_end,
+                cron_schedule,
+                worker_enabled
             ) VALUES (
-                $(name),
-                $(business_hours_start),
-                $(business_hours_end)
+                $[name],
+                $[business_hours_start],
+                $[business_hours_end],
+                $[cron_schedule],
+                $[worker_enabled]
             )
             RETURNING *;
         `;
 
-        return await this.db.one<WorkerSettings>(query, settings);
+        const params = {
+            name: settings.name,
+            business_hours_start: settings.business_hours_start,
+            business_hours_end: settings.business_hours_end,
+            cron_schedule: settings.cron_schedule ?? "* * * * *",
+            worker_enabled: settings.worker_enabled ?? false
+        };
+
+        return await this.db.one<WorkerSettings>(query, params);
     }
 
-    // Get current worker settings
     async getCurrentSettings(): Promise<WorkerSettings> {
         try {
             const query = `
-            SELECT *
-            FROM worker_settings
-            WHERE deleted IS NULL
-            ORDER BY created DESC
-            LIMIT 1;
-        `;
+                SELECT *
+                FROM worker_settings
+                WHERE deleted IS NULL
+                ORDER BY created DESC
+                LIMIT 1;
+            `;
 
             return await this.db.one<WorkerSettings>(query);
-        } catch (error) {
+        } catch {
             throw new Error("Settings not found");
         }
     }
@@ -57,7 +72,6 @@ export default class WorkerSettingsDAO {
     async updateSettings(
         updates: Partial<WorkerSettingsUpdateAllowedFieldsType>
     ): Promise<WorkerSettings> {
-        // Get the complete updated fields using the helper function
         const updatedFields = await this.getUpdatedSettingsFields(updates);
 
         const query = `
@@ -70,19 +84,19 @@ export default class WorkerSettingsDAO {
                 business_hours_start = $[business_hours_start],
                 business_hours_end = $[business_hours_end],
                 delay_same_state = $[delay_same_state],
-                getting_leads = $[getting_leads],
-                pause_app = $[pause_app],
-                counties_on_hold = $[counties_on_hold],
-                states_on_hold = $[states_on_hold],
+                delay_same_investor = $[delay_same_investor],
+                delay_same_county = $[delay_same_county],
+                states_on_hold = ARRAY[$[states_on_hold:csv]]::us_state[],
+                cron_schedule = $[cron_schedule],
+                worker_enabled = $[worker_enabled],
+                expire_after_hours = $[expire_after_hours],
                 modified = NOW()
             WHERE deleted IS NULL
             RETURNING *;
         `;
 
-        // Include only necessary fields in the query parameters
         const params = { ...updatedFields };
 
-        // Execute the query
         const result = await this.db.oneOrNone<WorkerSettings>(query, params);
         if (!result) {
             throw new Error("Settings not found or update failed");
@@ -94,13 +108,11 @@ export default class WorkerSettingsDAO {
     private async getUpdatedSettingsFields(
         updates: Partial<WorkerSettingsUpdateAllowedFieldsType>
     ): Promise<WorkerSettingsUpdateAllowedFieldsType> {
-        // Fetch the existing Settings from the database
         const existingSettings = await this.getCurrentSettings();
         if (!existingSettings) {
             throw new Error("Settings not found");
         }
 
-        // Combine the updates with the existing settings data
         return {
             name: updates.name ?? existingSettings.name,
             send_next_lead_at: updates.send_next_lead_at ?? existingSettings.send_next_lead_at,
@@ -109,21 +121,22 @@ export default class WorkerSettingsDAO {
             business_hours_start: updates.business_hours_start ?? existingSettings.business_hours_start,
             business_hours_end: updates.business_hours_end ?? existingSettings.business_hours_end,
             delay_same_state: updates.delay_same_state ?? existingSettings.delay_same_state,
-            getting_leads: updates.getting_leads ?? existingSettings.getting_leads,
-            pause_app: updates.pause_app ?? existingSettings.pause_app,
-            counties_on_hold: updates.counties_on_hold ?? existingSettings.counties_on_hold,
             states_on_hold: updates.states_on_hold ?? existingSettings.states_on_hold,
+            delay_same_investor: updates.delay_same_investor ?? existingSettings.delay_same_investor,
+            delay_same_county: updates.delay_same_county ?? existingSettings.delay_same_county,
+            cron_schedule: updates.cron_schedule ?? existingSettings.cron_schedule,
+            worker_enabled: updates.worker_enabled ?? existingSettings.worker_enabled,
+            expire_after_hours: updates.expire_after_hours ?? existingSettings.expire_after_hours
         };
     }
 
-    // Specific method to update last worker run
     async updateLastWorkerRun(id: string): Promise<WorkerSettings> {
         const query = `
             UPDATE worker_settings
             SET 
                 last_worker_run = NOW(),
                 modified = NOW()
-            WHERE id = $(id)
+            WHERE id = $[id]
             AND deleted IS NULL
             RETURNING *;
         `;
@@ -137,7 +150,6 @@ export default class WorkerSettingsDAO {
         return result;
     }
 
-    // Specific method to update send_next_lead_at
     async updateNextLeadTime(
         id: string,
         nextLeadTime: string
@@ -145,9 +157,9 @@ export default class WorkerSettingsDAO {
         const query = `
             UPDATE worker_settings
             SET 
-                send_next_lead_at = $(nextLeadTime),
+                send_next_lead_at = $[nextLeadTime],
                 modified = NOW()
-            WHERE id = $(id)
+            WHERE id = $[id]
             AND deleted IS NULL
             RETURNING *;
         `;
@@ -156,27 +168,6 @@ export default class WorkerSettingsDAO {
             query,
             { id, nextLeadTime }
         );
-
-        if (!result) {
-            throw new Error("Settings not found or update failed");
-        }
-
-        return result;
-    }
-
-    // Toggle pause_app status
-    async togglePauseApp(id: string): Promise<WorkerSettings> {
-        const query = `
-            UPDATE worker_settings
-            SET 
-                pause_app = NOT pause_app,
-                modified = NOW()
-            WHERE id = $(id)
-            AND deleted IS NULL
-            RETURNING *;
-        `;
-
-        const result = await this.db.oneOrNone<WorkerSettings>(query, { id });
 
         if (!result) {
             throw new Error("Settings not found or update failed");

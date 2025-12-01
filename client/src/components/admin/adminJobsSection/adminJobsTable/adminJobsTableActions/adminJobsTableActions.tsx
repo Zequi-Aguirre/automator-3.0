@@ -4,7 +4,6 @@ import { faPlay, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { GridRenderCellParams } from "@mui/x-data-grid";
 import { useContext, useState } from 'react';
 import ConfirmationDialog from '../../../../common/confirmationDialog.tsx';
-import {User} from "../../../../../types/userTypes.ts";
 import DataContext from "../../../../../context/DataContext.tsx";
 
 interface JobActionsCellProps {
@@ -13,7 +12,6 @@ interface JobActionsCellProps {
     handleRunNow: (id: string) => Promise<void>;
     handleTogglePause: (id: string, isPaused: boolean) => Promise<void>;
     handleDeleteJob: (id: string) => Promise<void>;
-    loggedInUser: User;
 }
 
 interface DialogConfig {
@@ -43,6 +41,7 @@ const AdminJobsTableActions = ({
                             handleDeleteJob,
                         }: JobActionsCellProps) => {
     const { role } = useContext(DataContext)
+    const isSuperAdmin = role === 'superadmin';
     const [dialogConfig, setDialogConfig] = useState<DialogConfig>({
         open: false,
         title: '',
@@ -151,7 +150,7 @@ const AdminJobsTableActions = ({
                     {params.row.is_paused ? 'Resume' : 'Hold'}
                 </Button>
                 {
-                    role === 'superadmin' && (
+                    isSuperAdmin && (
                         <Button
                             variant="contained"
                             color="error"
