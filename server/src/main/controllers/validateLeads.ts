@@ -1,21 +1,3 @@
-export type parsedLeadFromCSV = {
-    name: string;
-    first_name: string;
-    last_name: string;
-    phone: string;
-    email: string;
-    address: string;
-    city: string;
-    state: string;
-    zipcode: string;
-    county: string;
-    county_id?: string;
-    imported_at: Date;
-    dispute_status?: string;
-    investor_id?: string | null;
-    campaign_id?: string | null;
-};
-
 export function levenshteinDistance(a: string, b: string): number {
     a = a.toLowerCase();
     b = b.toLowerCase();

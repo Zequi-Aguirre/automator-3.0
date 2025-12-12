@@ -54,7 +54,7 @@ export class Authenticator {
             next();
         } catch (error) {
             if (error instanceof jwt.TokenExpiredError) {
-                return res.status(405).json({ mensaje: 'Token has expired' });
+                return res.status(401).json({ mensaje: 'Token has expired' });
             }
         }
     }

@@ -36,7 +36,7 @@ export class AxiosProvider {
                 return res;
             },
             async (err) => {
-                if (err.response.status === 405) {
+                if (err.response.status === 401) {
                     this.removeToken();
                     window.location.href = '/login?sessionExpired=true';
                 }

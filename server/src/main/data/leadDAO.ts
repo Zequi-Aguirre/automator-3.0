@@ -1,9 +1,8 @@
 import { injectable } from "tsyringe";
 import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
-import { Lead, LeadUpdateAllowedFieldsType } from "../types/leadTypes";
+import { Lead, LeadUpdateAllowedFieldsType, parsedLeadFromCSV } from "../types/leadTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
 
 @injectable()
 export default class LeadDAO {
@@ -35,10 +34,9 @@ export default class LeadDAO {
                 last_name = $[last_name],
                 phone = $[phone],
                 email = $[email],
-                sent = $[sent],
                 modified = NOW()
             WHERE id = $[id]
-            AND deleted IS NULL
+            AND deleted IS NULL 
             RETURNING *;
         `;
 

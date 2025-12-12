@@ -12,7 +12,9 @@ export const REQUIRED_FIELDS: Array<keyof LeadFormInput> = [
     "form_goal",
     "form_owner",
     "form_owned_years",
-    "form_listed"
+    "form_listed",
+    'form_bedrooms',
+    'form_bathrooms'
 ];
 
 /* -------------------------------------------------------

@@ -231,7 +231,9 @@ export default class LeadService {
             "form_goal",
             "form_owner",
             "form_owned_years",
-            "form_listed"
+            "form_listed",
+            'form_bedrooms',
+            'form_bathrooms'
         ];
 
         const formObj = form as unknown as Record<string, any>;
