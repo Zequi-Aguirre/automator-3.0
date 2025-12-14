@@ -86,10 +86,16 @@ To establish a clear, timestamped understanding of backend architecture, functio
 
 ## 🚀 **Next Steps**
 1. Begin frontend audit (API contract and React components).  
-2. Implement authentication tightening for vendor endpoints.  
-3. Introduce standardized input validation across all services.  
-4. Configure structured logging (Pino + daily log rotation).  
-5. Automate conversation archiving and documentation update hooks.  
+2. Implement authentication tightening for vendor endpoints.
+3. Introduce standardized input validation across all services.
+4. Configure structured logging (Pino + daily log rotation).
+5. Automate conversation archiving and documentation update hooks.
+---
+
+### 📘 **Post-Audit Update (2025-12-14)**
+Added `DATABASE_MAP.md` to document the complete PostgreSQL schema and define the multi-vendor vertical plan.  
+Commit: 🧩 Add DATABASE_MAP.md — full schema documentation and multi-vendor design plan (2025-12-14)
+
 
 ---
 
