@@ -78,3 +78,12 @@ Each entry should link to a file or module and summarize the intended change.
 - [ ] Add validation for delay and range values to ensure safe bounds.
 - [ ] Standardize error message templates across DAOs.
 - [ ] Add audit log when worker settings are changed.
+
+## leadService.ts
+- [ ] Add NODE_ENV check before vendor send (redirect to vendorReceiveDAO in non-production).
+- [ ] Implement retry/backoff logic for failed vendor sends.
+- [ ] Distinguish timeout (408) vs hard failure in sendLead().
+- [ ] Add centralized error handler with contextual info.
+- [ ] Add batch insert optimization to importLeads().
+- [ ] Add transactional guard for duplicate sendLead() calls.
+- [ ] Add test coverage for vendor-safe routing logic.
