@@ -27,7 +27,7 @@ export class AxiosProvider {
 
         instance.interceptors.response.use(
             async (res) => {
-                const newToken = res.request.getResponseHeader("New-Token");
+                const newToken = res.headers["new-token"] ?? res.headers["New-Token"];
                 if (newToken) {
                     this.removeToken();
                     this.setToken(newToken);
