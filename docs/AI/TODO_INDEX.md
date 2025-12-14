@@ -87,3 +87,157 @@ Each entry should link to a file or module and summarize the intended change.
 - [ ] Add batch insert optimization to importLeads().
 - [ ] Add transactional guard for duplicate sendLead() calls.
 - [ ] Add test coverage for vendor-safe routing logic.
+
+## sendLogService.ts
+- [ ] Add input validation for filters (page, limit, status).
+- [ ] Add error wrapping for clearer exception reporting.
+- [ ] Integrate structured logging (e.g., Winston or Pino) for each create/update.
+- [ ] Consider abstracting pagination to a BaseService helper.
+- [ ] Add caching for getLastBy* queries if frequently used by workers.
+
+## vendorReceiveService.ts
+- [ ] Add optional metadata (source, timestamp override, etc.) to payloads for traceability.
+- [ ] Add input validation to ensure payloads are serializable JSON objects.
+- [ ] Add structured logging to record when payloads are stored.
+- [ ] Add `listRecent(limit?: number)` to fetch recent mock sends.
+- [ ] Add integration test to verify vendorReceiveService triggers in non-production.
+
+## workerService.ts
+- [ ] Add explicit environment check before calling leadService.sendLead() for redundancy.
+- [ ] Add structured logging at key lifecycle points.
+- [ ] Add retry suppression for repeated failures.
+- [ ] Add try/catch resilience around DAO timeouts.
+- [ ] Add audit trail for worker actions.
+- [ ] Add `WORKER_DISABLED` environment override to globally pause dispatch.
+- [ ] Integrate redundant vendor-safe logic to ensure protection even if leadService changes.
+
+## jobService.ts
+- [ ] Add environment guard to block jobs in dev mode unless explicitly allowed.
+- [ ] Add `jobDAO.updateJobError()` to persist job failure details.
+- [ ] Replace console logs with structured logging.
+- [ ] Await `handler.execute()` to ensure job completion before marking success.
+- [ ] Move job handler registration to configuration or decorator pattern.
+- [ ] Externalize hardcoded time buffer (-30s) into configuration.
+- [ ] Implement actual `getWorkerId()` logic for instance identification.
+
+## settingsService.ts
+- [ ] Add environment guard to prevent writes in read-only environments.
+- [ ] Add structured logging for create/update operations.
+- [ ] Add validation for business hour and cron syntax.
+- [ ] Unify redundant logic with `workerService` (e.g., updateNextLeadTime).
+- [ ] Implement distributed `getWorkerId()` resolution mechanism.
+
+## campaignService.ts
+- [ ] Add transaction safety for batch creation during imports.
+- [ ] Add structured logging when new campaigns are created dynamically.
+- [ ] Add environment awareness to disable auto-creation in production.
+- [ ] Implement optional caching for frequent `getByAffiliateId` calls.
+- [ ] Add try/catch handling for DAO insert/update errors.
+
+## affiliateService.ts
+- [ ] Add transaction safety for mass affiliate creation.
+- [ ] Add structured logging when affiliates are auto-created.
+- [ ] Add environment guard to prevent test imports in production.
+- [ ] Add validation for affiliate name format.
+- [ ] Move case normalization logic into a shared helper (e.g., normalizeName()).
+
+## investorService.ts
+- [ ] Add transaction safety for batch investor creation during imports.
+- [ ] Add structured logging for investor creation events.
+- [ ] Add environment guard to prevent accidental inserts in production test runs.
+- [ ] Implement cooldown/whitelist enforcement logic.
+- [ ] Move case normalization logic to shared helper (reuse with affiliateService).
+
+## countyService.ts
+- [ ] Add transaction wrapping for county imports.
+- [ ] Replace console logs with structured logging.
+- [ ] Add CSV header validation.
+- [ ] Add environment guard to prevent imports in production.
+- [ ] Move normalization logic to shared utility.
+- [ ] Implement caching for frequent lookups.
+
+## leadFormInputService.ts
+- [ ] Add structured logging for CRUD operations.
+- [ ] Add deeper validation for input data fields.
+- [ ] Add environment guard to prevent deletions in production.
+- [ ] Add batch create/update support for multi-lead imports.
+- [ ] Wrap DAO calls in try/catch for safer error handling.
+
+## countyResource.ts
+- [ ] Add validation for CSV file content and headers.
+- [ ] Replace console logging with structured logger.
+- [ ] Add consistent error handling across all routes.
+- [ ] Implement pagination bounds validation.
+- [ ] Add optional rate limiting for import endpoint.
+
+## campaignResource.ts
+- [ ] Add try/catch error handling for all routes.
+- [ ] Add validation for parameters and request bodies.
+- [ ] Implement structured logging for campaign updates.
+- [ ] Enforce pagination limits (e.g., max 100).
+- [ ] Add optional role-based admin authorization middleware.
+
+## investorResource.ts
+- [ ] Rename route params from `affiliateId` to `investorId`.
+- [ ] Add try/catch blocks for all async routes.
+- [ ] Add validation for request bodies and params.
+- [ ] Implement structured logging for update actions.
+- [ ] Enforce pagination limits (e.g., 100 max).
+
+## leadResource.ts
+- [ ] Implement real `sendLeadWithDelay()` logic integrated with workerService.
+- [ ] Add schema validation for request bodies and query params.
+- [ ] Enforce admin-only access for `/admin/send` route.
+- [ ] Add structured logging instead of console.error.
+- [ ] Add pagination limit enforcement (max 100).
+- [ ] Implement rate limiting for manual send triggers.
+
+## leadFormInputResource.ts
+- [ ] Add input validation for request bodies using schema enforcement.
+- [ ] Replace console.error with structured logging (pino/winston).
+- [ ] Add fine-grained authorization for delete/update routes.
+- [ ] Return 404 for non-existent lead IDs.
+- [ ] Implement rate limiting for create/update endpoints.
+
+## sendLogResource.ts
+- [ ] Add try/catch blocks for all async routes or integrate centralized error handler.
+- [ ] Add validation for query parameters and logId path variable.
+- [ ] Implement structured logging for log updates and queries.
+- [ ] Enforce pagination limits (e.g., limit <= 200).
+- [ ] Add admin role validation for PATCH route.
+
+## settingsResource.ts
+- [ ] Add schema validation for `/admin/update` request body.
+- [ ] Add structured error handling or global middleware.
+- [ ] Implement structured logging for settings updates.
+- [ ] Add admin-only guard for `/admin/update` route.
+- [ ] Track version history of configuration changes.
+
+## workerResource.ts
+- [ ] Add admin role-based access control for `/admin/*` endpoints.
+- [ ] Implement structured logging for start/stop/update actions.
+- [ ] Add validation for `leadId` and `cron_schedule` inputs.
+- [ ] Add rate limiting for `/admin/send-now` route.
+- [ ] Track audit trail for worker configuration changes.
+
+## jobResource.ts
+- [ ] Add try/catch or global error handling for all routes.
+- [ ] Implement schema validation for job creation and update payloads.
+- [ ] Replace console logging with structured logging.
+- [ ] Add admin-only enforcement for `run`, `delete`, and `update` endpoints.
+- [ ] Track audit metadata (creator, modifier, executor).
+- [ ] Add pagination for job listing endpoint.
+
+## userResource.ts
+- [ ] Add try/catch error handling for safety.
+- [ ] Add null-check for `req.user` to avoid runtime errors.
+- [ ] Implement structured logging for traceability.
+- [ ] Add optional endpoints for profile update and user listing (admin).
+- [ ] Prepare for role-based permission system integration.
+
+## vendorReceiveResource.ts
+- [ ] Add vendor API key or signature authentication.
+- [ ] Implement strict schema validation for lead payloads.
+- [ ] Replace console.error with structured logging.
+- [ ] Add rate limiting and throttling to `/` route.
+- [ ] Record metadata (timestamp, vendor ID, IP) for ingestion tracking.
