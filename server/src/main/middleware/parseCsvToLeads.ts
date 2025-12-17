@@ -1,5 +1,5 @@
 import { parse } from 'csv/sync';
-import { parsedLeadFromCSV } from "../controllers/validateLeads";
+import { parsedLeadFromCSV } from "../types/leadTypes.ts";
 
 type ParsedCsvResult = {
     leads: parsedLeadFromCSV[];

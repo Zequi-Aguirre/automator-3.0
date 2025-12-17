@@ -1,8 +1,8 @@
 import { injectable } from "tsyringe";
 import CountyDAO from "../data/countyDAO";
 import { County } from "../types/countyTypes.ts";
-import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
 import { parseCsvToCounties } from "../middleware/parseCsvToCounties.ts";
+import { parsedLeadFromCSV } from "../types/leadTypes.ts";
 
 @injectable()
 export default class CountyService {

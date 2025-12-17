@@ -1,8 +1,7 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
-import { Lead, LeadFilters } from "../types/leadTypes";
+import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads } from "../middleware/parseCsvToLeads.ts";
-import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
 import CountyService from "../services/countyService.ts";
 import CampaignService from "../services/campaignService.ts";
 import AffiliateService from "../services/affiliateService.ts";
