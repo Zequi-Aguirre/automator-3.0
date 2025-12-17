@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS vendors (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- 2️⃣ Add vendor_id column to send_logs (nullable, to avoid downtime)
-ALTER TABLE send_logs ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id);
+-- 2️⃣ Add vendor_id column to send_log (nullable, to avoid downtime)
+ALTER TABLE send_log ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id);
 
 -- 3️⃣ Add vendor_id column to leads (nullable)
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id);
@@ -19,20 +19,20 @@ INSERT INTO vendors (name, active, weight)
 SELECT 'iSpeedToLeadIAO', TRUE, 100
 WHERE NOT EXISTS (SELECT 1 FROM vendors WHERE name = 'iSpeedToLeadIAO');
 
--- 5️⃣ Backfill send_logs.vendor_id with iSpeedToLeadIAO’s id
-UPDATE send_logs
+-- 5️⃣ Backfill send_log.vendor_id with iSpeedToLeadIAO’s id
+UPDATE send_log
 SET vendor_id = v.id
 FROM vendors v
 WHERE v.name = 'iSpeedToLeadIAO'
-  AND send_logs.vendor_id IS NULL;
+  AND send_log.vendor_id IS NULL;
 
--- 6️⃣ Backfill leads.vendor_id based on send_logs
+-- 6️⃣ Backfill leads.vendor_id based on send_log
 UPDATE leads
 SET vendor_id = v.id
 FROM vendors v
 WHERE v.name = 'iSpeedToLeadIAO'
   AND leads.id IN (
-    SELECT DISTINCT lead_id FROM send_logs WHERE vendor_id = v.id
+    SELECT DISTINCT lead_id FROM send_log WHERE vendor_id = v.id
   )
   AND leads.vendor_id IS NULL;
 
