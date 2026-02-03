@@ -17,7 +17,7 @@ SET
     delay_same_state = 3,
     delay_same_county = 36,      -- updated default for county cooldown
     states_on_hold = '{}',       -- states_on_hold
-    delay_same_investor = 16,    -- investor cooldown in days
+    delay_same_investor = 48,    -- investor cooldown in hours
     min_delay = 2,
     max_delay = 4,
     cron_schedule = '* * * * *'
