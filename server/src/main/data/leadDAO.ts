@@ -220,18 +220,13 @@ export default class LeadDAO {
 
         const baseQuery = `
             FROM leads l
-            JOIN campaigns c ON c.id = l.campaign_id
-            JOIN affiliates a ON a.id = c.affiliate_id
             ${whereSQL}
         `;
 
         const leadsQuery = `
             SELECT l.*
             ${baseQuery}
-            ORDER BY
-                a.rating DESC,
-                c.rating DESC,
-                l.modified DESC
+            ORDER BY l.modified DESC
             LIMIT $/limit/
             OFFSET $/offset/;
         `;
@@ -295,11 +290,11 @@ export default class LeadDAO {
                         `
                           INSERT INTO leads (
                             first_name, last_name, email, phone, address, city, state, zipcode,
-                            county, county_id, imported_at, investor_id, campaign_id
+                            county, county_id, private_notes, investor_id
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
-                            $[county], $[county_id], $[imported_at], $[investor_id], $[campaign_id]
+                            $[county], $[county_id], $[private_notes], $[investor_id]
                           )
                           RETURNING *;
                         `,
@@ -339,17 +334,15 @@ export default class LeadDAO {
             INSERT INTO leads (
                 first_name, last_name, email, phone,
                 address, city, state, zipcode,
-                county, county_id,
-                imported_at,
-                investor_id, campaign_id,
+                county, county_id, private_notes,
+                investor_id,
                 deleted, deleted_reason
             )
             VALUES (
                 $[first_name], $[last_name], $[email], $[phone],
                 $[address], $[city], $[state], $[zipcode],
-                $[county], $[county_id],
-                NOW(),
-                $[investor_id], $[campaign_id],
+                $[county], $[county_id], $[private_notes],
+                $[investor_id],
                 NOW(), $[reason]
             )
             RETURNING *;

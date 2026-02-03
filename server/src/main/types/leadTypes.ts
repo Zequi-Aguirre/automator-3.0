@@ -13,10 +13,9 @@ export type Lead = {
     created: string;
     sent: boolean;
     verified: boolean;
-    imported_at: string;
     sent_date: string;
-    campaign_id: string;
-    investor_id: string;
+    private_notes: string | null;
+    investor_id: string | null;
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -84,8 +83,6 @@ export type parsedLeadFromCSV = {
     zipcode: string;
     county: string;
     county_id?: string;
-    imported_at: Date;
-    dispute_status?: string;
+    private_notes?: string | null;
     investor_id?: string | null;
-    campaign_id?: string | null;
 };
