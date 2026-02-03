@@ -396,7 +396,7 @@ const WorkerSettingsPanel = () => {
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Delay Same Investor (days)"
+                                    label="Delay Same Investor (hours)"
                                     name="delay_same_investor"
                                     type="number"
                                     value={

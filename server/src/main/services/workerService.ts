@@ -72,7 +72,7 @@ export default class WorkerService {
         const settings = await this.workerSettingsDAO.getCurrentSettings();
 
         const delayInvestorMs =
-            (settings.delay_same_investor || 0) * 24 * 60 * 60 * 1000;
+            (settings.delay_same_investor || 0) * 60 * 60 * 1000;
 
         const delayCountyMs =
             (settings.delay_same_county || 36) * 60 * 60 * 1000;
