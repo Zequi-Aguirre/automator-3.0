@@ -309,7 +309,7 @@ export default class LeadService {
 
         // SETTINGS
         const settings = await this.workerSettingsDAO.getCurrentSettings();
-        const delaySameInvestorMs = settings.delay_same_investor * 24 * 60 * 60 * 1000;
+        const delaySameInvestorMs = settings.delay_same_investor * 60 * 60 * 1000;
         const delaySameCountyMs = settings.delay_same_county * 60 * 60 * 1000;
 
         // LOGS FOR COOLDOWNS
