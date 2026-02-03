@@ -1,24 +1,17 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
-import { Lead, LeadFilters } from "../types/leadTypes";
+import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads } from "../middleware/parseCsvToLeads.ts";
-import { parsedLeadFromCSV } from "../controllers/validateLeads.ts";
 import CountyService from "../services/countyService.ts";
-import CampaignService from "../services/campaignService.ts";
-import AffiliateService from "../services/affiliateService.ts";
 import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
-import { Affiliate } from "../types/affiliateTypes.ts";
-import { Campaign } from "../types/campaignTypes.ts";
 import { County } from "../types/countyTypes.ts";
 import { Investor } from "../types/investorTypes.ts";
 
 type LeadTrashReason =
-    | "BLACKLISTED_AFFILIATE"
-    | "BLACKLISTED_CAMPAIGN"
     | "BLACKLISTED_COUNTY"
     | "BLACKLISTED_INVESTOR"
     | "COUNTY_COOLDOWN"
@@ -33,8 +26,6 @@ export default class LeadService {
         private readonly leadDAO: LeadDAO,
         private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
-        private readonly campaignService: CampaignService,
-        private readonly affiliateService: AffiliateService,
         private readonly investorService: InvestorService,
         private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
         private readonly sendLogDAO: SendLogDAO,
@@ -80,17 +71,13 @@ export default class LeadService {
             throw new Error("Lead missing form data");
         }
 
-        const campaign = await this.campaignService.getById(lead.campaign_id);
-        if (!campaign) {
-            throw new Error("Campaign not found for lead");
-        }
-
-        const affiliate = await this.affiliateService.getById(campaign.affiliate_id);
-        const investor = await this.investorService.getById(lead.investor_id);
+        const investor = lead.investor_id
+            ? await this.investorService.getById(lead.investor_id)
+            : null;
         const county = await this.countyService.getById(lead.county_id);
 
-        if (!affiliate || !investor || !county) {
-            throw new Error("Affiliate, investor, or county not found for lead");
+        if (!county) {
+            throw new Error("County not found for lead");
         }
 
         const payload: any = {
@@ -113,9 +100,9 @@ export default class LeadService {
 
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
-            affiliate_id: affiliate.id,
-            campaign_id: campaign.id,
-            investor_id: investor.id,
+            affiliate_id: null,
+            campaign_id: null,
+            investor_id: investor?.id || null,
             status: "sent"
         });
 
@@ -142,7 +129,7 @@ export default class LeadService {
             const updatedLead = await this.leadDAO.markLeadAsSent(lead.id);
 
             // One-time whitelist consumption
-            if (investor.whitelisted) {
+            if (investor && investor.whitelisted) {
                 await this.investorService.updateInvestorMeta(investor.id, {
                     whitelisted: false
                 });
@@ -231,7 +218,9 @@ export default class LeadService {
             "form_goal",
             "form_owner",
             "form_owned_years",
-            "form_listed"
+            "form_listed",
+            'form_bedrooms',
+            'form_bathrooms'
         ];
 
         const formObj = form as unknown as Record<string, any>;
@@ -263,12 +252,12 @@ export default class LeadService {
     }
 
     async importLeads(csvContent: string) {
-        const { leads, affiliates, campaigns, investors } = parseCsvToLeads(csvContent);
+        const { leads, investors } = parseCsvToLeads(csvContent);
 
-        // Load / create ref data
-        const investorMap = await this.investorService.loadOrCreateInvestors(investors);
-        const affiliateMap = await this.affiliateService.loadOrCreateAffiliates(affiliates);
-        const campaignMap = await this.campaignService.loadOrCreateCampaigns(campaigns, affiliateMap);
+        // Load / create ref data (only investors and counties now)
+        const investorMap = investors.size > 0
+            ? await this.investorService.loadOrCreateInvestors(investors)
+            : new Map<string, Investor>();
         const countyMap = await this.countyService.loadOrCreateCounties(leads);
 
         const resolvedLeads: parsedLeadFromCSV[] = [];
@@ -276,16 +265,24 @@ export default class LeadService {
         for (const lead of leads) {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
             const county = countyMap.get(countyKey);
-            const investor = investorMap.get(lead.investor_id?.toLowerCase() || "");
-            const campaign = campaignMap.get(lead.campaign_id?.toLowerCase() || "");
 
-            if (!county || !investor || !campaign) {
+            // Investor is optional - only look up if provided
+            const investor = lead.investor_id
+                ? investorMap.get(lead.investor_id.toLowerCase())
+                : null;
+
+            // County is required
+            if (!county) {
+                continue;
+            }
+
+            // If investor was specified but not found, skip
+            if (lead.investor_id && !investor) {
                 continue;
             }
 
             lead.county_id = county.id;
-            lead.investor_id = investor.id;
-            lead.campaign_id = campaign.id;
+            lead.investor_id = investor?.id || null;
 
             resolvedLeads.push(lead);
         }
@@ -300,16 +297,6 @@ export default class LeadService {
         }
 
         // Build maps by ID for filtering logic
-        const affiliatesById = new Map<string, Affiliate>();
-        affiliateMap.forEach((a: Affiliate) => {
-            affiliatesById.set(a.id, a);
-        });
-
-        const campaignsById = new Map<string, Campaign>();
-        campaignMap.forEach((c: Campaign) => {
-            campaignsById.set(c.id, c);
-        });
-
         const countiesById = new Map<string, County>();
         countyMap.forEach((c: County) => {
             countiesById.set(c.id, c);
@@ -326,7 +313,11 @@ export default class LeadService {
         const delaySameCountyMs = settings.delay_same_county * 60 * 60 * 1000;
 
         // LOGS FOR COOLDOWNS
-        const investorIds = [...new Set(resolvedLeads.map(l => l.investor_id!))];
+        const investorIds = [...new Set(
+            resolvedLeads
+                .filter(l => l.investor_id)
+                .map(l => l.investor_id!)
+        )];
         const countyIds = [...new Set(resolvedLeads.map(l => l.county_id!))];
 
         const recentInvestorLogs = await this.sendLogDAO.getLatestLogsByInvestorIds(investorIds);
@@ -355,8 +346,6 @@ export default class LeadService {
                 lead,
                 {
                     investorsById,
-                    campaignsById,
-                    affiliatesById,
                     countiesById,
                     investorLogsByInvestorId,
                     countyLogsByCountyId,
@@ -404,8 +393,6 @@ export default class LeadService {
         lead: parsedLeadFromCSV,
         deps: {
             investorsById: Map<string, Investor>;
-            campaignsById: Map<string, Campaign>;
-            affiliatesById: Map<string, Affiliate>;
             countiesById: Map<string, County>;
             investorLogsByInvestorId: Map<string, any>;
             countyLogsByCountyId: Map<string, any>;
@@ -414,28 +401,18 @@ export default class LeadService {
         }
     ): LeadTrashReason | null {
 
-        const campaignId = lead.campaign_id;
         const investorId = lead.investor_id;
         const countyId = lead.county_id;
 
-        if (!campaignId || !investorId || !countyId) {
+        // County is required
+        if (!countyId) {
             return null;
         }
 
-        const campaign = deps.campaignsById.get(campaignId);
         const county = deps.countiesById.get(countyId);
-        const investor = deps.investorsById.get(investorId);
-        const affiliate = campaign ? deps.affiliatesById.get(campaign.affiliate_id) : undefined;
+        const investor = investorId ? deps.investorsById.get(investorId) : undefined;
 
         // 1. Blacklists (absolute rules)
-        if (affiliate && affiliate.blacklisted) {
-            return "BLACKLISTED_AFFILIATE";
-        }
-
-        if (campaign && campaign.blacklisted) {
-            return "BLACKLISTED_CAMPAIGN";
-        }
-
         if (county && county.blacklisted) {
             return "BLACKLISTED_COUNTY";
         }
@@ -448,8 +425,8 @@ export default class LeadService {
         const investorIsWhitelisted = !!(investor && investor.whitelisted);
         const countyIsWhitelisted = !!(county && county.whitelisted);
 
-        // 3. Investor cooldown (unless whitelisted)
-        if (!investorIsWhitelisted) {
+        // 3. Investor cooldown (only if investor exists and not whitelisted)
+        if (investorId && !investorIsWhitelisted) {
             const investorLog = deps.investorLogsByInvestorId.get(investorId);
 
             if (investorLog && deps.delaySameInvestorMs > 0) {

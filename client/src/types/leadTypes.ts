@@ -10,8 +10,9 @@ export type Lead = {
     phone: string;
     email: string;
     created: string;
-    imported_at: string;
     sent_date: string | null;
     sent: boolean;
     verified: boolean;
+    private_notes: string | null;
+    investor_id: string | null;
 }

@@ -46,12 +46,11 @@ import {
 } from "./formFieldsAndOptions.ts";
 
 interface Props {
-    leadId: string;
     lead: Lead;
     refreshLead: () => Promise<void> | void;
 }
 
-const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
+const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
@@ -60,12 +59,9 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     const [error, setError] = useState<string | null>(null);
     const [verifyError, setVerifyError] = useState<string | null>(null);
     const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
-
     const [askListedModalOpen, setAskListedModalOpen] = useState(false);
     const [confirmTrashModalOpen, setConfirmTrashModalOpen] = useState(false);
-
     const navigate = useNavigate();
-
     const isVerified = lead.verified;
     const isSent = lead.sent;
     const isLocked = isVerified || isSent;
@@ -73,7 +69,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
     const fetchForm = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await leadFormInputService.getByLeadId(leadId);
+            const response = await leadFormInputService.getByLeadId(lead.id);
 
             if (response) {
                 setExists(true);
@@ -94,7 +90,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         } finally {
             setLoading(false);
         }
-    }, [leadId]);
+    }, [lead.id]);
 
     useEffect(() => {
         fetchForm();
@@ -133,7 +129,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
 
         try {
             const emptyPayload: LeadFormInput = {
-                lead_id: leadId,
+                lead_id: lead.id,
                 form_multifamily: "",
                 form_repairs: "",
                 form_occupied: "",
@@ -168,7 +164,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         setVerifySuccess(null);
 
         try {
-            await leadsService.trashLead(leadId);
+            await leadsService.trashLead(lead.id);
             navigate("/a/leads");
         } catch {
             setError("Failed to trash lead");
@@ -204,7 +200,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         setSaving(true);
         setError(null);
         try {
-            const updated = await leadFormInputService.update(leadId, form);
+            const updated = await leadFormInputService.update(lead.id, form);
             setForm(updated);
             setDirty(false);
         } catch {
@@ -233,7 +229,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
             setError(null);
             setVerifyError(null);
 
-            await leadsService.verifyLead(leadId);
+            await leadsService.verifyLead(lead.id);
             await refreshLead();
 
             setVerifySuccess("Verification passed. Lead is locked and in the queue.");
@@ -253,7 +249,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
             setError(null);
             setVerifyError(null);
 
-            await leadsService.unverifyLead(leadId);
+            await leadsService.unverifyLead(lead.id);
 
             if (typeof refreshLead === "function") {
                 await Promise.resolve(refreshLead());
@@ -278,11 +274,7 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
         }
 
         // Multiselect stores "\n" separated string in your schema
-        if (typeof val === "string") {
-            return val.trim() !== "";
-        }
-
-        return false;
+        return val.trim() !== "";
     };
 
     const isRequired = (field: keyof LeadFormInput): boolean => {
@@ -524,6 +516,42 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
                                 </TextField>
                             </Box>
 
+                            <Box>
+                                <RequiredHeader field="form_bedrooms" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Bedrooms"
+                                    value={form.form_bedrooms ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_bedrooms", e.target.value);
+                                    }}
+                                >
+                                    {BEDROOM_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
+                            <Box>
+                                <RequiredHeader field="form_bathrooms" />
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Bathrooms"
+                                    value={form.form_bathrooms ?? ""}
+                                    disabled={isLocked}
+                                    onChange={(e) => {
+                                        handleChange("form_bathrooms", e.target.value);
+                                    }}
+                                >
+                                    {BATHROOM_OPTIONS.map((opt) => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
+
                             {/* OPTIONAL FIELDS */}
 
                             <TextField
@@ -567,36 +595,6 @@ const LeadVerificationForm = ({ leadId, lead, refreshLead }: Props) => {
                                 }}
                             >
                                 {GARAGE_OPTIONS.map((opt) => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            <TextField
-                                select
-                                fullWidth
-                                label="Bedrooms"
-                                value={form.form_bedrooms ?? ""}
-                                disabled={isLocked}
-                                onChange={(e) => {
-                                    handleChange("form_bedrooms", e.target.value);
-                                }}
-                            >
-                                {BEDROOM_OPTIONS.map((opt) => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            <TextField
-                                select
-                                fullWidth
-                                label="Bathrooms"
-                                value={form.form_bathrooms ?? ""}
-                                disabled={isLocked}
-                                onChange={(e) => {
-                                    handleChange("form_bathrooms", e.target.value);
-                                }}
-                            >
-                                {BATHROOM_OPTIONS.map((opt) => (
                                     <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                                 ))}
                             </TextField>

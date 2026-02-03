@@ -420,7 +420,6 @@ const LeadDetails = () => {
 
             {!editMode && lead && (
                 <LeadVerificationForm
-                    leadId={id!}
                     lead={lead}
                     refreshLead={fetchLead}
                 />)

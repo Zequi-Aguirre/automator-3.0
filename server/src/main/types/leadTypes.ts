@@ -13,10 +13,9 @@ export type Lead = {
     created: string;
     sent: boolean;
     verified: boolean;
-    imported_at: string;
     sent_date: string;
-    campaign_id: string;
-    investor_id: string;
+    private_notes: string | null;
+    investor_id: string | null;
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -70,4 +69,20 @@ export type FlatLead = {
     'buyer_lead.post_result': string | null;
     'buyer_lead.sent_by_user_id': string | null;
     'buyer_lead.status': string | null;
+};
+
+export type parsedLeadFromCSV = {
+    name: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    email: string;
+    address: string;
+    city: string;
+    state: string;
+    zipcode: string;
+    county: string;
+    county_id?: string;
+    private_notes?: string | null;
+    investor_id?: string | null;
 };
