@@ -5,13 +5,9 @@ import CountyService from "../services/countyService";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import SendLogDAO from "../data/sendLogDAO";
 import InvestorService from "../services/investorService";
-import CampaignService from "../services/campaignService";
-import AffiliateService from "../services/affiliateService";
 import { Lead } from "../types/leadTypes";
 import { Investor } from "../types/investorTypes";
 import { County } from "../types/countyTypes";
-import { Campaign } from "../types/campaignTypes";
-import { Affiliate } from "../types/affiliateTypes";
 
 @injectable()
 export default class WorkerService {
@@ -22,9 +18,7 @@ export default class WorkerService {
         private readonly countyService: CountyService,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly sendLogDAO: SendLogDAO,
-        private readonly investorService: InvestorService,
-        private readonly campaignService: CampaignService,
-        private readonly affiliateService: AffiliateService
+        private readonly investorService: InvestorService
     ) {}
 
     async isTimeToSend(): Promise<boolean> {
@@ -86,14 +80,19 @@ export default class WorkerService {
         const businessStart = settings.business_hours_start;
         const businessEnd = settings.business_hours_end;
 
-        // Unique IDs
-        const investorIds = [...new Set(leads.map(l => l.investor_id))];
+        // Unique IDs - investor is now optional
+        const investorIds = [...new Set(
+            leads
+                .filter(l => l.investor_id)
+                .map(l => l.investor_id!)
+        )];
         const countyIds = [...new Set(leads.map(l => l.county_id))];
-        const campaignIds = [...new Set(leads.map(l => l.campaign_id))];
 
         // Cooldown logs
         const [investorLogs, countyLogs] = await Promise.all([
-            this.sendLogDAO.getLatestLogsByInvestorIds(investorIds),
+            investorIds.length > 0
+                ? this.sendLogDAO.getLatestLogsByInvestorIds(investorIds)
+                : [],
             this.sendLogDAO.getLatestLogsByCountyIds(countyIds)
         ]);
 
@@ -111,24 +110,18 @@ export default class WorkerService {
             }
         });
 
-        // Load entities
-        const investors = await this.investorService.getManyByIds(investorIds);
+        // Load entities - only investors and counties
+        const investors = investorIds.length > 0
+            ? await this.investorService.getManyByIds(investorIds)
+            : [];
         const counties = await this.countyService.getManyByIds(countyIds);
-        const campaigns = await this.campaignService.getManyByIds(campaignIds);
-
-        const affiliateIds = [...new Set(campaigns.map(c => c.affiliate_id))];
-        const affiliates = await this.affiliateService.getManyByIds(affiliateIds);
 
         // Build lookup maps
         const investorsById = new Map<string, Investor>();
         const countiesById = new Map<string, County>();
-        const campaignsById = new Map<string, Campaign>();
-        const affiliatesById = new Map<string, Affiliate>();
 
         investors.forEach(i => investorsById.set(i.id, i));
         counties.forEach(c => countiesById.set(c.id, c));
-        campaigns.forEach(c => campaignsById.set(c.id, c));
-        affiliates.forEach(a => affiliatesById.set(a.id, a));
 
         // Precompute current local time per timezone
         const timezoneLocalMinute = new Map<string, number>();
@@ -148,24 +141,21 @@ export default class WorkerService {
         const final: Lead[] = [];
 
         for (const lead of leads) {
-            const investor = investorsById.get(lead.investor_id);
+            const investor = lead.investor_id ? investorsById.get(lead.investor_id) : null;
             const county = countiesById.get(lead.county_id);
-            const campaign = campaignsById.get(lead.campaign_id);
-            const affiliate = campaign ? affiliatesById.get(campaign.affiliate_id) : undefined;
 
-            if (!investor || !county || !campaign || !affiliate) {
+            // County is required
+            if (!county) {
                 continue;
             }
 
-            // 1. Blacklist checks
-            if (affiliate.blacklisted) continue;
-            if (campaign.blacklisted) continue;
+            // 1. Blacklist checks (only county and investor now)
             if (county.blacklisted) continue;
-            if (investor.blacklisted) continue;
+            if (investor && investor.blacklisted) continue;
 
-            // 2. Investor cooldown
-            if (!investor.whitelisted && delayInvestorMs > 0) {
-                const log = investorLogMap.get(lead.investor_id);
+            // 2. Investor cooldown (only if investor exists)
+            if (investor && !investor.whitelisted && delayInvestorMs > 0) {
+                const log = investorLogMap.get(lead.investor_id!);
                 if (log) {
                     const lastSend = new Date(log.created).getTime();
                     if (Date.now() - lastSend <= delayInvestorMs) {
