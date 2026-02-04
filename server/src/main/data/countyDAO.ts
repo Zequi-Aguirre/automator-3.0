@@ -20,8 +20,13 @@ export default class CountyDAO {
     }): Promise<County> {
         const query = `
             INSERT INTO counties (name, state, population, timezone)
-            VALUES ($[name], $[state], $[population], $[timezone])
-            RETURNING *;
+            VALUES (
+                       INITCAP(LOWER($[name])),
+                       $[state],
+                       $[population],
+                       $[timezone]
+                   )
+                RETURNING *;
         `;
         return await this.db.one<County>(query, data);
     }
