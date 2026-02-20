@@ -18,7 +18,9 @@ import CountyResource from "./resources/countyResource";
 import LeadFormInputResource from "./resources/leadFormInputResource.ts";
 import VendorReceiveResource from "./resources/vendorReceiveResource.ts";
 import WorkerResource from "./resources/workerResource.ts";
+import LeadIntakeResource from "./resources/leadIntakeResource.ts";
 import LeadOpenResource from "./resources/leadOpenResource.ts";
+import { ApiKeyAuthenticator } from "./middleware/apiKeyAuth.ts";
 import WorkerSettingsDAO from "./data/workerSettingsDAO.ts";
 import InvestorResource from "./resources/investorResource.ts";
 import SendLogResource from "./resources/sendLogResource.ts";
@@ -48,6 +50,7 @@ export class AutomatorServer {
 
         const authenticator = cont.resolve(Authenticator);
         const authFunc = authenticator.authenticateFunc();
+        const apiKeyFunc = cont.resolve(ApiKeyAuthenticator).authenticateFunc();
 
         // Set up routes
         this.app.use("/api/affiliates", authFunc, cont.resolve(AffiliateResource).routes());
@@ -57,6 +60,7 @@ export class AutomatorServer {
         this.app.use("/api/investors", authFunc, cont.resolve(InvestorResource).routes());
         this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
         this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());
+        this.app.use("/api/leads-intake", apiKeyFunc, cont.resolve(LeadIntakeResource).routes());
         this.app.use("/api/leads-open", cont.resolve(LeadOpenResource).routes());
         this.app.use("/api/leads-form-input", authFunc, cont.resolve(LeadFormInputResource).routes());
         this.app.use("/api/logs", authFunc, cont.resolve(SendLogResource).routes());
