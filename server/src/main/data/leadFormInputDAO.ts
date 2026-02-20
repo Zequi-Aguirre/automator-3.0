@@ -48,7 +48,6 @@ export default class LeadFormInputDAO {
             form_scenario: input.form_scenario ?? null,
             form_source: input.form_source ?? null,
             activeprospect_certificate_url: input.activeprospect_certificate_url ?? null,
-            record_link: input.record_link ?? null,
         };
 
         const query = `
@@ -59,7 +58,7 @@ export default class LeadFormInputDAO {
                 form_occupied, form_sell_fast, form_goal, form_goal2,
                 form_call_time, form_owner, form_owned_years, form_listed,
                 form_scenario, form_source,
-                activeprospect_certificate_url, record_link
+                activeprospect_certificate_url
             )
             VALUES (
                 gen_random_uuid(), $[lead_id],
@@ -68,7 +67,7 @@ export default class LeadFormInputDAO {
                 $[form_occupied], $[form_sell_fast], $[form_goal], $[form_goal2],
                 $[form_call_time], $[form_owner], $[form_owned_years], $[form_listed],
                 $[form_scenario], $[form_source],
-                $[activeprospect_certificate_url], $[record_link]
+                $[activeprospect_certificate_url]
             )
             RETURNING *;
         `;
