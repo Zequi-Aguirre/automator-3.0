@@ -27,20 +27,51 @@ export default class LeadFormInputDAO {
     }
 
     async create(input: LeadFormInputCreate): Promise<LeadFormInput> {
+        const data = {
+            lead_id: input.lead_id,
+            form_unit: input.form_unit ?? null,
+            form_multifamily: input.form_multifamily ?? null,
+            form_square: input.form_square ?? null,
+            form_year: input.form_year ?? null,
+            form_garage: input.form_garage ?? null,
+            form_bedrooms: input.form_bedrooms ?? null,
+            form_bathrooms: input.form_bathrooms ?? null,
+            form_repairs: input.form_repairs ?? null,
+            form_occupied: input.form_occupied ?? null,
+            form_sell_fast: input.form_sell_fast ?? null,
+            form_goal: input.form_goal ?? null,
+            form_goal2: input.form_goal2 ?? null,
+            form_call_time: input.form_call_time ?? null,
+            form_owner: input.form_owner ?? null,
+            form_owned_years: input.form_owned_years ?? null,
+            form_listed: input.form_listed ?? null,
+            form_scenario: input.form_scenario ?? null,
+            form_source: input.form_source ?? null,
+            activeprospect_certificate_url: input.activeprospect_certificate_url ?? null,
+        };
+
         const query = `
             INSERT INTO lead_form_inputs (
-                id,
                 lead_id,
-                form_listed
-                )
+                form_unit, form_multifamily, form_square, form_year,
+                form_garage, form_bedrooms, form_bathrooms, form_repairs,
+                form_occupied, form_sell_fast, form_goal, form_goal2,
+                form_call_time, form_owner, form_owned_years, form_listed,
+                form_scenario, form_source,
+                activeprospect_certificate_url
+            )
             VALUES (
-                gen_random_uuid(),
                 $[lead_id],
-                $[form_listed]
+                $[form_unit], $[form_multifamily], $[form_square], $[form_year],
+                $[form_garage], $[form_bedrooms], $[form_bathrooms], $[form_repairs],
+                $[form_occupied], $[form_sell_fast], $[form_goal], $[form_goal2],
+                $[form_call_time], $[form_owner], $[form_owned_years], $[form_listed],
+                $[form_scenario], $[form_source],
+                $[activeprospect_certificate_url]
             )
             RETURNING *;
-            `;
-        return await this.db.one<LeadFormInput>(query, input);
+        `;
+        return await this.db.one<LeadFormInput>(query, data);
     }
 
     async update(

@@ -6,14 +6,14 @@ type ParsedCsvResult = {
     investors: Set<string>;
 };
 
-function splitName(fullName: string): { first_name: string; last_name: string } {
+export function splitName(fullName: string): { first_name: string; last_name: string } {
     const parts = fullName?.trim().split(" ") || [];
     const first_name = parts.shift() || "";
     const last_name = parts.join(" ");
     return { first_name, last_name };
 }
 
-function cleanPhone(phone: string): string {
+export function cleanPhone(phone: string): string {
     const digits = phone.replace(/\D/g, "");
     if (digits.length === 10) return digits;
     if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
