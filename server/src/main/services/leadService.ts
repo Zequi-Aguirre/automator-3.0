@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
-import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
-import { parseCsvToLeads } from "../middleware/parseCsvToLeads.ts";
+import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
+import { parseCsvToLeads, splitName, cleanPhone } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
 import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
@@ -385,6 +385,96 @@ export default class LeadService {
             imported: successCount,
             rejected: trashedCount + failedInsertCount,
             trashed: trashedCount,
+            errors
+        };
+    }
+
+    async importLeadsFromApi(payloads: ApiLeadPayload[]) {
+        const leads: parsedLeadFromCSV[] = payloads.map(p => {
+            const { first_name, last_name } = splitName(p.name || "");
+            const phone = cleanPhone(p.phone || "");
+            const email = (p.email || "").toLowerCase();
+
+            return {
+                name: `${first_name} ${last_name}`.trim(),
+                first_name,
+                last_name,
+                phone,
+                email,
+                address: p.address,
+                city: p.city,
+                state: (p.state || "").toUpperCase(),
+                zipcode: p.zip_code || "",
+                county: p.county || "",
+                county_id: undefined,
+                private_notes: p.private_note || null,
+                investor_id: null,
+            };
+        });
+
+        const countyMap = await this.countyService.loadOrCreateCounties(leads);
+
+        const resolvedLeads: parsedLeadFromCSV[] = [];
+        const resolvedPayloads: ApiLeadPayload[] = [];
+        const errors: string[] = [];
+
+        for (let i = 0; i < leads.length; i++) {
+            const lead = leads[i];
+            const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
+            const county = countyMap.get(countyKey);
+
+            if (!county) {
+                errors.push(`Could not resolve county "${lead.county}" in state "${lead.state}"`);
+                continue;
+            }
+
+            lead.county_id = county.id;
+            resolvedLeads.push(lead);
+            resolvedPayloads.push(payloads[i]);
+        }
+
+        if (resolvedLeads.length === 0) {
+            return {
+                imported: 0,
+                failed: payloads.length,
+                errors: errors.length > 0 ? errors : ["No valid leads to import after resolving references"]
+            };
+        }
+
+        const insertResults = await this.leadDAO.createLeads(resolvedLeads);
+
+        // Create form input records for successfully inserted leads
+        for (let i = 0; i < insertResults.length; i++) {
+            const result = insertResults[i];
+            if (result.success && result.lead) {
+                const originalPayload = resolvedPayloads[i];
+                try {
+                    await this.leadFormInputDAO.create({
+                        lead_id: result.lead.id,
+                        form_sell_fast: originalPayload.sell_timeline || null,
+                        form_repairs: originalPayload.repairs_needed || null,
+                        form_goal: originalPayload.sell_motivation || null,
+                    });
+                } catch (e) {
+                    errors.push(
+                        `Lead created but form input failed for ${result.lead.id}: ${
+                            e instanceof Error ? e.message : "Unknown error"
+                        }`
+                    );
+                }
+            }
+        }
+
+        const successCount = insertResults.filter(r => r.success).length;
+        errors.push(
+            ...insertResults
+                .filter(r => !r.success)
+                .map(r => r.error || "Unknown insert error")
+        );
+
+        return {
+            imported: successCount,
+            failed: payloads.length - successCount,
             errors
         };
     }

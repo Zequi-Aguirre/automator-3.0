@@ -71,6 +71,23 @@ export type FlatLead = {
     'buyer_lead.status': string | null;
 };
 
+export type ApiLeadPayload = {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    county: string;
+    private_note?: string;
+    sell_timeline?: string;
+    repairs_needed?: string;
+    sell_motivation?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any;
+};
+
 export type parsedLeadFromCSV = {
     name: string;
     first_name: string;
