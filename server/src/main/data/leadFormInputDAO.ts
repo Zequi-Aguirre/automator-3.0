@@ -52,7 +52,7 @@ export default class LeadFormInputDAO {
 
         const query = `
             INSERT INTO lead_form_inputs (
-                id, lead_id,
+                lead_id,
                 form_unit, form_multifamily, form_square, form_year,
                 form_garage, form_bedrooms, form_bathrooms, form_repairs,
                 form_occupied, form_sell_fast, form_goal, form_goal2,
@@ -61,7 +61,7 @@ export default class LeadFormInputDAO {
                 activeprospect_certificate_url
             )
             VALUES (
-                gen_random_uuid(), $[lead_id],
+                $[lead_id],
                 $[form_unit], $[form_multifamily], $[form_square], $[form_year],
                 $[form_garage], $[form_bedrooms], $[form_bathrooms], $[form_repairs],
                 $[form_occupied], $[form_sell_fast], $[form_goal], $[form_goal2],
