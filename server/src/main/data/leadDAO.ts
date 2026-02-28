@@ -274,14 +274,18 @@ export default class LeadDAO {
                     AND lbo.deleted IS NULL
                     AND b.deleted IS NULL
                 )
-                ORDER BY l.created ASC;
+                ORDER BY l.created ASC
+                LIMIT 100
+                FOR UPDATE SKIP LOCKED;
             `
             : `
                 SELECT *
                 FROM leads
                 WHERE worker_enabled = TRUE
                 AND deleted IS NULL
-                ORDER BY created ASC;
+                ORDER BY created ASC
+                LIMIT 100
+                FOR UPDATE SKIP LOCKED;
             `;
 
         return buyerId && buyerPriority !== undefined
@@ -317,7 +321,9 @@ export default class LeadDAO {
                     AND lbo.deleted IS NULL
                     AND b.deleted IS NULL
                 )
-                ORDER BY l.created ASC;
+                ORDER BY l.created ASC
+                LIMIT 100
+                FOR UPDATE SKIP LOCKED;
             `
             : `
                 SELECT *
@@ -325,7 +331,9 @@ export default class LeadDAO {
                 WHERE worker_enabled = TRUE
                 AND verified = TRUE
                 AND deleted IS NULL
-                ORDER BY created ASC;
+                ORDER BY created ASC
+                LIMIT 100
+                FOR UPDATE SKIP LOCKED;
             `;
 
         return buyerId && buyerPriority !== undefined
@@ -361,7 +369,9 @@ export default class LeadDAO {
                     AND lbo.deleted IS NULL
                     AND b.deleted IS NULL
                 )
-                ORDER BY l.created ASC;
+                ORDER BY l.created ASC
+                LIMIT 100
+                FOR UPDATE SKIP LOCKED;
             `
             : `
                 SELECT *
@@ -369,7 +379,9 @@ export default class LeadDAO {
                 WHERE worker_enabled = TRUE
                 AND verified = FALSE
                 AND deleted IS NULL
-                ORDER BY created ASC;
+                ORDER BY created ASC
+                LIMIT 100
+                FOR UPDATE SKIP LOCKED;
             `;
 
         return buyerId && buyerPriority !== undefined

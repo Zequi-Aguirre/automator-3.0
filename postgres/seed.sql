@@ -8,52 +8,32 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- INSERT worker_settings initial row
+-- Note: Cooldown/timing fields moved to buyers table in Sprint 3
 INSERT INTO public."worker_settings" (
     id,
     name,
     business_hours_start,
     business_hours_end,
-    minutes_range_start,
-    minutes_range_end,
-    delay_same_state,
-    delay_same_county,
-    states_on_hold,
-    delay_same_investor,
-    min_delay,
-    max_delay,
     cron_schedule,
     expire_after_hours,
+    enforce_expiration,
     worker_enabled
 )
 VALUES (
     '123e4567-e89b-12d3-b456-226600000501',
     'Default Worker Settings',
-    '360',
-    '1380',
-    4,
-    11,
-    3,
-    36,
-    '{}',
-    48,
-    2,
-    4,
-    '* * * * *',
-    18,
-    false
+    360,  -- 6:00 AM
+    1380, -- 11:00 PM
+    '* * * * *', -- Every minute
+    18,   -- Expire after 18 hours
+    true, -- Enforce expiration
+    false -- Worker disabled by default
 )
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     business_hours_start = EXCLUDED.business_hours_start,
     business_hours_end = EXCLUDED.business_hours_end,
-    minutes_range_start = EXCLUDED.minutes_range_start,
-    minutes_range_end = EXCLUDED.minutes_range_end,
-    delay_same_state = EXCLUDED.delay_same_state,
-    delay_same_county = EXCLUDED.delay_same_county,
-    states_on_hold = EXCLUDED.states_on_hold,
-    delay_same_investor = EXCLUDED.delay_same_investor,
-    min_delay = EXCLUDED.min_delay,
-    max_delay = EXCLUDED.max_delay,
     cron_schedule = EXCLUDED.cron_schedule,
     expire_after_hours = EXCLUDED.expire_after_hours,
+    enforce_expiration = EXCLUDED.enforce_expiration,
     worker_enabled = EXCLUDED.worker_enabled;
