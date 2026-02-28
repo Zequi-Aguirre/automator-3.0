@@ -144,12 +144,16 @@ export default class BuyerDispatchService {
             throw new Error(`Buyer ${buyerId} not found`);
         }
 
-        // Random delay between min and max
-        const minMs = buyer.min_minutes_between_sends * 60 * 1000;
-        const maxMs = buyer.max_minutes_between_sends * 60 * 1000;
-        const delayMs = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+        // Random delay between min and max (in minutes)
+        const minMinutes = buyer.min_minutes_between_sends;
+        const maxMinutes = buyer.max_minutes_between_sends;
+        const delayMinutes = Math.floor(Math.random() * (maxMinutes - minMinutes + 1)) + minMinutes;
 
-        const nextSendAt = new Date(Date.now() + delayMs);
+        // Round to the minute (no seconds/milliseconds)
+        const nextSendAt = new Date();
+        nextSendAt.setMinutes(nextSendAt.getMinutes() + delayMinutes);
+        nextSendAt.setSeconds(0);
+        nextSendAt.setMilliseconds(0);
 
         await this.buyerDAO.updateTiming(buyerId, {
             last_send_at: new Date(),
@@ -163,7 +167,7 @@ export default class BuyerDispatchService {
      *
      * @param leadId - Lead ID to check
      * @param buyerPriority - Current buyer's priority
-     * @returns true if lead is blocked (sold to higher-priority buyer)
+     * @returns true if lead is blocked (sold to higher-priority buyer where allow_resell=false)
      */
     private async isLeadBlockedByHigherPriorityBuyer(
         leadId: string,
@@ -173,12 +177,13 @@ export default class BuyerDispatchService {
         const outcomes = await this.leadBuyerOutcomeDAO.getByLeadId(leadId);
 
         // Check if any outcome is "sold" to a buyer with higher priority (lower number)
+        // AND that outcome has allow_resell=false (blocks resale)
         for (const outcome of outcomes) {
-            if (outcome.status === "sold") {
+            if (outcome.status === "sold" && outcome.allow_resell === false) {
                 // Get the buyer to check priority
                 const outcomesBuyer = await this.buyerDAO.getById(outcome.buyer_id);
                 if (outcomesBuyer && outcomesBuyer.priority < buyerPriority) {
-                    return true; // Blocked by higher-priority buyer
+                    return true; // Blocked by higher-priority buyer who doesn't allow resell
                 }
             }
         }

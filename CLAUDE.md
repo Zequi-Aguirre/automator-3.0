@@ -97,9 +97,35 @@ React 18 + Vite + TypeScript with MUI components, Tailwind CSS, and React Contex
 - **JobService** - Scheduler manager connecting job definitions to worker handlers
 - **SettingsService** - Runtime configuration manager for worker timing and scheduling
 
-## Documentation
+## Documentation & Extended Context
 
-Comprehensive AI-generated docs are in `docs/AI/`:
+### Primary Documentation Folder: `_claude/`
+
+**IMPORTANT:** The `_claude/` folder is the **primary source of truth** for project planning, architecture decisions, and sprint tracking. Always check this folder FIRST for broader context.
+
+**Structure:**
+- `_claude/planning/` - **Active sprint planning and tickets**
+  - `README.md` - Overview of buyers refactor plan
+  - `08_TICKETS.md` - All 41 tickets with acceptance criteria
+  - `CURRENT_SPRINT.md` - Current sprint work and completed tasks
+  - `FUTURE_ENHANCEMENTS.md` - Backlog of UI/UX improvements
+  - Other numbered docs (00-10) cover architecture, migration strategy, risks, etc.
+- `_claude/context/` - Project context and reference materials
+- `_claude/archive/` - Completed work and historical decisions
+- `_claude/session/` - Session notes and temporary working files
+
+**When to use `_claude/`:**
+- Starting a new session → Read `_claude/planning/README.md` for current project state
+- Planning work → Check `CURRENT_SPRINT.md` and `08_TICKETS.md`
+- Looking for architectural decisions → Check `_claude/planning/` numbered docs
+- Documenting completed work → Update `CURRENT_SPRINT.md`
+- Adding future tickets → Add to `FUTURE_ENHANCEMENTS.md`
+
+**See `_claude/HOW_TO_USE.md` for complete tutorial on using this folder structure.**
+
+### Legacy Documentation: `docs/AI/`
+
+Older AI-generated docs (may be outdated, refer to `_claude/` for current info):
 - `BASELINE/ARCHITECTURE.md` - Backend architecture baseline
 - `BASELINE/DAO_CONTRACT.md` - DAO responsibilities and patterns
 - `SERVICE_BEHAVIOR_SUMMARY.md` - Detailed service behaviors

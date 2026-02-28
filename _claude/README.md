@@ -1,6 +1,8 @@
-# 📁 _claude/ - Claude Code Context Folder
+# 📁 _claude/ - Claude Code Extended Memory
 
-This folder contains all context files for Claude Code to understand the project, track progress, and maintain consistent behavior across sessions.
+This folder provides **extended memory and context** for Claude Code across sessions. It ensures continuity, prevents repeated work, and maintains project knowledge.
+
+**🎓 NEW TO THIS FOLDER? Read `HOW_TO_USE.md` first!**
 
 ---
 
@@ -9,9 +11,11 @@ This folder contains all context files for Claude Code to understand the project
 ```
 _claude/
 ├── README.md (this file)
+├── HOW_TO_USE.md ⭐ (TUTORIAL - Read this first!)
 ├── session/
 │   └── WORK_SESSION.md (active session tracker)
-├── planning/
+├── planning/ ⭐ (PRIMARY LOCATION for all docs)
+│   ├── README.md (project overview)
 │   ├── 00_EXECUTIVE_SUMMARY.md
 │   ├── 01_IMPACT_ANALYSIS.md
 │   ├── 02_DATABASE_MIGRATION_STRATEGY.md
@@ -20,10 +24,11 @@ _claude/
 │   ├── 05_VENDOR_ABSTRACTION.md
 │   ├── 06_LOGGING_STRATEGY.md
 │   ├── 07_RISK_ANALYSIS.md
-│   ├── 08_TICKETS.md (all 40 tickets)
+│   ├── 08_TICKETS.md (all 41 tickets)
 │   ├── 09_IMPLEMENTATION_ORDER.md
 │   ├── 10_RECOMMENDATIONS.md
-│   └── README.md
+│   ├── CURRENT_SPRINT.md ⭐ (UPDATE THIS AFTER EVERY SESSION!)
+│   └── FUTURE_ENHANCEMENTS.md (backlog of new ideas)
 ├── context/
 │   └── BEHAVIORAL_CONTEXT.md (interaction rules)
 └── archive/
@@ -42,13 +47,16 @@ _claude/
 - Update after EVERY ticket completion
 
 ### **planning/**
-**Implementation roadmap** - Created during planning, reference during implementation.
+**Implementation roadmap & active sprint tracking** - Primary location for all project documentation.
 
-- Complete refactor plan with all tickets
-- Database migration strategies
-- Service architecture patterns
-- Risk analysis
-- Implementation order
+**REFERENCE DOCS (READ-ONLY):**
+- Numbered docs (00-10): Architecture, migration strategies, risk analysis
+- `08_TICKETS.md`: All 41 tickets with acceptance criteria
+- `README.md`: Project overview
+
+**LIVING DOCS (UPDATE THESE!):**
+- ⭐ `CURRENT_SPRINT.md`: **UPDATE AFTER EVERY WORK SESSION**
+- ⭐ `FUTURE_ENHANCEMENTS.md`: Add user's future feature ideas here
 
 ### **context/**
 **Behavioral guidelines** - How Claude Code should interact with the user.
@@ -66,29 +74,33 @@ _claude/
 
 ## 🚀 Quick Start (New Session)
 
-When starting a new work session:
+### First Time Using This Folder?
+**Read `HOW_TO_USE.md` - Complete tutorial with workflows, templates, and best practices.**
 
-1. **Read behavioral context first**:
+### Starting a Work Session
+
+1. **Read current sprint status**:
    ```
-   Read _claude/context/BEHAVIORAL_CONTEXT.md
+   Read _claude/planning/CURRENT_SPRINT.md
    ```
 
-2. **Then read work session**:
+2. **Check planning context** (if needed):
    ```
-   Read _claude/session/WORK_SESSION.md
+   Read _claude/planning/README.md
+   Read _claude/planning/08_TICKETS.md
    ```
 
 3. **Start working**:
-   ```
-   Continue with next ticket
-   ```
+   - Ask user what they want to work on
+   - Reference tickets from `08_TICKETS.md` if applicable
+   - Document work in `CURRENT_SPRINT.md` as you go
 
-**Or just say**:
+**Or just ask the user**:
 ```
-"Read the work session and continue"
+"What should we work on today?"
 ```
 
-This will automatically load both behavioral context and work session.
+Then check `CURRENT_SPRINT.md` to understand what was previously completed.
 
 ---
 

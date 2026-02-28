@@ -44,9 +44,15 @@ const getRelativeTime = (date: string | null): string => {
     const target = new Date(date);
     const diffMs = target.getTime() - now.getTime();
 
-    if (diffMs < 0) return 'Ready now';
+    // Ready to send
+    if (diffMs <= 0) return 'Ready';
 
-    const diffMins = Math.floor(diffMs / 60000);
+    // Calculate minutes remaining (always round up)
+    const diffMins = Math.ceil(diffMs / 60000);
+
+    // Less than 1 minute
+    if (diffMins < 1) return 'Less than 1 min';
+
     const hours = Math.floor(diffMins / 60);
     const mins = diffMins % 60;
 

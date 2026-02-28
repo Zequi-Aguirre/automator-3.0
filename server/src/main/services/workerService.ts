@@ -51,6 +51,7 @@ export default class WorkerService {
      * Pick lead based on buyer's validation requirement
      * Prioritizes unverified leads for buyers that don't require validation
      * Saves verified leads for buyers that require validation
+     * NO FALLBACK: If buyer requires validation and no verified leads exist, throw error
      */
     async pickLeadForBuyer(buyer: {
         id: string;
@@ -72,19 +73,7 @@ export default class WorkerService {
             : await this.leadDAO.getUnverifiedLeadsForWorker(buyer.id, buyer.priority);
 
         if (leads.length === 0) {
-            // If no preferred leads, fallback to any available leads
-            const fallbackLeads = await this.leadDAO.getLeadsToSendByWorker(buyer.id, buyer.priority);
-            if (fallbackLeads.length === 0) {
-                throw new Error(`No leads available for ${buyer.name}`);
-            }
-
-            const filtered = await this.applyFilters(fallbackLeads, buyer);
-            if (filtered.length === 0) {
-                throw new Error(`No leads available for ${buyer.name} after applying filters`);
-            }
-
-            // Return oldest lead (first in array since sorted by created ASC)
-            return filtered[0];
+            throw new Error(`No ${buyer.requires_validation ? 'verified' : 'unverified'} leads available for ${buyer.name}`);
         }
 
         // Apply buyer-specific filters
