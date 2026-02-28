@@ -24,15 +24,9 @@ export default class WorkerService {
     ) {}
 
     async isTimeToSend(): Promise<boolean> {
-        const settings = await this.workerSettingsDAO.getCurrentSettings();
-        const { send_next_lead_at } = settings;
-
-        if (!send_next_lead_at) {
-            return true;
-        }
-
-        const next = new Date(send_next_lead_at);
-        return next <= new Date();
+        // Deprecated: Timing is now per-buyer (buyers.next_send_at)
+        // Always return true since timing is checked per-buyer in sendNextLead()
+        return true;
     }
 
     async pickLeadForWorker(): Promise<Lead> {

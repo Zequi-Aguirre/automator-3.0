@@ -115,18 +115,12 @@ export default class WorkerSettingsDAO {
 
         return {
             name: updates.name ?? existingSettings.name,
-            send_next_lead_at: updates.send_next_lead_at ?? existingSettings.send_next_lead_at,
-            minutes_range_start: updates.minutes_range_start ?? existingSettings.minutes_range_start,
-            minutes_range_end: updates.minutes_range_end ?? existingSettings.minutes_range_end,
             business_hours_start: updates.business_hours_start ?? existingSettings.business_hours_start,
             business_hours_end: updates.business_hours_end ?? existingSettings.business_hours_end,
-            delay_same_state: updates.delay_same_state ?? existingSettings.delay_same_state,
-            states_on_hold: updates.states_on_hold ?? existingSettings.states_on_hold,
-            delay_same_investor: updates.delay_same_investor ?? existingSettings.delay_same_investor,
-            delay_same_county: updates.delay_same_county ?? existingSettings.delay_same_county,
             cron_schedule: updates.cron_schedule ?? existingSettings.cron_schedule,
             worker_enabled: updates.worker_enabled ?? existingSettings.worker_enabled,
-            expire_after_hours: updates.expire_after_hours ?? existingSettings.expire_after_hours
+            expire_after_hours: updates.expire_after_hours ?? existingSettings.expire_after_hours,
+            enforce_expiration: updates.enforce_expiration ?? existingSettings.enforce_expiration
         };
     }
 
