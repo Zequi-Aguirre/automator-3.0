@@ -26,7 +26,8 @@ import {
     Select,
     MenuItem,
     FormControlLabel,
-    Checkbox
+    Checkbox,
+    Switch
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 
@@ -394,31 +395,45 @@ const AdminBuyersSection = () => {
                             ))}
                         </TextField>
 
-                        <TextField
-                            label="Delay Same County (hours)"
-                            type="number"
-                            value={formData.delay_same_county}
-                            onChange={(e) => setFormData({ ...formData, delay_same_county: parseInt(e.target.value) })}
-                            helperText="Hours to wait before sending another lead from same county to this buyer"
-                        />
-
-                        <TextField
-                            label="Delay Same State (hours)"
-                            type="number"
-                            value={formData.delay_same_state}
-                            onChange={(e) => setFormData({ ...formData, delay_same_state: parseInt(e.target.value) })}
-                            helperText="Hours to wait before sending another lead from same state to this buyer"
-                        />
-
                         <FormControlLabel
-                            control={<Checkbox checked={formData.enforce_county_cooldown} onChange={(e) => setFormData({ ...formData, enforce_county_cooldown: e.target.checked })} />}
+                            control={
+                                <Switch
+                                    checked={formData.enforce_county_cooldown}
+                                    onChange={(e) => setFormData({ ...formData, enforce_county_cooldown: e.target.checked })}
+                                />
+                            }
                             label="Enforce County Cooldown"
                         />
 
+                        {formData.enforce_county_cooldown && (
+                            <TextField
+                                label="Delay Same County (hours)"
+                                type="number"
+                                value={formData.delay_same_county}
+                                onChange={(e) => setFormData({ ...formData, delay_same_county: parseInt(e.target.value) })}
+                                helperText="Hours to wait before sending another lead from same county to this buyer"
+                            />
+                        )}
+
                         <FormControlLabel
-                            control={<Checkbox checked={formData.enforce_state_cooldown} onChange={(e) => setFormData({ ...formData, enforce_state_cooldown: e.target.checked })} />}
+                            control={
+                                <Switch
+                                    checked={formData.enforce_state_cooldown}
+                                    onChange={(e) => setFormData({ ...formData, enforce_state_cooldown: e.target.checked })}
+                                />
+                            }
                             label="Enforce State Cooldown"
                         />
+
+                        {formData.enforce_state_cooldown && (
+                            <TextField
+                                label="Delay Same State (hours)"
+                                type="number"
+                                value={formData.delay_same_state}
+                                onChange={(e) => setFormData({ ...formData, delay_same_state: parseInt(e.target.value) })}
+                                helperText="Hours to wait before sending another lead from same state to this buyer"
+                            />
+                        )}
                     </Stack>
                 </DialogContent>
                 <DialogActions>

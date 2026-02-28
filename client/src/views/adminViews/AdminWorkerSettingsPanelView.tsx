@@ -9,9 +9,11 @@ import {
     CircularProgress,
     Container,
     Divider,
+    FormControlLabel,
     MenuItem,
     Snackbar,
     Stack,
+    Switch,
     TextField,
     Typography,
 } from '@mui/material';
@@ -290,38 +292,38 @@ const WorkerSettingsPanel = () => {
                                 />
 
                                 {/* Expiration */}
-                                <TextField
-                                    fullWidth
-                                    label="Expire After (hours)"
-                                    name="expire_after_hours"
-                                    type="number"
-                                    value={
-                                        editMode
-                                            ? editedSettings.expire_after_hours
-                                            : settings.expire_after_hours
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={
+                                                editMode
+                                                    ? editedSettings.enforce_expiration
+                                                    : settings.enforce_expiration
+                                            }
+                                            onChange={handleInputChange}
+                                            name="enforce_expiration"
+                                            disabled={!editMode}
+                                        />
                                     }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                    helperText="Leads older than this will be trashed if enforcement is enabled"
+                                    label="Enforce Expiration"
                                 />
 
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Enforce Expiration"
-                                    name="enforce_expiration"
-                                    value={
-                                        editMode
-                                            ? editedSettings.enforce_expiration
-                                            : settings.enforce_expiration
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                    helperText="Toggle automatic deletion of expired leads"
-                                >
-                                    <MenuItem value={true as any}>Enabled</MenuItem>
-                                    <MenuItem value={false as any}>Disabled</MenuItem>
-                                </TextField>
+                                {(editMode ? editedSettings.enforce_expiration : settings.enforce_expiration) && (
+                                    <TextField
+                                        fullWidth
+                                        label="Expire After (hours)"
+                                        name="expire_after_hours"
+                                        type="number"
+                                        value={
+                                            editMode
+                                                ? editedSettings.expire_after_hours
+                                                : settings.expire_after_hours
+                                        }
+                                        onChange={handleInputChange}
+                                        disabled={!editMode}
+                                        helperText="Leads older than this will be trashed"
+                                    />
+                                )}
 
                                 {/* Read-only info */}
                                 <TextField
