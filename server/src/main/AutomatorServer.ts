@@ -16,7 +16,6 @@ import JobResource from "./resources/jobResource.ts";
 import AffiliateResource from "./resources/affiliateResource";
 import CountyResource from "./resources/countyResource";
 import LeadFormInputResource from "./resources/leadFormInputResource.ts";
-import VendorReceiveResource from "./resources/vendorReceiveResource.ts";
 import WorkerResource from "./resources/workerResource.ts";
 import LeadIntakeResource from "./resources/leadIntakeResource.ts";
 import LeadOpenResource from "./resources/leadOpenResource.ts";
@@ -69,7 +68,6 @@ export class AutomatorServer {
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
         this.app.use("/api/settings", authFunc,cont.resolve(SettingsResource).routes());
         this.app.use("/api/worker", authFunc,cont.resolve(WorkerResource).routes());
-        this.app.use("/api/mock-vendor", cont.resolve(VendorReceiveResource).routes());
         this.app.use('/static', express.static('public'));
 
         // Initialize worker if IS_WORKER is true

@@ -1248,6 +1248,60 @@ CREATE UNIQUE INDEX idx_campaigns_api_key ON campaigns(api_key_encrypted) WHERE 
 
 ---
 
+### TICKET-047: Remove legacy "Send Now" button and vendor receive mock system
+**Type**: Code Cleanup
+**Priority**: P1 (High)
+**Estimate**: 1 hour
+
+**Background**:
+The old "Send Now" button in the leads table sent leads to a mock vendor endpoint that stored data in `vendor_receive` table. This is now obsolete because:
+- Replaced by buyer dispatch system (send via Buyers modal)
+- Should send to specific buyers, not generic vendor endpoint
+- Mock data cluttering database
+
+**Frontend Removal**:
+1. Remove "Send Now" column from LeadsTable
+   - Remove column definition
+   - Remove `handleSendLead` function
+   - Remove `sendLead` service call
+   - Keep "Verify Lead" button (still needed for unverified leads)
+
+2. Update lead.service.tsx
+   - Remove `sendLead()` method (replaced by `sendLeadToBuyer()`)
+
+**Backend Removal**:
+1. Remove vendor receive files:
+   - `server/src/main/data/vendorReceiveDAO.ts`
+   - `server/src/main/services/vendorReceiveService.ts`
+   - `server/src/main/resources/vendorReceiveResource.ts`
+
+2. Update AutomatorServer.ts
+   - Remove vendorReceiveResource registration
+   - Remove vendorReceiveService/DAO from container
+
+3. Database cleanup (optional - can wait for Sprint 6):
+   - Drop `vendor_receive` table (if it exists)
+   - Part of investor/vendor deprecation in Sprint 6
+
+**Acceptance Criteria**:
+- [ ] "Send Now" column removed from leads table UI
+- [ ] Verify button still works for unverified leads
+- [ ] Buyers modal is the only way to send leads
+- [ ] vendorReceive files deleted
+- [ ] Build succeeds without errors
+- [ ] No imports referencing deleted files
+
+**Files**:
+- Frontend: `client/src/components/common/leadsSection/leadsTable/LeadsTable.tsx`, `client/src/services/lead.service.tsx`
+- Backend: `server/src/main/data/vendorReceiveDAO.ts`, `server/src/main/services/vendorReceiveService.ts`, `server/src/main/resources/vendorReceiveResource.ts`, `server/src/main/AutomatorServer.ts`
+
+**Notes**:
+- User verified this is no longer needed during QA
+- The buyer dispatch system is the replacement
+- Database table can be dropped in Sprint 6 with other cleanup
+
+---
+
 **Status**: 🔴 In Progress - Fixing bugs before Sprint 3
 
 ---
