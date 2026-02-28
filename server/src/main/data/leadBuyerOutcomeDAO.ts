@@ -23,7 +23,8 @@ export default class LeadBuyerOutcomeDAO {
                 status,
                 sold_at,
                 sold_price,
-                notes
+                notes,
+                allow_resell
             )
             VALUES (
                 $[lead_id],
@@ -31,7 +32,8 @@ export default class LeadBuyerOutcomeDAO {
                 $[status],
                 $[sold_at],
                 $[sold_price],
-                $[notes]
+                $[notes],
+                $[allow_resell]
             )
             RETURNING *;
         `;
@@ -42,7 +44,8 @@ export default class LeadBuyerOutcomeDAO {
             status: dto.status || 'sold',
             sold_at: dto.sold_at || null,
             sold_price: dto.sold_price || null,
-            notes: dto.notes || null
+            notes: dto.notes || null,
+            allow_resell: dto.allow_resell !== undefined ? dto.allow_resell : true
         });
     }
 

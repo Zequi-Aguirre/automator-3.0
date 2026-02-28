@@ -247,8 +247,8 @@ export default class LeadDAO {
         return { leads, count: total };
     }
 
-    async getLeadsToSendByWorker(buyerId?: string): Promise<Lead[]> {
-        const query = buyerId
+    async getLeadsToSendByWorker(buyerId?: string, buyerPriority?: number): Promise<Lead[]> {
+        const query = buyerId && buyerPriority !== undefined
             ? `
                 SELECT l.*
                 FROM leads l
@@ -262,6 +262,18 @@ export default class LeadDAO {
                     AND sl.status = 'sent'
                     AND sl.deleted IS NULL
                 )
+                -- Exclude leads sold to higher-priority buyers (where allow_resell=false)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM lead_buyer_outcomes lbo
+                    JOIN buyers b ON lbo.buyer_id = b.id
+                    WHERE lbo.lead_id = l.id
+                    AND lbo.status = 'sold'
+                    AND b.priority < $[buyerPriority]
+                    AND lbo.allow_resell = false
+                    AND lbo.deleted_at IS NULL
+                    AND b.deleted_at IS NULL
+                )
                 ORDER BY l.created ASC;
             `
             : `
@@ -272,13 +284,13 @@ export default class LeadDAO {
                 ORDER BY created ASC;
             `;
 
-        return buyerId
-            ? await this.db.manyOrNone<Lead>(query, { buyerId })
+        return buyerId && buyerPriority !== undefined
+            ? await this.db.manyOrNone<Lead>(query, { buyerId, buyerPriority })
             : await this.db.manyOrNone<Lead>(query);
     }
 
-    async getVerifiedLeadsForWorker(buyerId?: string): Promise<Lead[]> {
-        const query = buyerId
+    async getVerifiedLeadsForWorker(buyerId?: string, buyerPriority?: number): Promise<Lead[]> {
+        const query = buyerId && buyerPriority !== undefined
             ? `
                 SELECT l.*
                 FROM leads l
@@ -293,6 +305,18 @@ export default class LeadDAO {
                     AND sl.status = 'sent'
                     AND sl.deleted IS NULL
                 )
+                -- Exclude leads sold to higher-priority buyers (where allow_resell=false)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM lead_buyer_outcomes lbo
+                    JOIN buyers b ON lbo.buyer_id = b.id
+                    WHERE lbo.lead_id = l.id
+                    AND lbo.status = 'sold'
+                    AND b.priority < $[buyerPriority]
+                    AND lbo.allow_resell = false
+                    AND lbo.deleted_at IS NULL
+                    AND b.deleted_at IS NULL
+                )
                 ORDER BY l.created ASC;
             `
             : `
@@ -304,13 +328,13 @@ export default class LeadDAO {
                 ORDER BY created ASC;
             `;
 
-        return buyerId
-            ? await this.db.manyOrNone<Lead>(query, { buyerId })
+        return buyerId && buyerPriority !== undefined
+            ? await this.db.manyOrNone<Lead>(query, { buyerId, buyerPriority })
             : await this.db.manyOrNone<Lead>(query);
     }
 
-    async getUnverifiedLeadsForWorker(buyerId?: string): Promise<Lead[]> {
-        const query = buyerId
+    async getUnverifiedLeadsForWorker(buyerId?: string, buyerPriority?: number): Promise<Lead[]> {
+        const query = buyerId && buyerPriority !== undefined
             ? `
                 SELECT l.*
                 FROM leads l
@@ -325,6 +349,18 @@ export default class LeadDAO {
                     AND sl.status = 'sent'
                     AND sl.deleted IS NULL
                 )
+                -- Exclude leads sold to higher-priority buyers (where allow_resell=false)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM lead_buyer_outcomes lbo
+                    JOIN buyers b ON lbo.buyer_id = b.id
+                    WHERE lbo.lead_id = l.id
+                    AND lbo.status = 'sold'
+                    AND b.priority < $[buyerPriority]
+                    AND lbo.allow_resell = false
+                    AND lbo.deleted_at IS NULL
+                    AND b.deleted_at IS NULL
+                )
                 ORDER BY l.created ASC;
             `
             : `
@@ -336,8 +372,8 @@ export default class LeadDAO {
                 ORDER BY created ASC;
             `;
 
-        return buyerId
-            ? await this.db.manyOrNone<Lead>(query, { buyerId })
+        return buyerId && buyerPriority !== undefined
+            ? await this.db.manyOrNone<Lead>(query, { buyerId, buyerPriority })
             : await this.db.manyOrNone<Lead>(query);
     }
 

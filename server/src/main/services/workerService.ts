@@ -55,6 +55,7 @@ export default class WorkerService {
     async pickLeadForBuyer(buyer: {
         id: string;
         name: string;
+        priority: number;
         requires_validation: boolean;
         delay_same_county: number;
         delay_same_state: number;
@@ -63,14 +64,16 @@ export default class WorkerService {
         states_on_hold: string[];
     }): Promise<Lead> {
         // Get leads based on buyer's validation requirement
-        // Pass buyer.id to exclude leads already sent to this buyer
+        // Pass buyer.id and priority to exclude:
+        // 1. Leads already sent to this buyer
+        // 2. Leads sold to higher-priority buyers (where allow_resell=false)
         const leads = buyer.requires_validation
-            ? await this.leadDAO.getVerifiedLeadsForWorker(buyer.id)
-            : await this.leadDAO.getUnverifiedLeadsForWorker(buyer.id);
+            ? await this.leadDAO.getVerifiedLeadsForWorker(buyer.id, buyer.priority)
+            : await this.leadDAO.getUnverifiedLeadsForWorker(buyer.id, buyer.priority);
 
         if (leads.length === 0) {
             // If no preferred leads, fallback to any available leads
-            const fallbackLeads = await this.leadDAO.getLeadsToSendByWorker(buyer.id);
+            const fallbackLeads = await this.leadDAO.getLeadsToSendByWorker(buyer.id, buyer.priority);
             if (fallbackLeads.length === 0) {
                 throw new Error(`No leads available for ${buyer.name}`);
             }
