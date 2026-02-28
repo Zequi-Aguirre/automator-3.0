@@ -63,13 +63,14 @@ export default class WorkerService {
         states_on_hold: string[];
     }): Promise<Lead> {
         // Get leads based on buyer's validation requirement
+        // Pass buyer.id to exclude leads already sent to this buyer
         const leads = buyer.requires_validation
-            ? await this.leadDAO.getVerifiedLeadsForWorker()
-            : await this.leadDAO.getUnverifiedLeadsForWorker();
+            ? await this.leadDAO.getVerifiedLeadsForWorker(buyer.id)
+            : await this.leadDAO.getUnverifiedLeadsForWorker(buyer.id);
 
         if (leads.length === 0) {
             // If no preferred leads, fallback to any available leads
-            const fallbackLeads = await this.leadDAO.getLeadsToSendByWorker();
+            const fallbackLeads = await this.leadDAO.getLeadsToSendByWorker(buyer.id);
             if (fallbackLeads.length === 0) {
                 throw new Error(`No leads available for ${buyer.name}`);
             }

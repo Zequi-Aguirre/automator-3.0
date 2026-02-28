@@ -247,45 +247,98 @@ export default class LeadDAO {
         return { leads, count: total };
     }
 
-    async getLeadsToSendByWorker(): Promise<Lead[]> {
-        const query = `
-            SELECT *
-            FROM leads
-            WHERE worker_enabled = TRUE
-            AND deleted IS NULL
-            AND sent = FALSE
-            ORDER BY created ASC;
-        `;
+    async getLeadsToSendByWorker(buyerId?: string): Promise<Lead[]> {
+        const query = buyerId
+            ? `
+                SELECT l.*
+                FROM leads l
+                WHERE l.worker_enabled = TRUE
+                AND l.deleted IS NULL
+                -- Exclude leads already successfully sent to THIS buyer
+                AND NOT EXISTS (
+                    SELECT 1 FROM send_log sl
+                    WHERE sl.lead_id = l.id
+                    AND sl.buyer_id = $[buyerId]::uuid
+                    AND sl.status = 'sent'
+                    AND sl.deleted IS NULL
+                )
+                ORDER BY l.created ASC;
+            `
+            : `
+                SELECT *
+                FROM leads
+                WHERE worker_enabled = TRUE
+                AND deleted IS NULL
+                ORDER BY created ASC;
+            `;
 
-        return await this.db.manyOrNone<Lead>(query);
+        return buyerId
+            ? await this.db.manyOrNone<Lead>(query, { buyerId })
+            : await this.db.manyOrNone<Lead>(query);
     }
 
-    async getVerifiedLeadsForWorker(): Promise<Lead[]> {
-        const query = `
-            SELECT *
-            FROM leads
-            WHERE worker_enabled = TRUE
-            AND verified = TRUE
-            AND deleted IS NULL
-            AND sent = FALSE
-            ORDER BY created ASC;
-        `;
+    async getVerifiedLeadsForWorker(buyerId?: string): Promise<Lead[]> {
+        const query = buyerId
+            ? `
+                SELECT l.*
+                FROM leads l
+                WHERE l.worker_enabled = TRUE
+                AND l.verified = TRUE
+                AND l.deleted IS NULL
+                -- Exclude leads already successfully sent to THIS buyer
+                AND NOT EXISTS (
+                    SELECT 1 FROM send_log sl
+                    WHERE sl.lead_id = l.id
+                    AND sl.buyer_id = $[buyerId]::uuid
+                    AND sl.status = 'sent'
+                    AND sl.deleted IS NULL
+                )
+                ORDER BY l.created ASC;
+            `
+            : `
+                SELECT *
+                FROM leads
+                WHERE worker_enabled = TRUE
+                AND verified = TRUE
+                AND deleted IS NULL
+                ORDER BY created ASC;
+            `;
 
-        return await this.db.manyOrNone<Lead>(query);
+        return buyerId
+            ? await this.db.manyOrNone<Lead>(query, { buyerId })
+            : await this.db.manyOrNone<Lead>(query);
     }
 
-    async getUnverifiedLeadsForWorker(): Promise<Lead[]> {
-        const query = `
-            SELECT *
-            FROM leads
-            WHERE worker_enabled = TRUE
-            AND verified = FALSE
-            AND deleted IS NULL
-            AND sent = FALSE
-            ORDER BY created ASC;
-        `;
+    async getUnverifiedLeadsForWorker(buyerId?: string): Promise<Lead[]> {
+        const query = buyerId
+            ? `
+                SELECT l.*
+                FROM leads l
+                WHERE l.worker_enabled = TRUE
+                AND l.verified = FALSE
+                AND l.deleted IS NULL
+                -- Exclude leads already successfully sent to THIS buyer
+                AND NOT EXISTS (
+                    SELECT 1 FROM send_log sl
+                    WHERE sl.lead_id = l.id
+                    AND sl.buyer_id = $[buyerId]::uuid
+                    AND sl.status = 'sent'
+                    AND sl.deleted IS NULL
+                )
+                ORDER BY l.created ASC;
+            `
+            : `
+                SELECT *
+                FROM leads
+                WHERE worker_enabled = TRUE
+                AND verified = FALSE
+                AND deleted IS NULL
+                ORDER BY created ASC;
+            `;
 
-        return await this.db.manyOrNone<Lead>(query);
+        return buyerId
+            ? await this.db.manyOrNone<Lead>(query, { buyerId })
+            : await this.db.manyOrNone<Lead>(query);
     }
 
     async trashLead(leadId: string): Promise<Lead> {

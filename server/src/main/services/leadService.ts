@@ -138,7 +138,8 @@ export default class LeadService {
                 status: "sent"
             });
 
-            const updatedLead = await this.leadDAO.markLeadAsSent(lead.id);
+            // Note: No longer marking lead as sent in leads table
+            // Sent status determined from send_log table
 
             // One-time whitelist consumption
             if (investor && investor.whitelisted) {
@@ -153,10 +154,10 @@ export default class LeadService {
                 });
             }
 
-            return updatedLead;
+            return lead;
 
         } catch (err: any) {
-            await this.leadDAO.markLeadAsSent(lead.id);
+            // Note: No longer marking lead as sent on failure
             const errorResponse = err.response?.data || err.message || "Unknown error";
 
             await this.sendLogDAO.updateLog(log.id, {
