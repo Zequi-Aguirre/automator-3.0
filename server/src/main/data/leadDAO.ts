@@ -260,6 +260,34 @@ export default class LeadDAO {
         return await this.db.manyOrNone<Lead>(query);
     }
 
+    async getVerifiedLeadsForWorker(): Promise<Lead[]> {
+        const query = `
+            SELECT *
+            FROM leads
+            WHERE worker_enabled = TRUE
+            AND verified = TRUE
+            AND deleted IS NULL
+            AND sent = FALSE
+            ORDER BY RANDOM();
+        `;
+
+        return await this.db.manyOrNone<Lead>(query);
+    }
+
+    async getUnverifiedLeadsForWorker(): Promise<Lead[]> {
+        const query = `
+            SELECT *
+            FROM leads
+            WHERE worker_enabled = TRUE
+            AND verified = FALSE
+            AND deleted IS NULL
+            AND sent = FALSE
+            ORDER BY RANDOM();
+        `;
+
+        return await this.db.manyOrNone<Lead>(query);
+    }
+
     async trashLead(leadId: string): Promise<Lead> {
         const query = `
             UPDATE leads

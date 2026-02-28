@@ -52,6 +52,44 @@ export default class WorkerService {
         return filtered[randomIndex];
     }
 
+    /**
+     * Pick lead based on buyer's validation requirement
+     * Prioritizes unverified leads for buyers that don't require validation
+     * Saves verified leads for buyers that require validation
+     */
+    async pickLeadForBuyer(buyer: { requires_validation: boolean; name: string }): Promise<Lead> {
+        // Get leads based on buyer's validation requirement
+        const leads = buyer.requires_validation
+            ? await this.leadDAO.getVerifiedLeadsForWorker()
+            : await this.leadDAO.getUnverifiedLeadsForWorker();
+
+        if (leads.length === 0) {
+            // If no preferred leads, fallback to any available leads
+            const fallbackLeads = await this.leadDAO.getLeadsToSendByWorker();
+            if (fallbackLeads.length === 0) {
+                throw new Error(`No leads available for ${buyer.name}`);
+            }
+
+            const filtered = await this.applyFilters(fallbackLeads);
+            if (filtered.length === 0) {
+                throw new Error(`No leads available for ${buyer.name} after applying filters`);
+            }
+
+            const randomIndex = Math.floor(Math.random() * filtered.length);
+            return filtered[randomIndex];
+        }
+
+        // Apply worker filters
+        const filtered = await this.applyFilters(leads);
+
+        if (filtered.length === 0) {
+            throw new Error(`No ${buyer.requires_validation ? 'verified' : 'unverified'} leads available for ${buyer.name} after applying filters`);
+        }
+
+        const randomIndex = Math.floor(Math.random() * filtered.length);
+        return filtered[randomIndex];
+    }
+
     async trashExpiredLeads(): Promise<number> {
         const settings = await this.workerSettingsDAO.getCurrentSettings();
 
@@ -229,13 +267,14 @@ export default class WorkerService {
         // Send to ALL eligible buyers (Option B)
         for (const buyer of eligibleBuyers) {
             try {
-                // Pick a random lead for this buyer
-                const lead = await this.pickLeadForWorker();
+                // Pick lead based on buyer's validation requirement
+                // Prioritizes unverified for buyers that don't require validation
+                const lead = await this.pickLeadForBuyer(buyer);
 
                 // Send via buyer dispatch service with isWorkerSend=true
                 await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, true);
 
-                console.log(`[Worker] Sent lead ${lead.id} to buyer ${buyer.name} (priority ${buyer.priority})`);
+                console.log(`[Worker] Sent lead ${lead.id} to buyer ${buyer.name} (priority ${buyer.priority}) [verified: ${lead.verified}]`);
                 sendCount++;
             } catch (error) {
                 // Log error but continue to next buyer
