@@ -18,7 +18,6 @@ import {
 import { Cancel, Edit, Save } from '@mui/icons-material';
 import {EditableWorkerSettings, WorkerSettings} from '../../types/settingsTypes';
 import workerSettingsService from '../../services/settings.service.tsx';
-import { US_STATES } from '../../constants/usStates';
 
 type SnackbarState = {
     open: boolean;
@@ -83,14 +82,8 @@ const buildEditableFromSettings = (settings: WorkerSettings): EditableWorkerSett
         name: settings.name ?? "",
         business_hours_start: minutesToHHMM(settings.business_hours_start),
         business_hours_end: minutesToHHMM(settings.business_hours_end),
-        minutes_range_start: settings.minutes_range_start ?? 0,
-        minutes_range_end: settings.minutes_range_end ?? 0,
         expire_after_hours: settings.expire_after_hours ?? 0,
-        delay_same_state: settings.delay_same_state ?? 0,
-        delay_same_county: settings.delay_same_county ?? 0,
-        delay_same_investor: settings.delay_same_investor ?? 0,
-        send_next_lead_at: formatDateTimeLocal(settings.send_next_lead_at),
-        states_on_hold: settings.states_on_hold ?? [],
+        enforce_expiration: settings.enforce_expiration ?? true,
     };
 };
 
@@ -100,14 +93,8 @@ const WorkerSettingsPanel = () => {
         name: '',
         business_hours_start: '',
         business_hours_end: '',
-        minutes_range_start: 0,
-        minutes_range_end: 0,
         expire_after_hours: 0,
-        delay_same_state: 0,
-        delay_same_county: 0,
-        delay_same_investor: 0,
-        send_next_lead_at: '',
-        states_on_hold: [],
+        enforce_expiration: true,
     });
     const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -171,26 +158,11 @@ const WorkerSettingsPanel = () => {
     };
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type } = event.target;
+        const { name, value, type, checked } = event.target;
 
         setEditedSettings((prev) => ({
             ...prev,
-            [name]: type === 'number' ? Number(value) : value,
-        }));
-    };
-
-    const handleStatesOnHoldChange = (
-        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    ) => {
-        const { value } = event.target;
-
-        const values = Array.isArray(value)
-            ? value
-            : value.split(',').map((v) => v.trim()).filter((v) => v.length > 0);
-
-        setEditedSettings((prev) => ({
-            ...prev,
-            states_on_hold: values as string[],
+            [name]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value),
         }));
     };
 
@@ -204,16 +176,8 @@ const WorkerSettingsPanel = () => {
                 name: editedSettings.name,
                 business_hours_start: hhmmToMinutes(editedSettings.business_hours_start),
                 business_hours_end: hhmmToMinutes(editedSettings.business_hours_end),
-                minutes_range_start: editedSettings.minutes_range_start,
-                minutes_range_end: editedSettings.minutes_range_end,
                 expire_after_hours: editedSettings.expire_after_hours,
-                delay_same_state: editedSettings.delay_same_state,
-                delay_same_county: editedSettings.delay_same_county,
-                delay_same_investor: editedSettings.delay_same_investor,
-                send_next_lead_at: editedSettings.send_next_lead_at
-                    ? new Date(editedSettings.send_next_lead_at).toISOString()
-                    : null,
-                states_on_hold: editedSettings.states_on_hold
+                enforce_expiration: editedSettings.enforce_expiration,
             });
 
             setEditMode(false);
@@ -325,34 +289,7 @@ const WorkerSettingsPanel = () => {
                                     InputLabelProps={{ shrink: true }}
                                 />
 
-                                {/* Minutes range */}
-                                <TextField
-                                    fullWidth
-                                    label="Minutes Range Start"
-                                    name="minutes_range_start"
-                                    type="number"
-                                    value={
-                                        editMode
-                                            ? editedSettings.minutes_range_start
-                                            : settings.minutes_range_start
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Minutes Range End"
-                                    name="minutes_range_end"
-                                    type="number"
-                                    value={
-                                        editMode
-                                            ? editedSettings.minutes_range_end
-                                            : settings.minutes_range_end
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                />
-
+                                {/* Expiration */}
                                 <TextField
                                     fullWidth
                                     label="Expire After (hours)"
@@ -365,88 +302,34 @@ const WorkerSettingsPanel = () => {
                                     }
                                     onChange={handleInputChange}
                                     disabled={!editMode}
+                                    helperText="Leads older than this will be trashed if enforcement is enabled"
                                 />
 
-                                {/* Delays */}
-                                <TextField
-                                    fullWidth
-                                    label="Delay Same State (days)"
-                                    name="delay_same_state"
-                                    type="number"
-                                    value={
-                                        editMode
-                                            ? editedSettings.delay_same_state
-                                            : settings.delay_same_state
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Delay Same County (hours)"
-                                    name="delay_same_county"
-                                    type="number"
-                                    value={
-                                        editMode
-                                            ? editedSettings.delay_same_county
-                                            : settings.delay_same_county
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Delay Same Investor (hours)"
-                                    name="delay_same_investor"
-                                    type="number"
-                                    value={
-                                        editMode
-                                            ? editedSettings.delay_same_investor
-                                            : settings.delay_same_investor
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                />
-
-                                {/* Send next lead at */}
-                                <TextField
-                                    fullWidth
-                                    label="Send Next Lead At"
-                                    name="send_next_lead_at"
-                                    type="datetime-local"
-                                    value={
-                                        editMode
-                                            ? editedSettings.send_next_lead_at
-                                            : formatDateTimeLocal(settings.send_next_lead_at ?? null)
-                                    }
-                                    onChange={handleInputChange}
-                                    disabled={!editMode}
-                                    InputLabelProps={{ shrink: true }}
-                                />
-
-                                {/* States on hold */}
                                 <TextField
                                     select
                                     fullWidth
-                                    label="States on Hold"
-                                    name="states_on_hold"
+                                    label="Enforce Expiration"
+                                    name="enforce_expiration"
                                     value={
                                         editMode
-                                            ? editedSettings.states_on_hold
-                                            : settings.states_on_hold ?? []
+                                            ? editedSettings.enforce_expiration
+                                            : settings.enforce_expiration
                                     }
-                                    SelectProps={{ multiple: true }}
-                                    onChange={handleStatesOnHoldChange}
+                                    onChange={handleInputChange}
                                     disabled={!editMode}
+                                    helperText="Toggle automatic deletion of expired leads"
                                 >
-                                    {US_STATES.map((state) => (
-                                        <MenuItem key={state} value={state}>
-                                            {state}
-                                        </MenuItem>
-                                    ))}
+                                    <MenuItem value={true as any}>Enabled</MenuItem>
+                                    <MenuItem value={false as any}>Disabled</MenuItem>
                                 </TextField>
 
                                 {/* Read-only info */}
+                                <TextField
+                                    fullWidth
+                                    label="Worker Enabled"
+                                    value={settings.worker_enabled ? 'Yes' : 'No'}
+                                    disabled
+                                />
                                 <TextField
                                     fullWidth
                                     label="Last Worker Run"
