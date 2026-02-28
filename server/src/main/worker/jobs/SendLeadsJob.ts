@@ -9,13 +9,15 @@ export default class SendLeadsJob {
     ) {}
 
     async execute(): Promise<void> {
-        const ready = await this.workerService.isTimeToSend();
-        if (!ready) {
-            console.log("SendLeadsJob: Not time yet");
-            return;
-        }
+        // Note: Timing check now handled per-buyer in sendNextLead()
+        // No need for global isTimeToSend() check
 
-        const sent = await this.workerService.sendNextLead();
-        console.log(`SendLeadsJob: Sent lead ${sent.id}`);
+        const sendCount = await this.workerService.sendNextLead();
+
+        if (sendCount > 0) {
+            console.log(`[SendLeadsJob] Sent ${sendCount} lead(s) to eligible buyers`);
+        } else {
+            console.log(`[SendLeadsJob] No leads sent (no eligible buyers or no leads available)`);
+        }
     }
 }

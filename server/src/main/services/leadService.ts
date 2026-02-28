@@ -7,7 +7,6 @@ import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
-import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 import { County } from "../types/countyTypes.ts";
 import { Investor } from "../types/investorTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
@@ -32,7 +31,6 @@ export default class LeadService {
         private readonly investorService: InvestorService,
         private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
         private readonly sendLogDAO: SendLogDAO,
-        private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
         private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO
@@ -140,7 +138,8 @@ export default class LeadService {
                 status: "sent"
             });
 
-            const updatedLead = await this.leadDAO.markLeadAsSent(lead.id);
+            // Note: No longer marking lead as sent in leads table
+            // Sent status determined from send_log table
 
             // One-time whitelist consumption
             if (investor && investor.whitelisted) {
@@ -155,10 +154,10 @@ export default class LeadService {
                 });
             }
 
-            return updatedLead;
+            return lead;
 
         } catch (err: any) {
-            await this.leadDAO.markLeadAsSent(lead.id);
+            // Note: No longer marking lead as sent on failure
             const errorResponse = err.response?.data || err.message || "Unknown error";
 
             await this.sendLogDAO.updateLog(log.id, {
@@ -322,9 +321,10 @@ export default class LeadService {
         });
 
         // SETTINGS
-        const settings = await this.workerSettingsDAO.getCurrentSettings();
-        const delaySameInvestorMs = settings.delay_same_investor * 60 * 60 * 1000;
-        const delaySameCountyMs = settings.delay_same_county * 60 * 60 * 1000;
+        // Note: Cooldowns are now per-buyer (not global) and apply during send, not import
+        // Disable cooldown checks during import (set to 0)
+        const delaySameInvestorMs = 0;
+        const delaySameCountyMs = 0;
 
         // LOGS FOR COOLDOWNS
         const investorIds = [...new Set(

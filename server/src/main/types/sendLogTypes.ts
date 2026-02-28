@@ -19,6 +19,7 @@ export interface SendLog {
 
     // For joined queries
     buyer_name?: string;
+    state?: string; // From leads join (for state cooldown queries)
 }
 
 export interface SendLogInsert {

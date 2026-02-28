@@ -1,5 +1,5 @@
--- Migration: Backfill iSpeedToLead buyer and make send_log.buyer_id NOT NULL
--- Description: Creates iSpeedToLead buyer record, backfills all existing send_log entries,
+-- Migration: Create initial buyers (Compass, Sellers, iSpeedToLead) and make send_log.buyer_id NOT NULL
+-- Description: Creates three buyer records with webhooks, backfills all existing send_log entries to iSpeedToLead,
 --              and enforces NOT NULL constraint on buyer_id for zero-downtime migration
 
 -- ========================================
@@ -8,13 +8,79 @@
 
 DO $$
 DECLARE
+    compass_buyer_id UUID;
+    sellers_buyer_id UUID;
     ispeed_buyer_id UUID;
 BEGIN
-    -- Create iSpeedToLead buyer record
-    -- This is the only buyer in the system currently (all existing sends are to iSpeedToLead)
-    -- NOTE: Replace 'PLACEHOLDER_ISPEEDTOLEAD_WEBHOOK_URL' with actual webhook URL
-    -- OR update through admin UI after migration runs
-    -- The URL is currently stored in LEAD_VENDOR_URL environment variable
+    -- Create Compass buyer (Priority 1 - Highest)
+    INSERT INTO buyers (
+        id,
+        name,
+        webhook_url,
+        dispatch_mode,
+        priority,
+        auto_send,
+        allow_resell,
+        requires_validation,
+        min_minutes_between_sends,
+        max_minutes_between_sends,
+        auth_header_name,
+        auth_header_prefix,
+        auth_token_encrypted
+    ) VALUES (
+        gen_random_uuid(),
+        'Compass',
+        'https://hook.us2.make.com/nqghehzuue7f59zu5bf0gaoynel9javf?buyer=Compass',
+        'manual',  -- Manual sends only (high-value buyer)
+        1,  -- Priority 1 (highest)
+        false,  -- No auto-send (manual only)
+        false,  -- Don't allow resell (exclusive)
+        false,  -- No validation required
+        4,
+        11,
+        'Authorization',
+        NULL,
+        NULL
+    )
+    RETURNING id INTO compass_buyer_id;
+
+    RAISE NOTICE 'Created Compass buyer with ID: %', compass_buyer_id;
+
+    -- Create Sellers buyer (Priority 2)
+    INSERT INTO buyers (
+        id,
+        name,
+        webhook_url,
+        dispatch_mode,
+        priority,
+        auto_send,
+        allow_resell,
+        requires_validation,
+        min_minutes_between_sends,
+        max_minutes_between_sends,
+        auth_header_name,
+        auth_header_prefix,
+        auth_token_encrypted
+    ) VALUES (
+        gen_random_uuid(),
+        'Sellers',
+        'https://hook.us2.make.com/nqghehzuue7f59zu5bf0gaoynel9javf?buyer=Sellers',
+        'manual',  -- Manual sends only
+        2,  -- Priority 2
+        false,  -- No auto-send (manual only)
+        false,  -- Don't allow resell (exclusive)
+        false,  -- No validation required
+        4,
+        11,
+        'Authorization',
+        NULL,
+        NULL
+    )
+    RETURNING id INTO sellers_buyer_id;
+
+    RAISE NOTICE 'Created Sellers buyer with ID: %', sellers_buyer_id;
+
+    -- Create iSpeedToLead buyer (Priority 6 - Fallback/Lowest)
     INSERT INTO buyers (
         id,
         name,
@@ -32,17 +98,17 @@ BEGIN
     ) VALUES (
         gen_random_uuid(),
         'iSpeedToLead',
-        'PLACEHOLDER_ISPEEDTOLEAD_WEBHOOK_URL',  -- UPDATE THIS BEFORE RUNNING MIGRATION
-        'worker',
+        'https://hook.us2.make.com/nqghehzuue7f59zu5bf0gaoynel9javf?buyer=iSpeedToLead',
+        'worker',  -- Worker automation only
         6,  -- Priority 6 (fallback/lowest priority)
-        true,
-        true,
-        true,
+        true,  -- Auto-send enabled (worker automation)
+        true,  -- Allow resell (can receive leads sold to others)
+        true,  -- Requires validation
         4,
         11,
         'Authorization',
         NULL,
-        NULL  -- Will be set later through UI if needed
+        NULL
     )
     RETURNING id INTO ispeed_buyer_id;
 
@@ -70,5 +136,5 @@ END $$;
 
 -- To rollback this migration, run:
 -- ALTER TABLE send_log ALTER COLUMN buyer_id DROP NOT NULL;
--- UPDATE send_log SET buyer_id = NULL WHERE buyer_id IN (SELECT id FROM buyers WHERE name = 'iSpeedToLead');
--- DELETE FROM buyers WHERE name = 'iSpeedToLead';
+-- UPDATE send_log SET buyer_id = NULL WHERE buyer_id IN (SELECT id FROM buyers WHERE name IN ('Compass', 'Sellers', 'iSpeedToLead'));
+-- DELETE FROM buyers WHERE name IN ('Compass', 'Sellers', 'iSpeedToLead');

@@ -247,17 +247,134 @@ export default class LeadDAO {
         return { leads, count: total };
     }
 
-    async getLeadsToSendByWorker(): Promise<Lead[]> {
-        const query = `
-            SELECT *
-            FROM leads
-            WHERE verified = TRUE
-            AND deleted IS NULL
-            AND sent = FALSE
-            ORDER BY RANDOM();
-        `;
+    async getLeadsToSendByWorker(buyerId?: string, buyerPriority?: number): Promise<Lead[]> {
+        const query = buyerId && buyerPriority !== undefined
+            ? `
+                SELECT l.*
+                FROM leads l
+                WHERE l.worker_enabled = TRUE
+                AND l.deleted IS NULL
+                -- Exclude leads already successfully sent to THIS buyer
+                AND NOT EXISTS (
+                    SELECT 1 FROM send_log sl
+                    WHERE sl.lead_id = l.id
+                    AND sl.buyer_id = $[buyerId]::uuid
+                    AND sl.status = 'sent'
+                    AND sl.deleted IS NULL
+                )
+                -- Exclude leads sold to higher-priority buyers (where allow_resell=false)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM lead_buyer_outcomes lbo
+                    JOIN buyers b ON lbo.buyer_id = b.id
+                    WHERE lbo.lead_id = l.id
+                    AND lbo.status = 'sold'
+                    AND b.priority < $[buyerPriority]
+                    AND lbo.allow_resell = false
+                    AND lbo.deleted IS NULL
+                    AND b.deleted IS NULL
+                )
+                ORDER BY l.created ASC;
+            `
+            : `
+                SELECT *
+                FROM leads
+                WHERE worker_enabled = TRUE
+                AND deleted IS NULL
+                ORDER BY created ASC;
+            `;
 
-        return await this.db.manyOrNone<Lead>(query);
+        return buyerId && buyerPriority !== undefined
+            ? await this.db.manyOrNone<Lead>(query, { buyerId, buyerPriority })
+            : await this.db.manyOrNone<Lead>(query);
+    }
+
+    async getVerifiedLeadsForWorker(buyerId?: string, buyerPriority?: number): Promise<Lead[]> {
+        const query = buyerId && buyerPriority !== undefined
+            ? `
+                SELECT l.*
+                FROM leads l
+                WHERE l.worker_enabled = TRUE
+                AND l.verified = TRUE
+                AND l.deleted IS NULL
+                -- Exclude leads already successfully sent to THIS buyer
+                AND NOT EXISTS (
+                    SELECT 1 FROM send_log sl
+                    WHERE sl.lead_id = l.id
+                    AND sl.buyer_id = $[buyerId]::uuid
+                    AND sl.status = 'sent'
+                    AND sl.deleted IS NULL
+                )
+                -- Exclude leads sold to higher-priority buyers (where allow_resell=false)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM lead_buyer_outcomes lbo
+                    JOIN buyers b ON lbo.buyer_id = b.id
+                    WHERE lbo.lead_id = l.id
+                    AND lbo.status = 'sold'
+                    AND b.priority < $[buyerPriority]
+                    AND lbo.allow_resell = false
+                    AND lbo.deleted IS NULL
+                    AND b.deleted IS NULL
+                )
+                ORDER BY l.created ASC;
+            `
+            : `
+                SELECT *
+                FROM leads
+                WHERE worker_enabled = TRUE
+                AND verified = TRUE
+                AND deleted IS NULL
+                ORDER BY created ASC;
+            `;
+
+        return buyerId && buyerPriority !== undefined
+            ? await this.db.manyOrNone<Lead>(query, { buyerId, buyerPriority })
+            : await this.db.manyOrNone<Lead>(query);
+    }
+
+    async getUnverifiedLeadsForWorker(buyerId?: string, buyerPriority?: number): Promise<Lead[]> {
+        const query = buyerId && buyerPriority !== undefined
+            ? `
+                SELECT l.*
+                FROM leads l
+                WHERE l.worker_enabled = TRUE
+                AND l.verified = FALSE
+                AND l.deleted IS NULL
+                -- Exclude leads already successfully sent to THIS buyer
+                AND NOT EXISTS (
+                    SELECT 1 FROM send_log sl
+                    WHERE sl.lead_id = l.id
+                    AND sl.buyer_id = $[buyerId]::uuid
+                    AND sl.status = 'sent'
+                    AND sl.deleted IS NULL
+                )
+                -- Exclude leads sold to higher-priority buyers (where allow_resell=false)
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM lead_buyer_outcomes lbo
+                    JOIN buyers b ON lbo.buyer_id = b.id
+                    WHERE lbo.lead_id = l.id
+                    AND lbo.status = 'sold'
+                    AND b.priority < $[buyerPriority]
+                    AND lbo.allow_resell = false
+                    AND lbo.deleted IS NULL
+                    AND b.deleted IS NULL
+                )
+                ORDER BY l.created ASC;
+            `
+            : `
+                SELECT *
+                FROM leads
+                WHERE worker_enabled = TRUE
+                AND verified = FALSE
+                AND deleted IS NULL
+                ORDER BY created ASC;
+            `;
+
+        return buyerId && buyerPriority !== undefined
+            ? await this.db.manyOrNone<Lead>(query, { buyerId, buyerPriority })
+            : await this.db.manyOrNone<Lead>(query);
     }
 
     async trashLead(leadId: string): Promise<Lead> {

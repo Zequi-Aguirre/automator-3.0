@@ -2,6 +2,32 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🎯 CRITICAL: Ticket-Driven Development
+
+**ALWAYS work within the ticket system. This is core behavior.**
+
+**Before ANY work:**
+1. Check `_claude/planning/08_TICKETS.md` for existing tickets
+2. If no ticket exists → Create one in `08_TICKETS.md` or `FUTURE_ENHANCEMENTS.md`
+3. Reference ticket # in ALL commits
+
+**When you find a bug:**
+- Create a ticket documenting it
+- Fix it
+- Mark ticket complete
+
+**When completing work:**
+- Update ticket status in `08_TICKETS.md`
+- Update `CURRENT_SPRINT.md` with what was done
+- Check off acceptance criteria
+
+**When blocked:**
+- Document blocker in ticket
+- Create follow-up ticket if needed
+- Update `CURRENT_SPRINT.md`
+
+**Full behavior details:** See `_claude/context/BEHAVIORAL_CONTEXT.md` → Section 2
+
 ## Project Overview
 
 Automator 2.0 is a Node.js + TypeScript lead automation platform for real estate. It ingests leads via CSV, validates them, applies business rules (blacklists, whitelists, cooldowns), and dispatches them to external vendors (like iSpeedToLead). The system includes a background worker/scheduler, admin dashboard, and multi-vendor support (MVP in development).
@@ -73,7 +99,11 @@ React 18 + Vite + TypeScript with MUI components, Tailwind CSS, and React Contex
 
 - UUID primary keys (`gen_random_uuid()`)
 - Soft deletes: `deleted` timestamptz column (NULL = active)
-- Audit fields: `created`, `modified`, `deleted` timestamps
+- **CRITICAL: Timestamp naming convention**
+  - Audit fields: `created`, `modified`, `deleted` (NO `_at` suffix)
+  - Exception: Only `buyers` and `lead_buyer_outcomes` use `created_at`, `modified_at`, `deleted_at`
+  - For all other tables: Use `created`, `modified`, `deleted` (without `_at`)
+  - Common mistake: Using `deleted_at` instead of `deleted` in queries
 - Migrations in `postgres/migrations/`
 
 ## DAO Contract
@@ -93,9 +123,35 @@ React 18 + Vite + TypeScript with MUI components, Tailwind CSS, and React Contex
 - **JobService** - Scheduler manager connecting job definitions to worker handlers
 - **SettingsService** - Runtime configuration manager for worker timing and scheduling
 
-## Documentation
+## Documentation & Extended Context
 
-Comprehensive AI-generated docs are in `docs/AI/`:
+### Primary Documentation Folder: `_claude/`
+
+**IMPORTANT:** The `_claude/` folder is the **primary source of truth** for project planning, architecture decisions, and sprint tracking. Always check this folder FIRST for broader context.
+
+**Structure:**
+- `_claude/planning/` - **Active sprint planning and tickets**
+  - `README.md` - Overview of buyers refactor plan
+  - `08_TICKETS.md` - All 41 tickets with acceptance criteria
+  - `CURRENT_SPRINT.md` - Current sprint work and completed tasks
+  - `FUTURE_ENHANCEMENTS.md` - Backlog of UI/UX improvements
+  - Other numbered docs (00-10) cover architecture, migration strategy, risks, etc.
+- `_claude/context/` - Project context and reference materials
+- `_claude/archive/` - Completed work and historical decisions
+- `_claude/session/` - Session notes and temporary working files
+
+**When to use `_claude/`:**
+- Starting a new session → Read `_claude/planning/README.md` for current project state
+- Planning work → Check `CURRENT_SPRINT.md` and `08_TICKETS.md`
+- Looking for architectural decisions → Check `_claude/planning/` numbered docs
+- Documenting completed work → Update `CURRENT_SPRINT.md`
+- Adding future tickets → Add to `FUTURE_ENHANCEMENTS.md`
+
+**See `_claude/HOW_TO_USE.md` for complete tutorial on using this folder structure.**
+
+### Legacy Documentation: `docs/AI/`
+
+Older AI-generated docs (may be outdated, refer to `_claude/` for current info):
 - `BASELINE/ARCHITECTURE.md` - Backend architecture baseline
 - `BASELINE/DAO_CONTRACT.md` - DAO responsibilities and patterns
 - `SERVICE_BEHAVIOR_SUMMARY.md` - Detailed service behaviors
