@@ -182,7 +182,8 @@ export default class BuyerDAO {
                 max_minutes_between_sends,
                 auth_header_name,
                 auth_header_prefix,
-                auth_token_encrypted
+                auth_token_encrypted,
+                blocked_affiliate_ids
             )
             VALUES (
                 $[name],
@@ -196,7 +197,8 @@ export default class BuyerDAO {
                 $[max_minutes_between_sends],
                 $[auth_header_name],
                 $[auth_header_prefix],
-                $[auth_token_encrypted]
+                $[auth_token_encrypted],
+                $[blocked_affiliate_ids]
             )
             RETURNING *;
         `;
@@ -213,7 +215,8 @@ export default class BuyerDAO {
             max_minutes_between_sends: dto.max_minutes_between_sends || 11,
             auth_header_name: dto.auth_header_name || 'Authorization',
             auth_header_prefix: dto.auth_header_prefix || null,
-            auth_token_encrypted: authTokenEncrypted
+            auth_token_encrypted: authTokenEncrypted,
+            blocked_affiliate_ids: dto.blocked_affiliate_ids || []
         });
     }
 
@@ -247,6 +250,7 @@ export default class BuyerDAO {
                 auth_header_name = $[auth_header_name],
                 auth_header_prefix = $[auth_header_prefix],
                 auth_token_encrypted = $[auth_token_encrypted],
+                blocked_affiliate_ids = $[blocked_affiliate_ids],
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL
@@ -266,7 +270,8 @@ export default class BuyerDAO {
             max_minutes_between_sends: dto.max_minutes_between_sends ?? existing.max_minutes_between_sends,
             auth_header_name: dto.auth_header_name ?? existing.auth_header_name,
             auth_header_prefix: dto.auth_header_prefix !== undefined ? dto.auth_header_prefix : existing.auth_header_prefix,
-            auth_token_encrypted: authTokenEncrypted
+            auth_token_encrypted: authTokenEncrypted,
+            blocked_affiliate_ids: dto.blocked_affiliate_ids ?? existing.blocked_affiliate_ids
         });
 
         if (!result) {
