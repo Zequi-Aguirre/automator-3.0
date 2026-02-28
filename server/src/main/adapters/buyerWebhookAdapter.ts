@@ -1,3 +1,4 @@
+import { injectable } from 'tsyringe';
 import axios, { AxiosResponse } from 'axios';
 import { BuyerAuthConfig } from '../types/buyerTypes';
 
@@ -8,6 +9,7 @@ export type BuyerWebhookResponse = {
     error?: string;
 };
 
+@injectable()
 export default class BuyerWebhookAdapter {
     private readonly timeout = 15000; // 15 seconds
 
