@@ -48,8 +48,8 @@ export default class WorkerService {
             throw new Error("No leads available after applying worker filters");
         }
 
-        const randomIndex = Math.floor(Math.random() * filtered.length);
-        return filtered[randomIndex];
+        // Return oldest lead (first in array since sorted by created ASC)
+        return filtered[0];
     }
 
     /**
@@ -75,8 +75,8 @@ export default class WorkerService {
                 throw new Error(`No leads available for ${buyer.name} after applying filters`);
             }
 
-            const randomIndex = Math.floor(Math.random() * filtered.length);
-            return filtered[randomIndex];
+            // Return oldest lead (first in array since sorted by created ASC)
+            return filtered[0];
         }
 
         // Apply worker filters
@@ -86,8 +86,8 @@ export default class WorkerService {
             throw new Error(`No ${buyer.requires_validation ? 'verified' : 'unverified'} leads available for ${buyer.name} after applying filters`);
         }
 
-        const randomIndex = Math.floor(Math.random() * filtered.length);
-        return filtered[randomIndex];
+        // Return oldest lead (first in array since sorted by created ASC)
+        return filtered[0];
     }
 
     async trashExpiredLeads(): Promise<number> {

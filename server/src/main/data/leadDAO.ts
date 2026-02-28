@@ -254,7 +254,7 @@ export default class LeadDAO {
             WHERE worker_enabled = TRUE
             AND deleted IS NULL
             AND sent = FALSE
-            ORDER BY RANDOM();
+            ORDER BY created ASC;
         `;
 
         return await this.db.manyOrNone<Lead>(query);
@@ -268,7 +268,7 @@ export default class LeadDAO {
             AND verified = TRUE
             AND deleted IS NULL
             AND sent = FALSE
-            ORDER BY RANDOM();
+            ORDER BY created ASC;
         `;
 
         return await this.db.manyOrNone<Lead>(query);
@@ -282,7 +282,7 @@ export default class LeadDAO {
             AND verified = FALSE
             AND deleted IS NULL
             AND sent = FALSE
-            ORDER BY RANDOM();
+            ORDER BY created ASC;
         `;
 
         return await this.db.manyOrNone<Lead>(query);
