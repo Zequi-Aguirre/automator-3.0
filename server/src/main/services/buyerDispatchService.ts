@@ -51,7 +51,7 @@ export default class BuyerDispatchService {
         }
 
         // Build payload (map lead fields to buyer's expected format)
-        const payload = this.buildPayload(lead, buyer);
+        const payload = this.buildPayload(lead);
 
         // Send to actual webhook (Make.com URLs configured per environment)
         const response: BuyerWebhookResponse = await this.buyerWebhookAdapter.sendToBuyer(
@@ -187,10 +187,9 @@ export default class BuyerDispatchService {
      * Maps lead fields to buyer's expected format
      *
      * @param lead - Lead to transform
-     * @param buyer - Buyer receiving the lead
      * @returns Payload object ready for webhook
      */
-    private buildPayload(lead: Lead, buyer: Buyer): Record<string, any> {
+    private buildPayload(lead: Lead): Record<string, any> {
         return {
             // Lead identifiers
             lead_id: lead.id,
@@ -211,11 +210,7 @@ export default class BuyerDispatchService {
             // Metadata
             imported_at: lead.created,
             verified: lead.verified,
-            investor_id: lead.investor_id,
-
-            // Buyer info for routing in Make.com
-            buyer_name: buyer.name,
-            buyer_id: buyer.id
+            investor_id: lead.investor_id
         };
     }
 }
