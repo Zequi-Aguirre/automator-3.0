@@ -251,8 +251,7 @@ export default class LeadDAO {
         const query = `
             SELECT *
             FROM leads
-            WHERE verified = TRUE
-            AND worker_enabled = TRUE
+            WHERE worker_enabled = TRUE
             AND deleted IS NULL
             AND sent = FALSE
             ORDER BY RANDOM();
