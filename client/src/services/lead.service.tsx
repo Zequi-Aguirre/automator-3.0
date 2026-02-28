@@ -97,6 +97,7 @@ class LeadService {
             buyer_id: string;
             buyer_name: string;
             buyer_priority: number;
+            dispatch_mode: 'manual' | 'worker' | 'both';
             sends: Array<{
                 id: string;
                 status: string;

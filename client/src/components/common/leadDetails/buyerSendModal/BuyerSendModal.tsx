@@ -39,6 +39,7 @@ interface BuyerHistory {
     buyer_id: string;
     buyer_name: string;
     buyer_priority: number;
+    dispatch_mode: 'manual' | 'worker' | 'both';
     sends: Array<{
         id: string;
         status: string;
@@ -116,12 +117,14 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         }
     };
 
+    // Manual buyers: dispatch_mode is 'manual' or 'both'
     const manualBuyers = buyerHistory.filter(b =>
-        b.buyer_name && !b.buyer_name.toLowerCase().includes('ispeed')
+        b.dispatch_mode === 'manual' || b.dispatch_mode === 'both'
     );
 
+    // Worker buyers: dispatch_mode is 'worker' or 'both'
     const workerBuyers = buyerHistory.filter(b =>
-        b.buyer_name && b.buyer_name.toLowerCase().includes('ispeed')
+        b.dispatch_mode === 'worker' || b.dispatch_mode === 'both'
     );
 
     const renderBuyerRow = (buyer: BuyerHistory, isWorkerBuyer: boolean) => {
