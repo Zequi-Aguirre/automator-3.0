@@ -1302,6 +1302,116 @@ The old "Send Now" button in the leads table sent leads to a mock vendor endpoin
 
 ---
 
+### TICKET-048: Fix sold toggle - retrieve and display sold status from lead_buyer_outcomes
+**Type**: Bug Fix
+**Priority**: P0 (Critical)
+**Estimate**: 1 hour
+
+**Problem**:
+- User clicks "Sold" toggle in buyer modal
+- Backend returns 200 (success) and creates outcome record
+- Frontend doesn't show toggle as checked
+- Refresh doesn't show sold status either
+- Toggle is hardcoded to `checked={false}` with TODO comment
+
+**Root Cause**:
+Line 183 in BuyerSendModal.tsx: `checked={false} // TODO: Get sold status from lead_buyer_outcomes`
+
+**Solution**:
+
+1. **Backend**: Update `getBuyerSendHistory` to include sold status
+   - Join with `lead_buyer_outcomes` table
+   - Return `sold: boolean` and `sold_at: timestamp` for each buyer
+   - If outcome exists with status='sold', set sold=true
+
+2. **Frontend**: Use sold status from API response
+   - Update BuyerHistory interface to include `sold: boolean`
+   - Change toggle to `checked={buyer.sold || false}`
+   - Toggle shows correct state on load and after marking sold
+
+**Acceptance Criteria**:
+- [ ] Backend returns sold status in buyer history API
+- [ ] Frontend toggle shows correct sold state on load
+- [ ] Toggle updates immediately after clicking
+- [ ] Sold status persists after page refresh
+- [ ] Can mark as sold and toggle shows checked
+- [ ] TODO comment removed
+
+**Files**:
+- Backend: `server/src/main/services/leadService.ts` (getBuyerSendHistory method)
+- Frontend: `client/src/components/common/leadDetails/buyerSendModal/BuyerSendModal.tsx`
+
+---
+
+### TICKET-049: Implement allow_resell blocking logic
+**Type**: Feature / Bug Fix
+**Priority**: P1 (High)
+**Estimate**: 2 hours
+
+**Problem**:
+- Buyer has `allow_resell=false` (e.g., Compass)
+- Lead is marked as SOLD to that buyer
+- Expected: Should block sending lead to any other buyers
+- Actual: Lead can still be sent to other buyers (no blocking)
+
+**Business Logic**:
+When a lead is sold to a buyer with `allow_resell=false`:
+1. Create outcome record with `status='sold'`
+2. Block all future sends to ANY other buyer
+3. Validation check should prevent sending
+4. UI should show "Sold (exclusive)" or similar indicator
+
+**Implementation**:
+
+1. **Backend Validation** - Update `BuyerDispatchService.canSendToBuyer()`:
+   ```typescript
+   // NEW RULE: Check if sold to non-resellable buyer
+   const outcomes = await this.leadBuyerOutcomeDAO.getByLeadId(leadId);
+   for (const outcome of outcomes) {
+       if (outcome.status === 'sold') {
+           const soldBuyer = await this.buyerDAO.getById(outcome.buyer_id);
+           if (!soldBuyer.allow_resell) {
+               return {
+                   allowed: false,
+                   reason: `Lead sold exclusively to ${soldBuyer.name} (no resale allowed)`
+               };
+           }
+       }
+   }
+   ```
+
+2. **Frontend Display**:
+   - Show "Sold (Exclusive)" badge for buyers with allow_resell=false
+   - Disable "Send" button for all other buyers when sold exclusively
+   - Show tooltip explaining why send is blocked
+
+**Acceptance Criteria**:
+- [ ] When lead sold to buyer with allow_resell=false, cannot send to other buyers
+- [ ] Validation returns clear error message
+- [ ] Frontend shows exclusive sold status
+- [ ] Send buttons disabled for other buyers
+- [ ] Tooltip explains blocking reason
+- [ ] Works for both manual sends and worker sends
+- [ ] If buyer has allow_resell=true, lead can still be sent to others
+
+**Testing**:
+1. Set Compass to `allow_resell=false`
+2. Send lead to Compass
+3. Mark as sold
+4. Try to send to Sellers → Should be blocked
+5. Error: "Lead sold exclusively to Compass (no resale allowed)"
+
+**Files**:
+- Backend: `server/src/main/services/buyerDispatchService.ts`
+- Frontend: `client/src/components/common/leadDetails/buyerSendModal/BuyerSendModal.tsx`
+
+**Notes**:
+- Sold status is manually set (buyers don't auto-report)
+- User clicks "Sold" toggle after confirming sale
+- This prevents accidental double-selling to competing buyers
+
+---
+
 **Status**: 🔴 In Progress - Fixing bugs before Sprint 3
 
 ---
