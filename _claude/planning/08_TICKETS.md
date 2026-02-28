@@ -235,12 +235,12 @@
 ## Sprint 2: Dispatch Logic & Manual Sends (Tickets #11-18)
 
 ### TICKET-011: Create BuyerWebhookAdapter with flexible auth
-**Type**: Backend (Vendor Layer)
+**Type**: Backend (Adapter Layer)
 **Priority**: P0
 **Estimate**: 4 hours
 
 **Tasks**:
-- Create `server/src/main/vendor/buyerWebhookAdapter.ts`
+- Create `server/src/main/adapters/buyerWebhookAdapter.ts`
 - Implement sendToBuyer(url, payload, authConfig)
 - Support flexible headers via auth_header_name, auth_header_prefix, auth_token_encrypted
 - 15-second timeout
@@ -253,7 +253,7 @@
 - [ ] Timeout enforced
 - [ ] Errors preserved for logging
 
-**Files**: `server/src/main/vendor/buyerWebhookAdapter.ts`
+**Files**: `server/src/main/adapters/buyerWebhookAdapter.ts`
 
 ---
 
