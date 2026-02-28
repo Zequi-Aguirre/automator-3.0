@@ -70,8 +70,9 @@ const AdminBuyersSection = () => {
             const res = await buyerService.getAll({ page, limit });
             setBuyers(res.items);
             setCount(res.count);
-        } catch (error) {
-            setSnack({ open: true, message: "Failed to fetch buyers", severity: "error" });
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to fetch buyers: ${errorMessage}`, severity: "error" });
         } finally {
             setLoading(false);
         }
@@ -126,7 +127,12 @@ const AdminBuyersSection = () => {
     const handleSave = async () => {
         try {
             if (editingBuyer) {
-                await buyerService.update(editingBuyer.id, formData);
+                // Don't send auth_token if it's empty (preserve existing token)
+                const updateData = { ...formData };
+                if (!updateData.auth_token) {
+                    delete updateData.auth_token;
+                }
+                await buyerService.update(editingBuyer.id, updateData);
                 setSnack({ open: true, message: "Buyer updated successfully", severity: "success" });
             } else {
                 await buyerService.create(formData as BuyerCreateDTO);
@@ -134,10 +140,12 @@ const AdminBuyersSection = () => {
             }
             handleCloseDialog();
             fetchBuyers();
-        } catch (error) {
+        } catch (error: any) {
+            // Extract actual error message from backend response
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
             setSnack({
                 open: true,
-                message: `Failed to ${editingBuyer ? 'update' : 'create'} buyer: ${error}`,
+                message: `Failed to ${editingBuyer ? 'update' : 'create'} buyer: ${errorMessage}`,
                 severity: "error"
             });
         }
@@ -150,8 +158,9 @@ const AdminBuyersSection = () => {
             await buyerService.delete(id);
             setSnack({ open: true, message: "Buyer deleted successfully", severity: "success" });
             fetchBuyers();
-        } catch (error) {
-            setSnack({ open: true, message: `Failed to delete buyer: ${error}`, severity: "error" });
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to delete buyer: ${errorMessage}`, severity: "error" });
         }
     };
 

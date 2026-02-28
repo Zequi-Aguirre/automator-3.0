@@ -118,10 +118,15 @@ export default class BuyerService {
             throw new Error("webhook_url must be a valid URL");
         }
 
-        // Validation: priority unique (checked by database constraint, but we can validate first)
+        // Auto-assign next available priority if there's a conflict
         const existingBuyers = await this.buyerDAO.getByPriority();
         if (existingBuyers.some(b => b.priority === dto.priority)) {
-            throw new Error(`Priority ${dto.priority} is already in use`);
+            // Find next available priority
+            const maxPriority = Math.max(...existingBuyers.map(b => b.priority), 0);
+            const nextAvailable = maxPriority + 1;
+            throw new Error(
+                `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
+            );
         }
 
         try {
@@ -169,7 +174,11 @@ export default class BuyerService {
         if (dto.priority !== undefined && dto.priority !== existing.priority) {
             const existingBuyers = await this.buyerDAO.getByPriority();
             if (existingBuyers.some(b => b.priority === dto.priority)) {
-                throw new Error(`Priority ${dto.priority} is already in use`);
+                const maxPriority = Math.max(...existingBuyers.map(b => b.priority), 0);
+                const nextAvailable = maxPriority + 1;
+                throw new Error(
+                    `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
+                );
             }
         }
 
