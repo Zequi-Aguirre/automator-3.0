@@ -15,6 +15,7 @@ ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_investor_id_fkey;
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_vendor_id_fkey;
 
 -- Step 2: Drop foreign key constraints on send_log table
+ALTER TABLE send_log DROP CONSTRAINT IF EXISTS send_log_investor_id_fkey;
 ALTER TABLE send_log DROP CONSTRAINT IF EXISTS send_log_vendor_id_fkey;
 
 -- Step 3: Drop columns from leads table
@@ -22,6 +23,7 @@ ALTER TABLE leads DROP COLUMN IF EXISTS investor_id;
 ALTER TABLE leads DROP COLUMN IF EXISTS vendor_id;
 
 -- Step 4: Drop columns from send_log table
+ALTER TABLE send_log DROP COLUMN IF EXISTS investor_id;
 ALTER TABLE send_log DROP COLUMN IF EXISTS vendor_id;
 
 -- Step 5: Drop tables
@@ -70,6 +72,7 @@ ALTER TABLE leads ADD COLUMN investor_id UUID;
 ALTER TABLE leads ADD COLUMN vendor_id UUID;
 
 -- Recreate columns on send_log
+ALTER TABLE send_log ADD COLUMN investor_id UUID;
 ALTER TABLE send_log ADD COLUMN vendor_id UUID;
 
 -- Recreate foreign keys
@@ -80,6 +83,10 @@ FOREIGN KEY (investor_id) REFERENCES public.investors(id) ON DELETE SET NULL;
 ALTER TABLE leads
 ADD CONSTRAINT leads_vendor_id_fkey
 FOREIGN KEY (vendor_id) REFERENCES vendors(id);
+
+ALTER TABLE send_log
+ADD CONSTRAINT send_log_investor_id_fkey
+FOREIGN KEY (investor_id) REFERENCES public.investors(id) ON DELETE SET NULL;
 
 ALTER TABLE send_log
 ADD CONSTRAINT send_log_vendor_id_fkey
