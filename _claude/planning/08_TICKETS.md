@@ -967,6 +967,94 @@ When leads are sold to buyers, buyers may dispute them later (wrong lead, bad da
 - Migration: `postgres/migrations/YYYYMMDD_add_dispute_tracking.sql`
 - Backend: `server/src/main/services/leadService.ts`, `server/src/main/resources/leadResource.ts`
 - Frontend: `client/src/components/common/leadDetails/buyerSendModal/DisputeModal.tsx`
+
+---
+
+### TICKET-043: Refactor BuyerSendModal to paginated table with backend filtering
+**Type**: Full Stack Refactor
+**Priority**: P2 (Future Enhancement)
+**Estimate**: 12 hours
+
+**Background**:
+Current implementation fetches ALL buyers and filters client-side. This is inefficient and doesn't scale. Modal should be a proper data table with pagination, search, and filters - similar to the "counties beats" feature in the other product.
+
+**Current Problems**:
+- Frontend fetches all buyers, then filters by dispatch_mode (inefficient)
+- No pagination (won't scale with many buyers)
+- No search/filter capabilities
+- Hard to find specific buyer
+- Can't manually send to worker-only buyers (may want to override automation)
+
+**Desired Features**:
+1. **Backend Filtering**:
+   - API should accept filters: `dispatch_mode`, `search`, `page`, `limit`
+   - Return paginated results with count
+   - Filter on backend, not frontend
+
+2. **Table UI** (like counties beats):
+   - MUI DataGrid or similar table component
+   - Columns: Buyer Name, Priority, Dispatch Mode, Send Count, Last Sent, Actions
+   - Pagination controls (rows per page, page navigation)
+   - Search bar (filter by buyer name)
+   - Tabs or filter dropdown for dispatch_mode
+
+3. **Dispatch Mode Handling**:
+   - Show ALL buyers (manual, worker, both)
+   - User can manually send to any buyer (including worker-only as override)
+   - Visual indicators for dispatch mode (chips/badges)
+
+4. **Actions Column**:
+   - Send button (with loading state)
+   - Sold toggle (creates outcome record)
+   - View send history (expandable row or modal)
+
+5. **Enable Worker Button**:
+   - Keep at bottom/top of modal
+   - Sets worker_enabled=true for automated processing
+
+**Action Items**:
+- [ ] **USER**: Open Claude Code in other project with counties beats feature
+- [ ] **USER**: Ask Claude to explain implementation (table, pagination, filters)
+- [ ] **USER**: Provide implementation details to Claude for this project
+- [ ] **DEV**: Update API endpoint to accept filters and return paginated buyers
+- [ ] **DEV**: Replace simple list UI with MUI DataGrid table
+- [ ] **DEV**: Add search bar and dispatch_mode filter
+- [ ] **DEV**: Implement pagination controls
+- [ ] **DEV**: Keep send/sold/worker actions functional
+
+**Backend Changes**:
+- Update `GET /api/leads/:id/buyers` to accept query params:
+  - `page`, `limit` (pagination)
+  - `search` (buyer name filter)
+  - `dispatch_mode` (optional filter: 'manual', 'worker', 'both')
+- Return: `{ buyers: [], count: number }`
+
+**Frontend Changes**:
+- Replace `BuyerSendModal` list UI with MUI DataGrid
+- Add search input (debounced)
+- Add pagination controls
+- Add dispatch_mode filter/tabs
+- Fetch data on page/filter change
+
+**Acceptance Criteria**:
+- [ ] Backend filters buyers before returning (not client-side)
+- [ ] Pagination works (10/25/50 rows per page)
+- [ ] Search filters by buyer name
+- [ ] Can filter by dispatch_mode
+- [ ] Send, Sold, and Enable Worker actions still work
+- [ ] Performance: Fast even with 100+ buyers
+
+**Dependencies**:
+- Reference implementation from counties beats feature in other project
+
+**Files**:
+- Backend: `server/src/main/services/leadService.ts`, `server/src/main/resources/leadResource.ts`
+- Frontend: `client/src/components/common/leadDetails/buyerSendModal/BuyerSendModal.tsx`
+
+**Notes**:
+- Current simple implementation works for MVP (10-20 buyers)
+- This refactor needed when scaling to many buyers or need advanced filtering
+- User will provide reference implementation from other project
 - Consider using libraries like react-beautiful-dnd or SortableJS
 
 **Files**: `client/src/components/admin/adminBuyersSection/AdminBuyersSection.tsx`
