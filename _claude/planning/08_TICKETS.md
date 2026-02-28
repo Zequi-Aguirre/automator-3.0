@@ -1061,6 +1061,251 @@ Current implementation fetches ALL buyers and filters client-side. This is ineff
 
 ---
 
+### TICKET-044: Fix CSV state validation - clean state values before enum validation
+**Type**: Backend Bug Fix (QA - Sprint 2)
+**Priority**: P0 (Critical)
+**Estimate**: 30 minutes
+
+**Background**:
+During QA testing, CSV import failed with error:
+```
+error: invalid input value for enum us_state: "GA."
+```
+CSV files have state values with trailing periods (e.g., "GA.", "TX.") but the database us_state enum expects clean values ("GA", "TX"). Need to normalize/clean state values before validation.
+
+**Tasks**:
+- Update CSV parsing middleware to clean state values
+- Trim whitespace and remove trailing periods
+- Apply cleaning before enum validation
+- Test with sample CSV containing "GA.", "TX.", etc.
+
+**Acceptance Criteria**:
+- [ ] CSV with "GA." imports successfully as "GA"
+- [ ] State values are trimmed and normalized
+- [ ] No database enum errors
+- [ ] Existing clean state values still work
+
+**Files**:
+- `server/src/main/middleware/parseAndValidateCSV.ts`
+
+---
+
+### TICKET-045: Fix frontend upload modal error handling
+**Type**: Frontend Bug Fix (QA - Sprint 2)
+**Priority**: P0 (Critical)
+**Estimate**: 45 minutes
+
+**Background**:
+During QA testing, when CSV import fails on backend (e.g., due to validation errors), the frontend upload modal:
+- Keeps showing loading spinner indefinitely
+- Doesn't display error message to user
+- Doesn't allow retry or close
+- User has to refresh page to recover
+
+**Current Behavior**:
+1. User uploads CSV
+2. Backend returns 400/500 error with message
+3. Frontend catches error but doesn't update UI
+4. Modal stays in loading state forever
+
+**Expected Behavior**:
+1. User uploads CSV
+2. Backend returns error
+3. Frontend shows error message (alert/snackbar)
+4. Loading stops
+5. User can close modal and retry
+
+**Tasks**:
+- Find CSV upload modal component
+- Add error state handling to catch failed API responses
+- Stop loading spinner on error
+- Display error message to user (MUI Alert or Snackbar)
+- Allow user to close modal and retry upload
+- Test with intentionally failing CSV
+
+**Acceptance Criteria**:
+- [ ] Error messages are displayed to user
+- [ ] Loading spinner stops on error
+- [ ] Modal can be closed after error
+- [ ] User can retry upload after error
+- [ ] Success case still works
+
+**Files**:
+- `client/src/components/*/UploadCSVModal.tsx` (or similar - need to locate)
+
+---
+
+## QA Session - Sprint 2
+
+**Date**: 2026-02-28
+**Branch**: `qa-sprint-2-bug-fixes`
+**Scope**: Test all Sprint 2 functionality (buyer dispatch system, modal, worker columns)
+
+### Bugs Found:
+1. **TICKET-044**: CSV import crashes with "invalid input value for enum us_state: 'GA.'" - state values have trailing periods
+2. **TICKET-045**: Frontend upload modal doesn't show errors, keeps loading indefinitely when backend fails
+
+### Testing Notes:
+- CSV sample file has states like "GA.", "TX." with periods
+- Backend validation rejects these as invalid enum values
+- Frontend error handling missing in upload flow
+
+**Status**: 🔴 In Progress - Fixing bugs before Sprint 3
+
+---
+
+### TICKET-046: Implement affiliate-specific API key authentication for lead intake
+**Type**: Full Stack Feature
+**Priority**: P1 (High)
+**Estimate**: 4 hours
+
+**Background**:
+Currently, the `/api/leads-intake` endpoint uses a single global API key (`LEAD_INTAKE_API_KEY` from Doppler) for authentication. This doesn't allow tracking which affiliate sent each lead or provide per-affiliate access control.
+
+**Requirements**:
+Each affiliate should have their own unique API key. When a lead comes via the intake API:
+1. Extract `x-api-key` header
+2. Look up affiliate by API key
+3. Authenticate the request
+4. Associate the lead with that affiliate (via campaign_id)
+5. Track which affiliate sent the lead for reporting/analytics
+
+**Database Changes**:
+Add API key field to affiliates or campaigns table:
+```sql
+-- Option A: Add to affiliates table
+ALTER TABLE affiliates ADD COLUMN api_key_encrypted TEXT;
+CREATE UNIQUE INDEX idx_affiliates_api_key ON affiliates(api_key_encrypted) WHERE deleted IS NULL;
+
+-- Option B: Add to campaigns table (more granular)
+ALTER TABLE campaigns ADD COLUMN api_key_encrypted TEXT;
+CREATE UNIQUE INDEX idx_campaigns_api_key ON campaigns(api_key_encrypted) WHERE deleted IS NULL;
+```
+
+**Backend Changes**:
+1. Update `apiKeyAuth.ts` middleware:
+   - Remove check for `LEAD_INTAKE_API_KEY`
+   - Query affiliates/campaigns table by API key
+   - Attach affiliate/campaign info to `req` object
+   - Return 401 if API key not found
+
+2. Update `leadIntakeResource.ts`:
+   - Get affiliate/campaign from `req` (set by middleware)
+   - Pass to `leadService.importLeadsFromApi()`
+   - Associate leads with affiliate's campaign
+
+3. Update `leadService.importLeadsFromApi()`:
+   - Accept `campaign_id` parameter
+   - Set `campaign_id` on created leads
+   - This also sets `affiliate_id` via campaign relationship
+
+**Frontend Changes**:
+1. Add API key management to admin panel:
+   - Affiliates/Campaigns admin page
+   - "Generate API Key" button
+   - Show/copy/regenerate API key
+   - Encrypt before storing in database
+
+2. Display API key to affiliate (one-time show):
+   - Modal: "Your API key: XXXXX - Save this now, you won't see it again"
+   - Copy to clipboard button
+
+**Security Considerations**:
+- API keys stored encrypted (application-level AES-256, like buyer auth tokens)
+- Use cryptographically secure random generation (Node crypto)
+- Consider key rotation/expiration (future enhancement)
+- Rate limiting per affiliate (future enhancement)
+
+**Acceptance Criteria**:
+- [ ] Each affiliate/campaign can have unique API key
+- [ ] API key can be generated/regenerated via admin UI
+- [ ] Lead intake endpoint authenticates by API key
+- [ ] Leads are associated with correct affiliate/campaign
+- [ ] Invalid API key returns 401 Unauthorized
+- [ ] API keys are encrypted in database
+- [ ] Can track which affiliate sent each lead
+
+**Testing**:
+- Generate API key for test affiliate
+- Send lead via intake endpoint with affiliate's API key
+- Verify lead is associated with correct affiliate/campaign
+- Try with invalid API key → should fail with 401
+- Regenerate API key → old key should stop working
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_affiliate_api_keys.sql`
+- Backend: `server/src/main/middleware/apiKeyAuth.ts`, `server/src/main/resources/leadIntakeResource.ts`, `server/src/main/services/leadService.ts`
+- Frontend: `client/src/components/admin/adminAffiliatesSection/` or `adminCampaignsSection/`
+
+**Dependencies**:
+- Encryption utility (reuse buyer auth encryption logic)
+- Admin UI for affiliates/campaigns management
+
+**Notes**:
+- For now, using a TODO bypass to allow testing without authentication
+- This ticket must be completed before production launch
+- Consider whether API keys belong on affiliates or campaigns table (campaigns = more granular)
+
+---
+
+### TICKET-047: Remove legacy "Send Now" button and vendor receive mock system
+**Type**: Code Cleanup
+**Priority**: P1 (High)
+**Estimate**: 1 hour
+
+**Background**:
+The old "Send Now" button in the leads table sent leads to a mock vendor endpoint that stored data in `vendor_receive` table. This is now obsolete because:
+- Replaced by buyer dispatch system (send via Buyers modal)
+- Should send to specific buyers, not generic vendor endpoint
+- Mock data cluttering database
+
+**Frontend Removal**:
+1. Remove "Send Now" column from LeadsTable
+   - Remove column definition
+   - Remove `handleSendLead` function
+   - Remove `sendLead` service call
+   - Keep "Verify Lead" button (still needed for unverified leads)
+
+2. Update lead.service.tsx
+   - Remove `sendLead()` method (replaced by `sendLeadToBuyer()`)
+
+**Backend Removal**:
+1. Remove vendor receive files:
+   - `server/src/main/data/vendorReceiveDAO.ts`
+   - `server/src/main/services/vendorReceiveService.ts`
+   - `server/src/main/resources/vendorReceiveResource.ts`
+
+2. Update AutomatorServer.ts
+   - Remove vendorReceiveResource registration
+   - Remove vendorReceiveService/DAO from container
+
+3. Database cleanup (optional - can wait for Sprint 6):
+   - Drop `vendor_receive` table (if it exists)
+   - Part of investor/vendor deprecation in Sprint 6
+
+**Acceptance Criteria**:
+- [ ] "Send Now" column removed from leads table UI
+- [ ] Verify button still works for unverified leads
+- [ ] Buyers modal is the only way to send leads
+- [ ] vendorReceive files deleted
+- [ ] Build succeeds without errors
+- [ ] No imports referencing deleted files
+
+**Files**:
+- Frontend: `client/src/components/common/leadsSection/leadsTable/LeadsTable.tsx`, `client/src/services/lead.service.tsx`
+- Backend: `server/src/main/data/vendorReceiveDAO.ts`, `server/src/main/services/vendorReceiveService.ts`, `server/src/main/resources/vendorReceiveResource.ts`, `server/src/main/AutomatorServer.ts`
+
+**Notes**:
+- User verified this is no longer needed during QA
+- The buyer dispatch system is the replacement
+- Database table can be dropped in Sprint 6 with other cleanup
+
+---
+
+**Status**: 🔴 In Progress - Fixing bugs before Sprint 3
+
+---
+
 ## Ticket Summary
 
 | Sprint | Tickets | Total Hours | Risk Level |

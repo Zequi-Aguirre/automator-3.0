@@ -65,13 +65,21 @@ export default function ImportLeadsDialog({open, onClose, onSuccess}: Props) {
         const form = new FormData();
         form.append('file', file, file.name);
 
-        // Optional: include flags to let backend know to run filters immediately
-        // form.append('applyFilters', 'true');
+        try {
+            // Optional: include flags to let backend know to run filters immediately
+            // form.append('applyFilters', 'true');
 
-        const res = await LeadsService.importLeads(form);
-        onSuccess({imported: res?.imported, rejected: res?.rejected, errors: res?.errors});
-        reset();
-        onClose();
+            const res = await LeadsService.importLeads(form);
+            onSuccess({imported: res?.imported, rejected: res?.rejected, errors: res?.errors});
+            reset();
+            onClose();
+        } catch (err: any) {
+            setBusy(false);
+            const errorMessage = err.response?.data?.message
+                || err.message
+                || 'Failed to import CSV. Please check the file format and try again.';
+            setError(errorMessage);
+        }
     };
 
     return (

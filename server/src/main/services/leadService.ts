@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
 import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
-import { parseCsvToLeads, splitName, cleanPhone } from "../middleware/parseCsvToLeads.ts";
+import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
 import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
@@ -417,7 +417,7 @@ export default class LeadService {
                 email,
                 address: p.address,
                 city: p.city,
-                state: (p.state || "").toUpperCase(),
+                state: cleanState(p.state || ""),
                 zipcode: p.zip_code || "",
                 county: p.county || "",
                 county_id: undefined,
@@ -475,6 +475,30 @@ export default class LeadService {
                             e instanceof Error ? e.message : "Unknown error"
                         }`
                     );
+                }
+            }
+        }
+
+        // Auto-send to buyers with auto_send=true
+        const autoSendBuyers = await this.buyerDAO.getAutoSendBuyers();
+        if (autoSendBuyers.length > 0) {
+            const successfulLeads = insertResults
+                .filter(r => r.success && r.lead)
+                .map(r => r.lead!);
+
+            for (const lead of successfulLeads) {
+                for (const buyer of autoSendBuyers) {
+                    try {
+                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+                    } catch (e) {
+                        // Log auto-send errors but don't fail the import
+                        console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
+                        errors.push(
+                            `Auto-send to ${buyer.name} failed for lead ${lead.id}: ${
+                                e instanceof Error ? e.message : "Unknown error"
+                            }`
+                        );
+                    }
                 }
             }
         }

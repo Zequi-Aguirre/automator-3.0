@@ -34,14 +34,6 @@ class LeadService {
         return response.data;
     }
 
-    // Send lead by id with oldDatabase support
-    async sendLead(
-        leadId: string
-    ): Promise<{ success: boolean; message: string }> {
-        const response = await this.api.getApi().patch(`/api/worker/admin/send-now/${leadId}`);
-        return response.data;
-    }
-
     // Trash lead by id with oldDatabase support
     async trashLead(
         leadId: string

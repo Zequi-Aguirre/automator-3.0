@@ -1,5 +1,4 @@
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
-import type { ButtonProps } from "@mui/material/Button";
 import { Button, Snackbar, Alert, Typography, IconButton, Badge, Chip } from "@mui/material";
 import { Groups as GroupsIcon, PlayArrow as PlayArrowIcon } from "@mui/icons-material";
 import { Lead } from "../../../../types/leadTypes.ts";
@@ -25,7 +24,6 @@ interface LeadsTableProps {
 
 const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     const navigate = useNavigate();
-    const [loadingLeads, setLoadingLeads] = useState<Record<string, boolean>>({});
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: "",
@@ -103,25 +101,6 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             setSelectedLead(updatedLead);
         } catch (error) {
             console.error("Error refreshing lead:", error);
-        }
-    };
-
-    const handleSendLead = async (leadId: string) => {
-        setLoadingLeads((prev) => ({ ...prev, [leadId]: true }));
-        try {
-            const sendLeadResponse = await leadsService.sendLead(leadId);
-            if (sendLeadResponse.success) {
-                setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
-                showNotification("Lead sent successfully", "success");
-            } else {
-                setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadId));
-                showNotification(sendLeadResponse.message || "Failed to send lead", "error");
-            }
-        } catch (error) {
-            showNotification("Failed to send lead", "error");
-            console.error("Error sending the lead:", error);
-        } finally {
-            setLoadingLeads((prev) => ({ ...prev, [leadId]: false }));
         }
     };
 
@@ -253,36 +232,20 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             },
         },
         {
-            field: "daySent",
-            headerName: "Send | Verify",
-            flex: 1.2,
+            field: "verified",
+            headerName: "Verify",
+            flex: 1,
             sortable: false,
             filterable: false,
             renderCell: (params: GridRenderCellParams) => {
-                // If already sent, show the timestamp as before
-                if (params.value) {
-                    return (
-                        <div className="flex flex-col">
-                            <Typography variant="body2">{params.value.date}</Typography>
-                            <Typography variant="body2">{params.value.time}</Typography>
-                        </div>
-                    );
-                }
-
-                const isLoading: boolean = loadingLeads[params.row.id];
                 const isVerified: boolean = !!params.row.raw?.verified;
 
-                // Use MUI’s own type so we can use "warning"
-                const buttonColor: ButtonProps["color"] = isVerified
-                    ? (isLoading ? "error" : "primary")
-                    : "warning";
-
-                // If not verified, show the verify button that navigates to Details
+                // If not verified, show verify button
                 if (!isVerified) {
                     return (
                         <Button
                             variant="contained"
-                            color={buttonColor}
+                            color="warning"
                             size="small"
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -294,20 +257,13 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                     );
                 }
 
-                // Verified but not sent: show Send Now
+                // Verified: show checkmark
                 return (
-                    <Button
-                        variant="contained"
-                        color={buttonColor}
+                    <Chip
+                        label="Verified"
+                        color="success"
                         size="small"
-                        disabled={isLoading || params.row.raw?.sent}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleSendLead(params.row.id);
-                        }}
-                    >
-                        {isLoading ? "Processing..." : "Send Now!"}
-                    </Button>
+                    />
                 );
             },
         },
