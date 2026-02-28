@@ -79,12 +79,12 @@
 
 ## 🎯 CURRENT STATUS
 
-**Active Ticket**: TICKET-001 COMPLETED ✅
-**Current Branch**: ticket-001-create-buyers-table (pushed)
-**Last Action**: Created and tested buyers + lead_buyer_outcomes tables
+**Active Ticket**: TICKET-008 COMPLETED ✅
+**Current Branch**: ticket-008-buyer-resource (pushed)
+**Last Action**: Created BuyerResource API with full CRUD endpoints
 **Blockers**: None
 
-**Next Action**: Create PR for TICKET-001, then start TICKET-002
+**Next Action**: Wait for PR#16 merge, then start TICKET-009 & TICKET-010 (Frontend)
 
 ---
 
@@ -95,58 +95,65 @@
 - [x] **TICKET-001**: Create buyers table migration with timing columns
   - **Status**: ✅ COMPLETED
   - **Branch**: ticket-001-create-buyers-table
-  - **PR**: https://github.com/Anphanbuys/automator_2/pull/new/ticket-001-create-buyers-table
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/13
   - **Completed**: 2024-02-27 11:35 PM PST
   - **Notes**: Migration tested locally, both tables created with all indexes and constraints
 
-- [ ] **TICKET-002**: Extend send_log and leads tables
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-002**: Extend send_log and leads tables
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-001-create-buyers-table
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/13
+  - **Completed**: 2024-02-27 11:45 PM PST
+  - **Notes**: Added buyer_id to send_log and worker_enabled to leads, merged with TICKET-001
 
-- [ ] **TICKET-003**: Create BuyerDAO with encryption utilities
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-002.5**: Backfill iSpeedToLead buyer and make buyer_id NOT NULL
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-006-types-and-service
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/15
+  - **Completed**: 2024-02-28 12:30 AM PST
+  - **Notes**: Zero-downtime migration - created iSpeedToLead buyer, backfilled all send_log entries, made buyer_id required
 
-- [ ] **TICKET-004**: Create LeadBuyerOutcomeDAO
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-003**: Create BuyerDAO with encryption utilities
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-003-buyer-daos
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/14
+  - **Completed**: 2024-02-28 12:15 AM PST
+  - **Notes**: Implemented with AES-256-CBC encryption, all CRUD methods, soft-delete filtering
 
-- [ ] **TICKET-005**: Create buyerTypes.ts and leadBuyerOutcomeTypes.ts
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-004**: Create LeadBuyerOutcomeDAO
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-003-buyer-daos
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/14
+  - **Completed**: 2024-02-28 12:15 AM PST
+  - **Notes**: Many-to-many sold status tracking, merged with TICKET-003
 
-- [ ] **TICKET-006**: Update sendLogTypes.ts and leadTypes.ts
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-005**: Create buyerTypes.ts and leadBuyerOutcomeTypes.ts
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-003-buyer-daos
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/14
+  - **Completed**: 2024-02-28 12:15 AM PST
+  - **Notes**: Created as part of DAO implementation in PR#14
 
-- [ ] **TICKET-007**: Create BuyerService
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-006**: Update sendLogTypes.ts and leadTypes.ts
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-006-types-and-service
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/15
+  - **Completed**: 2024-02-28 12:25 AM PST
+  - **Notes**: Added buyer_id (required) and buyer_name to SendLog, added worker_enabled to Lead
 
-- [ ] **TICKET-008**: Create BuyerResource (API)
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-007**: Create BuyerService
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-006-types-and-service
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/15
+  - **Completed**: 2024-02-28 12:25 AM PST
+  - **Notes**: Full CRUD with validation (priority unique, URL valid, min < max timing)
+
+- [x] **TICKET-008**: Create BuyerResource (API)
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-008-buyer-resource
+  - **PR**: (pending)
+  - **Completed**: 2024-02-28 1:00 AM PST
+  - **Notes**: Full REST API with admin auth, auth_token_encrypted masked in responses
 
 - [ ] **TICKET-009**: Create frontend buyerService.ts
   - **Status**: NOT STARTED
@@ -282,16 +289,16 @@ This will load:
 
 ## 📊 PROGRESS TRACKER
 
-**Total Tickets**: 40
-**Completed**: 1
+**Total Tickets**: 40 (+ 1 bonus migration)
+**Completed**: 8 + bonus
 **In Progress**: 0
-**Remaining**: 39
+**Remaining**: 32
 
 **Estimated Completion**: 3 days (hackathon weekend)
 
 ### Sprint Progress
 
-- [ ] Sprint 1: Foundation & Admin UI (0/10 tickets)
+- [ ] Sprint 1: Foundation & Admin UI (8/10 tickets - 80% complete)
 - [ ] Sprint 2: Dispatch Logic & Manual Sends (0/8 tickets)
 - [ ] Sprint 3: iSpeedToLead Migration (0/2 tickets)
 - [ ] Sprint 4: Worker Switchover (0/5 tickets) ⚠️ HIGH RISK
@@ -340,4 +347,4 @@ This will load:
 
 **Ready to build! 💪**
 
-Last update: 2024-02-27 11:15 PM PST
+Last update: 2024-02-28 1:00 AM PST
