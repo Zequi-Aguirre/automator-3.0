@@ -244,44 +244,270 @@ ADD COLUMN counties_on_hold UUID[] DEFAULT '{}';
 
 ---
 
+### 14. Counties Blacklist Enforcement ⭐
+**Priority:** High
+**Effort:** 2-3 hours
+
+**Problem:**
+- Miami-Dade and Broward blacklisted in migrations
+- Worker still dispatches to blacklisted counties
+- No enforcement during send
+
+**Solution:**
+- Add county blacklist check in BuyerDispatchService.applyFilters()
+- Skip leads with blacklisted counties during worker processing
+- Show warning in UI when county is blacklisted
+
+**Files:**
+- `server/src/main/services/buyerDispatchService.ts`
+- `server/src/main/services/countyService.ts`
+
+---
+
+### 15. County Matching on Import - Reject Unknown Counties ⭐
+**Priority:** High
+**Effort:** 4-6 hours
+
+**Problem:**
+- CSV import auto-creates counties (missing metadata like timezone, FIPS)
+- Unknown counties should be flagged, not auto-created
+
+**Solution:**
+1. Import must match to existing county in DB
+2. If no match → mark lead as "Needs Review" status
+3. Don't auto-create counties
+4. Use existing code from Compass backend for matching
+
+**Files:**
+- `server/src/main/services/leadService.ts` (importLeads)
+- `server/src/main/services/countyService.ts`
+- New "needs_review" status/flag
+
+**Related:** Works with #12 (Import Counties from CSV)
+
+---
+
+### 16. Incomplete Leads Filter/Status ⭐
+**Priority:** High
+**Effort:** 3-4 hours
+
+**Problem:**
+- No way to identify leads missing required data
+- Different from verification (which is about form questions)
+
+**Solution:**
+1. New lead status: "Needs Review" or "Incomplete"
+2. Filter in leads table for admins
+3. Separate view/permission for lower-level users
+4. Triggered when: county missing, invalid phone, etc.
+
+**Implementation:**
+```sql
+ALTER TABLE leads
+ADD COLUMN needs_review BOOLEAN DEFAULT false;
+
+-- OR use existing deleted_reason field differently
+```
+
+**Files:**
+- New migration
+- `server/src/main/types/leadTypes.ts`
+- Lead table UI with new filter
+- `server/src/main/data/leadDAO.ts`
+
+---
+
+### 17. Form Data in Lead Intake API
+**Priority:** Medium
+**Effort:** 4-5 hours
+
+**Problem:**
+- API doesn't accept form field values
+- Leads require manual form entry in platform
+
+**Solution:**
+- Accept form questions in API payload
+- Create lead_form_input record if form data provided
+- Auto-verify lead if all required fields present
+- No manual entry needed
+
+**Implementation:**
+```typescript
+// POST /api/leads-intake
+{
+  name: "John Doe",
+  phone: "555-1234",
+  // ... existing fields
+  form_data: {
+    form_multifamily: "No",
+    form_repairs: "Yes",
+    form_occupied: "No",
+    // ... all form fields
+  }
+}
+```
+
+**Files:**
+- `server/src/main/resources/leadIntakeResource.ts`
+- `server/src/main/services/leadService.ts` (importLeadsFromApi)
+- `server/src/main/data/leadFormInputDAO.ts`
+
+---
+
+### 18. Campaigns Nested in Affiliates UI
+**Priority:** Medium
+**Effort:** 6-8 hours
+
+**Problem:**
+- Campaigns is top-level nav item
+- Should be nested inside affiliates
+
+**Solution:**
+1. Remove "Campaigns" from main navigation
+2. Add campaigns tab/section inside affiliate detail view
+3. Show campaign performance per affiliate
+4. Campaign CRUD operations inside affiliate page
+
+**Files:**
+- `client/src/components/navBar/NavBar.tsx` (remove from nav)
+- `client/src/views/adminViews/AdminAffiliatesView.tsx` (add campaigns section)
+- `client/src/components/admin/adminCampaignsSection/` (refactor for nested use)
+- `client/src/context/routes/AdminRoutes.tsx` (remove campaign route)
+
+---
+
+### 19. Verify Toggle in Leads Table
+**Priority:** Medium
+**Effort:** 2-3 hours
+
+**Problem:**
+- Can't verify/unverify from table
+- Must open modal
+
+**Solution:**
+- Clickable verify status in table
+- Toggle verified state inline
+- Call existing verifyLead/unverifyLead endpoints
+
+**Files:**
+- Lead table component
+- Uses existing `PATCH /api/leads/:id/verify` and `/unverify`
+
+---
+
+### 20. Enable Worker from Lead Detail Page
+**Priority:** Medium
+**Effort:** 2-3 hours
+
+**Problem:**
+- Can't enable worker from lead detail page
+- Only accessible from table
+
+**Solution:**
+- Add "Enable Worker" button/toggle in detail modal
+- Call existing `POST /api/leads/:id/enable-worker` endpoint
+- Show current worker_enabled status
+
+**Files:**
+- Lead detail modal/view component
+- Uses existing endpoint
+
+---
+
+### 21. Column Ordering in Leads Table
+**Priority:** Low
+**Effort:** 2-3 hours
+
+**Problem:**
+- Column order not optimal for workflow
+
+**Solution:**
+- TBD (user will specify preferred order)
+- Possibly make columns draggable/configurable
+
+**Files:**
+- Lead table component
+
+---
+
 ## Prioritization Matrix
 
 | # | Enhancement | Priority | Effort | Impact | Hours |
 |---|-------------|----------|--------|--------|-------|
+| **HIGH PRIORITY (Critical)** |||||
+| 14 | Counties Blacklist Enforcement | High | Small | High | 2-3 |
+| 15 | County Matching - Reject Unknown | High | Medium | High | 4-6 |
+| 16 | Incomplete Leads Filter/Status | High | Medium | High | 3-4 |
 | 4 | Click to Edit Next Send Time | High | Medium | High | 4-5 |
 | 8 | Advanced Filtering | High | Large | High | 8-10 |
-| 9 | Track Send Method | Medium | Medium | Medium | 4-5 |
 | 10 | Show Success/Failure Status | High | Small | Medium | 2 |
-| 11 | Show Lead Context | Medium | Medium | High | 3-4 |
 | 12 | Import Counties from CSV | High | Medium | High | 4-6 |
+| **MEDIUM PRIORITY** |||||
+| 17 | Form Data in Lead Intake API | Medium | Medium | High | 4-5 |
+| 18 | Campaigns Nested in Affiliates | Medium | Large | Medium | 6-8 |
+| 19 | Verify Toggle in Leads Table | Medium | Small | Medium | 2-3 |
+| 20 | Enable Worker from Detail Page | Medium | Small | Medium | 2-3 |
+| 9 | Track Send Method | Medium | Medium | Medium | 4-5 |
+| 11 | Show Lead Context | Medium | Medium | High | 3-4 |
 | 13 | Buyer-Specific County Blocking | Medium | Medium | Medium | 4-5 |
-| 1 | Display "Worker / Manual" | Low | Small | Low | 1-2 |
 | 2 | Show Buyer Settings Columns | Medium | Medium | Low | 3-4 |
 | 3 | Collapsible Authorization | Medium | Small | Low | 2-3 |
 | 5 | Click Name to Open Details | Medium | Small | Low | 1-2 |
-| 6 | Use Icon for Trash | Low | Small | Low | 1 |
 | 7 | Enable/Disable Worker Toggle | Medium | Medium | Medium | 3-4 |
+| **LOW PRIORITY** |||||
+| 21 | Column Ordering in Leads Table | Low | Small | Low | 2-3 |
+| 1 | Display "Worker / Manual" | Low | Small | Low | 1-2 |
+| 6 | Use Icon for Trash | Low | Small | Low | 1 |
 
-**Total Estimated:** ~45-55 hours
+**Total Estimated:** ~75-95 hours
 
 ---
 
 ## Recommended Next Sprint
 
-**Focus: User Experience & Data Quality**
+**Focus: Data Quality & Critical Fixes**
 
-**High Priority Items (18-23 hours):**
-1. Click to Edit Next Send Time (4) - 4-5 hrs
-2. Show Success/Failure Status (10) - 2 hrs
-3. Import Counties from CSV (12) - 4-6 hrs
-4. Advanced Filtering (8) - 8-10 hrs
+### Sprint 7A: Critical Fixes (11-15 hours / 1-2 days)
+**Must-haves for production stability:**
+1. Counties Blacklist Enforcement (14) - 2-3 hrs ⚠️ URGENT
+2. County Matching - Reject Unknown (15) - 4-6 hrs ⚠️ URGENT
+3. Incomplete Leads Filter/Status (16) - 3-4 hrs ⚠️ URGENT
+4. Show Success/Failure Status (10) - 2 hrs
 
-**Medium Priority Items (11-14 hours):**
-5. Track Send Method (9) - 4-5 hrs
-6. Show Lead Context (11) - 3-4 hrs
-7. Buyer-Specific County Blocking (13) - 4-5 hrs
+**Why these first:**
+- #14: Worker currently ignoring blacklists (data quality issue)
+- #15: Auto-creating counties breaks metadata (blocks #12)
+- #16: Need visibility into incomplete leads
+- #10: Quick win for logs visibility
 
-**Total Next Sprint:** ~29-37 hours (4-5 days)
+---
+
+### Sprint 7B: UX Improvements (14-19 hours / 2-3 days)
+**Quick wins for daily workflow:**
+1. Verify Toggle in Leads Table (19) - 2-3 hrs
+2. Enable Worker from Detail Page (20) - 2-3 hrs
+3. Enable/Disable Worker Toggle (7) - 3-4 hrs
+4. Use Icon for Trash (6) - 1 hr
+5. Click to Edit Next Send Time (4) - 4-5 hrs
+6. Form Data in Lead Intake API (17) - 4-5 hrs (optional)
+
+---
+
+### Sprint 7C: Major Features (18-24 hours / 3-4 days)
+**Bigger improvements (after critical fixes):**
+1. Import Counties from CSV (12) - 4-6 hrs (requires #15 first)
+2. Advanced Filtering (8) - 8-10 hrs
+3. Campaigns Nested in Affiliates (18) - 6-8 hrs
+
+---
+
+## Proposed Execution Order
+
+**Week 1:** Sprint 7A (Critical Fixes)
+**Week 2:** Sprint 7B (UX Improvements)
+**Week 3:** Sprint 7C (Major Features)
+
+**Total:** ~43-58 hours over 3 weeks
 
 ---
 
