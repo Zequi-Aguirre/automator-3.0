@@ -121,9 +121,16 @@ export default class BuyerService {
         // Auto-assign next available priority if there's a conflict
         const existingBuyers = await this.buyerDAO.getByPriority();
         if (existingBuyers.some(b => b.priority === dto.priority)) {
-            // Find next available priority
-            const maxPriority = Math.max(...existingBuyers.map(b => b.priority), 0);
-            const nextAvailable = maxPriority + 1;
+            // Find first gap in priority sequence, or max + 1 if no gaps
+            const priorities = existingBuyers.map(b => b.priority).sort((a, b) => a - b);
+            let nextAvailable = 1;
+            for (const priority of priorities) {
+                if (priority === nextAvailable) {
+                    nextAvailable++;
+                } else if (priority > nextAvailable) {
+                    break; // Found a gap
+                }
+            }
             throw new Error(
                 `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
             );
@@ -174,8 +181,16 @@ export default class BuyerService {
         if (dto.priority !== undefined && dto.priority !== existing.priority) {
             const existingBuyers = await this.buyerDAO.getByPriority();
             if (existingBuyers.some(b => b.priority === dto.priority)) {
-                const maxPriority = Math.max(...existingBuyers.map(b => b.priority), 0);
-                const nextAvailable = maxPriority + 1;
+                // Find first gap in priority sequence, or max + 1 if no gaps
+                const priorities = existingBuyers.map(b => b.priority).sort((a, b) => a - b);
+                let nextAvailable = 1;
+                for (const priority of priorities) {
+                    if (priority === nextAvailable) {
+                        nextAvailable++;
+                    } else if (priority > nextAvailable) {
+                        break; // Found a gap
+                    }
+                }
                 throw new Error(
                     `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
                 );

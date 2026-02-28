@@ -878,6 +878,41 @@
 
 ---
 
+### TICKET-041: Improve buyer priority management UX
+**Type**: Frontend Enhancement
+**Priority**: P3 (Future Enhancement)
+**Estimate**: 4 hours
+
+**Background**:
+Current priority system uses simple integer values with unique constraints. While it works, it has UX limitations:
+- Can't easily insert a buyer between positions (e.g., insert at position 7 when you have 10 buyers)
+- Can't easily reorder multiple buyers
+- Requires manually changing priorities of multiple buyers to make room
+
+**Tasks**:
+- Design better priority management UX (one of the following):
+  - Option A: Drag-and-drop reordering (auto-reassigns all priorities)
+  - Option B: "Insert before/after" buttons
+  - Option C: Bulk priority reassignment tool
+- Implement chosen approach in admin buyers UI
+- Add "Reorder Buyers" interface
+- Auto-reassign priorities on reorder to maintain sequence
+
+**Acceptance Criteria**:
+- [ ] Can easily insert buyer at any position without manual priority calculation
+- [ ] Can move existing buyer up/down in priority order
+- [ ] Priorities are automatically reassigned to maintain sequential order
+- [ ] No gaps in priority sequence after reorder
+
+**Technical Notes**:
+- Current fixes handle gaps and soft-delete conflicts
+- This ticket is about improving UX for intentional reordering
+- Consider using libraries like react-beautiful-dnd or SortableJS
+
+**Files**: `client/src/components/admin/adminBuyersSection/AdminBuyersSection.tsx`
+
+---
+
 ## Ticket Summary
 
 | Sprint | Tickets | Total Hours | Risk Level |
@@ -888,7 +923,8 @@
 | Sprint 4 | #21-25 | 25 hours | **HIGH** |
 | Sprint 5 | #26-31 | 9 hours | Low |
 | Sprint 6 | #32-40 | 9 hours | Medium |
-| **TOTAL** | **40** | **112 hours** | - |
+| **Backlog** | #41 | 4 hours | Low |
+| **TOTAL** | **41** | **116 hours** | - |
 
 **Developer Days**: ~14-15 days (assuming 8-hour days)
 **Calendar Time**: ~10 weeks (including testing, stabilization, buffer)
