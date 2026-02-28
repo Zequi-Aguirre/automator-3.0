@@ -24,6 +24,7 @@ import { ApiKeyAuthenticator } from "./middleware/apiKeyAuth.ts";
 import WorkerSettingsDAO from "./data/workerSettingsDAO.ts";
 import InvestorResource from "./resources/investorResource.ts";
 import SendLogResource from "./resources/sendLogResource.ts";
+import BuyerResource from "./resources/buyerResource.ts";
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ export class AutomatorServer {
         // Set up routes
         this.app.use("/api/affiliates", authFunc, cont.resolve(AffiliateResource).routes());
         this.app.use("/api/authenticate", cont.resolve(AuthenticateResource).routes());
+        this.app.use("/api/buyers", authFunc, cont.resolve(BuyerResource).routes());
         this.app.use("/api/counties", authFunc, cont.resolve(CountyResource).routes());
         this.app.use("/api/campaigns", authFunc, cont.resolve(CampaignResource).routes());
         this.app.use("/api/investors", authFunc, cont.resolve(InvestorResource).routes());

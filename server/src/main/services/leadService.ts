@@ -10,6 +10,7 @@ import SendLogDAO from "../data/sendLogDAO.ts";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 import { County } from "../types/countyTypes.ts";
 import { Investor } from "../types/investorTypes.ts";
+import BuyerDAO from "../data/buyerDAO.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
@@ -29,7 +30,8 @@ export default class LeadService {
         private readonly investorService: InvestorService,
         private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
         private readonly sendLogDAO: SendLogDAO,
-        private readonly workerSettingsDAO: WorkerSettingsDAO
+        private readonly workerSettingsDAO: WorkerSettingsDAO,
+        private readonly buyerDAO: BuyerDAO
     ) {}
 
     // Lead Management Methods
@@ -98,8 +100,16 @@ export default class LeadService {
         delete payload.lead_id;
         delete payload.id;
 
+        // Get iSpeedToLead buyer (all sends in old system go to iSpeedToLead)
+        const buyers = await this.buyerDAO.getByPriority();
+        const ispeedBuyer = buyers.find(b => b.name === 'iSpeedToLead');
+        if (!ispeedBuyer) {
+            throw new Error('iSpeedToLead buyer not found - please run backfill migration');
+        }
+
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
+            buyer_id: ispeedBuyer.id,
             affiliate_id: null,
             campaign_id: null,
             investor_id: investor?.id || null,
