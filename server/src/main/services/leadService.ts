@@ -602,6 +602,7 @@ export default class LeadService {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,
                 buyer_priority: buyer.priority,
+                dispatch_mode: buyer.dispatch_mode,
                 sends: buyerLogs.map(log => ({
                     id: log.id,
                     status: log.status,

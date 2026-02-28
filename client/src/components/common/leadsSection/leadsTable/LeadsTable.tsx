@@ -1,6 +1,7 @@
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import type { ButtonProps } from "@mui/material/Button";
-import { Button, Snackbar, Alert, Typography } from "@mui/material";
+import { Button, Snackbar, Alert, Typography, IconButton, Badge, Chip } from "@mui/material";
+import { Groups as GroupsIcon, PlayArrow as PlayArrowIcon } from "@mui/icons-material";
 import { Lead } from "../../../../types/leadTypes.ts";
 import { Link, useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
@@ -15,6 +16,7 @@ import {
 import { parseUtcToZone } from "../../../../utils/dates.ts"; // adjust the relative path if needed
 import workingsService from "../../../../services/settings.service.tsx";
 import DataContext from "../../../../context/DataContext.tsx";
+import BuyerSendModal from "../../leadDetails/buyerSendModal/BuyerSendModal.tsx";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -29,6 +31,8 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         message: "",
         severity: "success" as "success" | "error",
     });
+    const [buyerModalOpen, setBuyerModalOpen] = useState(false);
+    const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
     // one ticking clock for all rows
     const [now, setNow] = useState(DateTime.utc());
@@ -76,6 +80,29 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         } catch (error) {
             showNotification("Failed to trash lead", "error");
             console.error("Error trashing the lead:", error);
+        }
+    };
+
+    const handleOpenBuyerModal = (lead: Lead) => {
+        setSelectedLead(lead);
+        setBuyerModalOpen(true);
+    };
+
+    const handleCloseBuyerModal = () => {
+        setBuyerModalOpen(false);
+        setSelectedLead(null);
+    };
+
+    const handleRefreshLead = async () => {
+        if (!selectedLead) return;
+        try {
+            const updatedLead = await leadsService.getLeadById(selectedLead.id);
+            setLeads(prevLeads =>
+                prevLeads.map(l => l.id === updatedLead.id ? updatedLead : l)
+            );
+            setSelectedLead(updatedLead);
+        } catch (error) {
+            console.error("Error refreshing lead:", error);
         }
     };
 
@@ -285,6 +312,51 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             },
         },
         {
+            field: "buyers",
+            headerName: "Buyers",
+            flex: 0.8,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => (
+                <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenBuyerModal(params.row.raw);
+                    }}
+                    title="Send to buyers"
+                >
+                    <Badge badgeContent={0} color="secondary">
+                        <GroupsIcon />
+                    </Badge>
+                </IconButton>
+            ),
+        },
+        {
+            field: "worker",
+            headerName: "Worker",
+            flex: 0.7,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => (
+                params.row.raw?.worker_enabled ? (
+                    <Chip
+                        icon={<PlayArrowIcon />}
+                        label="Enabled"
+                        color="success"
+                        size="small"
+                    />
+                ) : (
+                    <Chip
+                        label="Disabled"
+                        variant="outlined"
+                        size="small"
+                    />
+                )
+            ),
+        },
+        {
             field: "actions",
             headerName: "Actions",
             flex: 1,
@@ -356,6 +428,15 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            {selectedLead && (
+                <BuyerSendModal
+                    open={buyerModalOpen}
+                    onClose={handleCloseBuyerModal}
+                    lead={selectedLead}
+                    onRefresh={handleRefreshLead}
+                />
+            )}
         </>
     );
 };
