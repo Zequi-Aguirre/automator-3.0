@@ -479,6 +479,30 @@ export default class LeadService {
             }
         }
 
+        // Auto-send to buyers with auto_send=true
+        const autoSendBuyers = await this.buyerDAO.getAutoSendBuyers();
+        if (autoSendBuyers.length > 0) {
+            const successfulLeads = insertResults
+                .filter(r => r.success && r.lead)
+                .map(r => r.lead!);
+
+            for (const lead of successfulLeads) {
+                for (const buyer of autoSendBuyers) {
+                    try {
+                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+                    } catch (e) {
+                        // Log auto-send errors but don't fail the import
+                        console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
+                        errors.push(
+                            `Auto-send to ${buyer.name} failed for lead ${lead.id}: ${
+                                e instanceof Error ? e.message : "Unknown error"
+                            }`
+                        );
+                    }
+                }
+            }
+        }
+
         const successCount = insertResults.filter(r => r.success).length;
         errors.push(
             ...insertResults
