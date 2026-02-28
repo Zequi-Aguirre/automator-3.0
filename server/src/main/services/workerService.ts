@@ -93,6 +93,12 @@ export default class WorkerService {
     async trashExpiredLeads(): Promise<number> {
         const settings = await this.workerSettingsDAO.getCurrentSettings();
 
+        // Check if expiration enforcement is enabled
+        if (!settings.enforce_expiration) {
+            console.log('[Worker] Expiration enforcement disabled - skipping trash expired leads');
+            return 0;
+        }
+
         const expireHours =
             Number(settings.expire_after_hours) || 18;
 
@@ -186,12 +192,19 @@ export default class WorkerService {
 
             // County is required
             if (!county) {
+                console.log(`[Filter] Lead ${lead.id} - BLOCKED: County not found`);
                 continue;
             }
 
             // 1. Blacklist checks (only county and investor now)
-            if (county.blacklisted) continue;
-            if (investor && investor.blacklisted) continue;
+            if (county.blacklisted) {
+                console.log(`[Filter] Lead ${lead.id} - BLOCKED: County ${county.name} is blacklisted`);
+                continue;
+            }
+            if (investor && investor.blacklisted) {
+                console.log(`[Filter] Lead ${lead.id} - BLOCKED: Investor is blacklisted`);
+                continue;
+            }
 
             // 2. Investor cooldown (only if investor exists)
             if (investor && !investor.whitelisted && delayInvestorMs > 0) {
@@ -199,6 +212,7 @@ export default class WorkerService {
                 if (log) {
                     const lastSend = new Date(log.created).getTime();
                     if (Date.now() - lastSend <= delayInvestorMs) {
+                        console.log(`[Filter] Lead ${lead.id} - BLOCKED: Investor cooldown (${Math.round((Date.now() - lastSend) / 1000 / 60)} min ago)`);
                         continue;
                     }
                 }
@@ -210,6 +224,7 @@ export default class WorkerService {
                 if (log) {
                     const lastSend = new Date(log.created).getTime();
                     if (Date.now() - lastSend <= delayCountyMs) {
+                        console.log(`[Filter] Lead ${lead.id} - BLOCKED: County cooldown (${Math.round((Date.now() - lastSend) / 1000 / 60)} min ago)`);
                         continue;
                     }
                 }
@@ -218,13 +233,16 @@ export default class WorkerService {
             // 4. Business hours (using precomputed timezone local time)
             const localMin = timezoneLocalMinute.get(county.timezone);
             if (localMin === undefined) {
+                console.log(`[Filter] Lead ${lead.id} - BLOCKED: Could not determine timezone for ${county.timezone}`);
                 continue;
             }
 
             if (localMin < businessStart || localMin >= businessEnd) {
+                console.log(`[Filter] Lead ${lead.id} - BLOCKED: Outside business hours (${Math.floor(localMin / 60)}:${(localMin % 60).toString().padStart(2, '0')} in ${county.timezone}, need ${Math.floor(businessStart / 60)}:${(businessStart % 60).toString().padStart(2, '0')}-${Math.floor(businessEnd / 60)}:${(businessEnd % 60).toString().padStart(2, '0')})`);
                 continue;
             }
 
+            console.log(`[Filter] Lead ${lead.id} - PASSED all filters`);
             final.push(lead);
         }
 
