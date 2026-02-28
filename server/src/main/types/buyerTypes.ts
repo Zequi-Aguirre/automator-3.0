@@ -15,6 +15,7 @@ export type Buyer = {
     auth_header_name: string;
     auth_header_prefix: string | null;
     auth_token_encrypted: string | null;
+    blocked_affiliate_ids: string[]; // Array of affiliate IDs to block
     created: string;
     modified: string;
     deleted: string | null;
@@ -33,6 +34,7 @@ export type BuyerCreateDTO = {
     auth_header_name?: string;
     auth_header_prefix?: string | null;
     auth_token?: string | null; // Plain text token (will be encrypted)
+    blocked_affiliate_ids?: string[]; // Array of affiliate IDs to block
 };
 
 export type BuyerUpdateDTO = {
@@ -48,6 +50,7 @@ export type BuyerUpdateDTO = {
     auth_header_name?: string;
     auth_header_prefix?: string | null;
     auth_token?: string | null; // Plain text token (will be encrypted)
+    blocked_affiliate_ids?: string[]; // Array of affiliate IDs to block
 };
 
 export type BuyerTimingUpdate = {

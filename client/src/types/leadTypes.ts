@@ -15,4 +15,6 @@ export type Lead = {
     verified: boolean;
     private_notes: string | null;
     investor_id: string | null;
+    campaign_id: string | null;
+    worker_enabled: boolean;
 }

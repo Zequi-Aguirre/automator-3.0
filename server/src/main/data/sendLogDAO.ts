@@ -16,6 +16,7 @@ export default class SendLogDAO {
         const query = `
             INSERT INTO send_log (
                 lead_id,
+                buyer_id,
                 affiliate_id,
                 campaign_id,
                 investor_id,
@@ -23,6 +24,7 @@ export default class SendLogDAO {
             )
             VALUES (
                 $[lead_id],
+                $[buyer_id],
                 $[affiliate_id],
                 $[campaign_id],
                 $[investor_id],
@@ -185,5 +187,66 @@ export default class SendLogDAO {
             LIMIT 1;
         `;
         return await this.db.oneOrNone<SendLog>(query, { countyId });
+    }
+
+    async getByLeadIdGroupedByBuyer(leadId: string): Promise<SendLog[]> {
+        const query = `
+            SELECT
+                sl.*,
+                b.name AS buyer_name
+            FROM send_log sl
+            JOIN buyers b ON sl.buyer_id = b.id
+            WHERE sl.lead_id = $[leadId]
+              AND sl.deleted IS NULL
+              AND b.deleted IS NULL
+            ORDER BY b.priority ASC, sl.created DESC;
+        `;
+        return await this.db.manyOrNone<SendLog>(query, { leadId });
+    }
+
+    async wasSuccessfullySentToBuyer(leadId: string, buyerId: string): Promise<boolean> {
+        const query = `
+            SELECT EXISTS (
+                SELECT 1
+                FROM send_log
+                WHERE lead_id = $[leadId]
+                  AND buyer_id = $[buyerId]
+                  AND response_code >= 200
+                  AND response_code < 300
+                  AND deleted IS NULL
+            ) AS exists;
+        `;
+        const result = await this.db.one<{ exists: boolean }>(query, { leadId, buyerId });
+        return result.exists;
+    }
+
+    async getBuyersNotSentForLead(leadId: string): Promise<string[]> {
+        const query = `
+            SELECT b.id
+            FROM buyers b
+            WHERE b.deleted IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM send_log sl
+                  WHERE sl.buyer_id = b.id
+                    AND sl.lead_id = $[leadId]
+                    AND sl.deleted IS NULL
+              )
+            ORDER BY b.priority ASC;
+        `;
+        const results = await this.db.manyOrNone<{ id: string }>(query, { leadId });
+        return results.map(r => r.id);
+    }
+
+    async getLatestLogsByBuyerIds(buyerIds: string[]): Promise<SendLog[]> {
+        const query = `
+            SELECT DISTINCT ON (sl.buyer_id)
+                sl.*
+            FROM send_log sl
+            WHERE sl.buyer_id = ANY($[buyerIds]::uuid[])
+              AND sl.deleted IS NULL
+            ORDER BY sl.buyer_id, sl.created DESC;
+        `;
+        return await this.db.manyOrNone<SendLog>(query, { buyerIds });
     }
 }
