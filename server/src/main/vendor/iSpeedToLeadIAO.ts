@@ -10,11 +10,11 @@ export default class ISpeedToLeadIAO {
     private readonly url: string;
 
     constructor(private readonly config: EnvConfig) {
-        if (!this.config.leadVendorURL) {
-            throw new Error("Missing providerId in EnvConfig for ISpeedToLeadIAO");
+        if (!this.config.iSpeedToLeadWebhookUrl) {
+            throw new Error("Missing iSpeedToLeadWebhookUrl in EnvConfig for ISpeedToLeadIAO");
         }
 
-        this.url = this.config.leadVendorURL;
+        this.url = this.config.iSpeedToLeadWebhookUrl;
     }
 
     private stripNulls(obj: Record<string, any>): Record<string, any> {

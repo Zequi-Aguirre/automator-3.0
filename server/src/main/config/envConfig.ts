@@ -7,7 +7,7 @@ export class EnvConfig {
     public readonly environment: string;
     public readonly jwtSecret: string;
     public readonly serverUrl: string;
-    public readonly leadVendorURL: string;
+    public readonly iSpeedToLeadWebhookUrl: string;
     public readonly leadIntakeApiKey: string;
     public readonly buyerAuthEncryptionKey: string;
 
@@ -16,7 +16,7 @@ export class EnvConfig {
         this.environment = process.env.ENVIRONMENT!;
         this.jwtSecret = process.env.JWT_SECRET!;
         this.serverUrl = process.env.VITE_SERVER_URL!;
-        this.leadVendorURL = process.env.LEAD_VENDOR_URL!;
+        this.iSpeedToLeadWebhookUrl = process.env.ISPEED_TO_LEAD_WEBHOOK_URL!;
         this.leadIntakeApiKey = process.env.LEAD_INTAKE_API_KEY!;
         this.buyerAuthEncryptionKey = process.env.BUYER_AUTH_ENCRYPTION_KEY!;
     }
