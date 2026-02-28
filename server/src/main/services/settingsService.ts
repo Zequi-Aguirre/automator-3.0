@@ -42,10 +42,5 @@ export default class SettingsService {
         return this.workerSettingsDAO.updateLastWorkerRun(id);
     }
 
-    async updateNextLeadTime(
-        id: string,
-        nextLeadTime: string
-    ): Promise<WorkerSettings> {
-        return this.workerSettingsDAO.updateNextLeadTime(id, nextLeadTime);
-    }
+    // NOTE: updateNextLeadTime() removed - send_next_lead_at moved to buyers table (TICKET-021)
 }

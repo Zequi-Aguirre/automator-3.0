@@ -78,18 +78,12 @@ export default class WorkerSettingsDAO {
             UPDATE worker_settings
             SET
                 name = $[name],
-                send_next_lead_at = $[send_next_lead_at],
-                minutes_range_start = $[minutes_range_start],
-                minutes_range_end = $[minutes_range_end],
                 business_hours_start = $[business_hours_start],
                 business_hours_end = $[business_hours_end],
-                delay_same_state = $[delay_same_state],
-                delay_same_investor = $[delay_same_investor],
-                delay_same_county = $[delay_same_county],
-                states_on_hold = ARRAY[$[states_on_hold:csv]]::us_state[],
                 cron_schedule = $[cron_schedule],
                 worker_enabled = $[worker_enabled],
                 expire_after_hours = $[expire_after_hours],
+                enforce_expiration = $[enforce_expiration],
                 modified = NOW()
             WHERE deleted IS NULL
             RETURNING *;
@@ -127,7 +121,7 @@ export default class WorkerSettingsDAO {
     async updateLastWorkerRun(id: string): Promise<WorkerSettings> {
         const query = `
             UPDATE worker_settings
-            SET 
+            SET
                 last_worker_run = NOW(),
                 modified = NOW()
             WHERE id = $[id]
@@ -144,29 +138,5 @@ export default class WorkerSettingsDAO {
         return result;
     }
 
-    async updateNextLeadTime(
-        id: string,
-        nextLeadTime: string
-    ): Promise<WorkerSettings> {
-        const query = `
-            UPDATE worker_settings
-            SET 
-                send_next_lead_at = $[nextLeadTime],
-                modified = NOW()
-            WHERE id = $[id]
-            AND deleted IS NULL
-            RETURNING *;
-        `;
-
-        const result = await this.db.oneOrNone<WorkerSettings>(
-            query,
-            { id, nextLeadTime }
-        );
-
-        if (!result) {
-            throw new Error("Settings not found or update failed");
-        }
-
-        return result;
-    }
+    // NOTE: updateNextLeadTime() removed - send_next_lead_at moved to buyers table (TICKET-021)
 }
