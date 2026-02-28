@@ -1,20 +1,13 @@
 import axios, {AxiosResponse} from "axios";
 import {injectable} from "tsyringe";
-import {EnvConfig} from "../config/envConfig";
 import {ISpeedToLeadResponse} from "../types/ispeedToLeadTypes.ts";
 
 export type ISpeedToLeadPayload = Record<string, any>;
 
 @injectable()
 export default class ISpeedToLeadIAO {
-    private readonly url: string;
-
-    constructor(private readonly config: EnvConfig) {
-        if (!this.config.iSpeedToLeadWebhookUrl) {
-            throw new Error("Missing iSpeedToLeadWebhookUrl in EnvConfig for ISpeedToLeadIAO");
-        }
-
-        this.url = this.config.iSpeedToLeadWebhookUrl;
+    constructor() {
+        // No constructor dependencies - webhook URL comes from buyers table
     }
 
     private stripNulls(obj: Record<string, any>): Record<string, any> {
@@ -30,12 +23,18 @@ export default class ISpeedToLeadIAO {
     /**
      * Sends lead to ISpeedToLead webhook.
      * Returns raw Axios response, because downstream code logs it anyway.
+     * @param webhookUrl - The webhook URL from the buyer's configuration
+     * @param payload - The lead data to send
      */
-    async sendLead(payload: ISpeedToLeadPayload): Promise<AxiosResponse<ISpeedToLeadResponse>> {
+    async sendLead(webhookUrl: string, payload: ISpeedToLeadPayload): Promise<AxiosResponse<ISpeedToLeadResponse>> {
+        if (!webhookUrl) {
+            throw new Error("Webhook URL is required for ISpeedToLeadIAO.sendLead");
+        }
+
         const cleanPayload = this.stripNulls(payload);
 
         try {
-            return await axios.post(this.url, cleanPayload, {
+            return await axios.post(webhookUrl, cleanPayload, {
                 timeout: 15000,
                 headers: {
                     "Content-Type": "application/json"
