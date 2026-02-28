@@ -349,4 +349,22 @@ export default class LeadDAO {
         `, { ...lead, reason }
         );
     }
+
+    async enableWorker(id: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET worker_enabled = true,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+
+        const result = await this.db.oneOrNone<Lead>(query, { id });
+        if (!result) {
+            throw new Error("Lead not found or update failed");
+        }
+
+        return result;
+    }
 }

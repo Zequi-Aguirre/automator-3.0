@@ -11,6 +11,8 @@ import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 import { County } from "../types/countyTypes.ts";
 import { Investor } from "../types/investorTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
+import BuyerDispatchService from "./buyerDispatchService.ts";
+import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
@@ -31,7 +33,9 @@ export default class LeadService {
         private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
         private readonly sendLogDAO: SendLogDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
-        private readonly buyerDAO: BuyerDAO
+        private readonly buyerDAO: BuyerDAO,
+        private readonly buyerDispatchService: BuyerDispatchService,
+        private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO
     ) {}
 
     // Lead Management Methods
@@ -552,5 +556,112 @@ export default class LeadService {
         }
 
         return null;
+    }
+
+    // ========================================
+    // Buyer Dispatch & History Methods
+    // ========================================
+
+    /**
+     * Send lead to specific buyer (manual send)
+     * Delegates to BuyerDispatchService for validation and dispatch
+     */
+    async sendLeadToBuyer(leadId: string, buyerId: string) {
+        // Get lead and buyer
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) {
+            throw new Error(`Lead ${leadId} not found`);
+        }
+
+        const buyer = await this.buyerDAO.getById(buyerId);
+        if (!buyer) {
+            throw new Error(`Buyer ${buyerId} not found`);
+        }
+
+        // Delegate to BuyerDispatchService
+        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+    }
+
+    /**
+     * Get buyer send history for a lead
+     * Returns all buyers with their send status for this lead
+     */
+    async getBuyerSendHistory(leadId: string) {
+        // Get all buyers sorted by priority
+        const allBuyers = await this.buyerDAO.getByPriority();
+
+        // Get send logs for this lead grouped by buyer
+        const sendLogs = await this.sendLogDAO.getByLeadIdGroupedByBuyer(leadId);
+
+        // Map buyers to send history
+        const history = allBuyers.map(buyer => {
+            // Find send logs for this buyer
+            const buyerLogs = sendLogs.filter(log => log.buyer_id === buyer.id);
+
+            return {
+                buyer_id: buyer.id,
+                buyer_name: buyer.name,
+                buyer_priority: buyer.priority,
+                sends: buyerLogs.map(log => ({
+                    id: log.id,
+                    status: log.status,
+                    response_code: log.response_code,
+                    created: log.created
+                })),
+                total_sends: buyerLogs.length,
+                last_sent_at: buyerLogs.length > 0 ? buyerLogs[0].created : null
+            };
+        });
+
+        return history;
+    }
+
+    /**
+     * Enable worker processing for a lead
+     * Sets worker_enabled=true so worker can process this lead
+     */
+    async enableWorker(leadId: string): Promise<Lead> {
+        return await this.leadDAO.enableWorker(leadId);
+    }
+
+    /**
+     * Mark lead as sold to buyer
+     * Creates lead_buyer_outcome record with status='sold'
+     */
+    async markSoldToBuyer(
+        leadId: string,
+        buyerId: string,
+        soldPrice?: number
+    ) {
+        // Verify lead and buyer exist
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) {
+            throw new Error(`Lead ${leadId} not found`);
+        }
+
+        const buyer = await this.buyerDAO.getById(buyerId);
+        if (!buyer) {
+            throw new Error(`Buyer ${buyerId} not found`);
+        }
+
+        // Check if outcome already exists
+        const existing = await this.leadBuyerOutcomeDAO.getByLeadAndBuyer(leadId, buyerId);
+        if (existing) {
+            // Update existing outcome
+            return await this.leadBuyerOutcomeDAO.update(existing.id, {
+                status: 'sold',
+                sold_at: new Date(),
+                sold_price: soldPrice || null
+            });
+        }
+
+        // Create new outcome record
+        return await this.leadBuyerOutcomeDAO.create({
+            lead_id: leadId,
+            buyer_id: buyerId,
+            status: 'sold',
+            sold_at: new Date(),
+            sold_price: soldPrice || null
+        });
     }
 }
