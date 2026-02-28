@@ -3,21 +3,17 @@ import LeadDAO from "../data/leadDAO";
 import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
-import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
 import { County } from "../types/countyTypes.ts";
-import { Investor } from "../types/investorTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
 import BuyerDispatchService from "./buyerDispatchService.ts";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
-    | "BLACKLISTED_INVESTOR"
     | "COUNTY_COOLDOWN"
-    | "INVESTOR_COOLDOWN"
     | "EXPIRED_18_HOURS"
     | "MANUAL_USER_DELETE";
 
@@ -28,7 +24,6 @@ export default class LeadService {
         private readonly leadDAO: LeadDAO,
         private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
-        private readonly investorService: InvestorService,
         private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
         private readonly sendLogDAO: SendLogDAO,
         private readonly buyerDAO: BuyerDAO,
@@ -75,9 +70,6 @@ export default class LeadService {
             throw new Error("Lead missing form data");
         }
 
-        const investor = lead.investor_id
-            ? await this.investorService.getById(lead.investor_id)
-            : null;
         const county = await this.countyService.getById(lead.county_id);
 
         if (!county) {
@@ -114,7 +106,7 @@ export default class LeadService {
             buyer_id: ispeedBuyer.id,
             affiliate_id: null,
             campaign_id: null,
-            investor_id: investor?.id || null,
+            investor_id: null,
             status: "sent"
         });
 
@@ -142,12 +134,6 @@ export default class LeadService {
             // Sent status determined from send_log table
 
             // One-time whitelist consumption
-            if (investor && investor.whitelisted) {
-                await this.investorService.updateInvestorMeta(investor.id, {
-                    whitelisted: false
-                });
-            }
-
             if (county.whitelisted) {
                 await this.countyService.updateCountyMeta(county.id, {
                     whitelisted: false
@@ -265,12 +251,9 @@ export default class LeadService {
     }
 
     async importLeads(csvContent: string) {
-        const { leads, investors } = parseCsvToLeads(csvContent);
+        const { leads } = parseCsvToLeads(csvContent);
 
-        // Load / create ref data (only investors and counties now)
-        const investorMap = investors.size > 0
-            ? await this.investorService.loadOrCreateInvestors(investors)
-            : new Map<string, Investor>();
+        // Load / create ref data (only counties now)
         const countyMap = await this.countyService.loadOrCreateCounties(leads);
 
         const resolvedLeads: parsedLeadFromCSV[] = [];
@@ -278,24 +261,12 @@ export default class LeadService {
         for (const lead of leads) {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
             const county = countyMap.get(countyKey);
-
-            // Investor is optional - only look up if provided
-            const investor = lead.investor_id
-                ? investorMap.get(lead.investor_id.toLowerCase())
-                : null;
-
             // County is required
             if (!county) {
                 continue;
             }
-
-            // If investor was specified but not found, skip
-            if (lead.investor_id && !investor) {
-                continue;
-            }
-
             lead.county_id = county.id;
-            lead.investor_id = investor?.id || null;
+            lead.investor_id = null;
 
             resolvedLeads.push(lead);
         }
@@ -315,34 +286,14 @@ export default class LeadService {
             countiesById.set(c.id, c);
         });
 
-        const investorsById = new Map<string, Investor>();
-        investorMap.forEach((i: Investor) => {
-            investorsById.set(i.id, i);
-        });
-
         // SETTINGS
         // Note: Cooldowns are now per-buyer (not global) and apply during send, not import
         // Disable cooldown checks during import (set to 0)
-        const delaySameInvestorMs = 0;
         const delaySameCountyMs = 0;
 
         // LOGS FOR COOLDOWNS
-        const investorIds = [...new Set(
-            resolvedLeads
-                .filter(l => l.investor_id)
-                .map(l => l.investor_id!)
-        )];
         const countyIds = [...new Set(resolvedLeads.map(l => l.county_id!))];
-
-        const recentInvestorLogs = await this.sendLogDAO.getLatestLogsByInvestorIds(investorIds);
         const recentCountyLogs = await this.sendLogDAO.getLatestLogsByCountyIds(countyIds);
-
-        const investorLogsByInvestorId = new Map<string, any>();
-        for (const log of recentInvestorLogs) {
-            if (log.investor_id) {
-                investorLogsByInvestorId.set(log.investor_id, log);
-            }
-        }
 
         const countyLogsByCountyId = new Map<string, any>();
         for (const log of recentCountyLogs) {
@@ -359,11 +310,8 @@ export default class LeadService {
             const reason = this.getTrashReasonForImport(
                 lead,
                 {
-                    investorsById,
                     countiesById,
-                    investorLogsByInvestorId,
                     countyLogsByCountyId,
-                    delaySameInvestorMs,
                     delaySameCountyMs
                 }
             );
@@ -520,16 +468,12 @@ export default class LeadService {
     private getTrashReasonForImport(
         lead: parsedLeadFromCSV,
         deps: {
-            investorsById: Map<string, Investor>;
             countiesById: Map<string, County>;
-            investorLogsByInvestorId: Map<string, any>;
             countyLogsByCountyId: Map<string, any>;
-            delaySameInvestorMs: number;
             delaySameCountyMs: number;
         }
     ): LeadTrashReason | null {
 
-        const investorId = lead.investor_id;
         const countyId = lead.county_id;
 
         // County is required
@@ -538,35 +482,16 @@ export default class LeadService {
         }
 
         const county = deps.countiesById.get(countyId);
-        const investor = investorId ? deps.investorsById.get(investorId) : undefined;
 
         // 1. Blacklists (absolute rules)
         if (county && county.blacklisted) {
             return "BLACKLISTED_COUNTY";
         }
 
-        if (investor && investor.blacklisted) {
-            return "BLACKLISTED_INVESTOR";
-        }
-
         // 2. Whitelists: only affect cooldowns
-        const investorIsWhitelisted = !!(investor && investor.whitelisted);
         const countyIsWhitelisted = !!(county && county.whitelisted);
 
-        // 3. Investor cooldown (only if investor exists and not whitelisted)
-        if (investorId && !investorIsWhitelisted) {
-            const investorLog = deps.investorLogsByInvestorId.get(investorId);
-
-            if (investorLog && deps.delaySameInvestorMs > 0) {
-                const last = new Date(investorLog.created).getTime();
-
-                if (Date.now() - last <= deps.delaySameInvestorMs) {
-                    return "INVESTOR_COOLDOWN";
-                }
-            }
-        }
-
-        // 4. County cooldown (unless whitelisted)
+        // 3. County cooldown (unless whitelisted)
         if (!countyIsWhitelisted) {
             const countyLog = deps.countyLogsByCountyId.get(countyId);
 

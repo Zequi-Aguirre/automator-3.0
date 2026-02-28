@@ -10,7 +10,6 @@ import {
     Container,
     Divider,
     FormControlLabel,
-    MenuItem,
     Snackbar,
     Stack,
     Switch,
@@ -25,27 +24,6 @@ type SnackbarState = {
     open: boolean;
     message: string;
     severity: 'success' | 'error';
-};
-
-const formatDateTimeLocal = (value?: string | Date | null): string => {
-    if (!value) {
-        return '';
-    }
-
-    const date = value instanceof Date ? value : new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    const hours = `${date.getHours()}`.padStart(2, '0');
-    const minutes = `${date.getMinutes()}`.padStart(2, '0');
-
-    // HTML datetime-local expects: YYYY-MM-DDTHH:mm
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
 const formatDateTimeReadable = (value?: string | Date | null): string => {
