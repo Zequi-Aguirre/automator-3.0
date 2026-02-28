@@ -84,14 +84,6 @@ const AdminSendLogsTable = ({ logs }: Props) => {
             },
         },
         {
-            field: "investor_id",
-            headerName: "Investor",
-            minWidth: 160,
-            renderCell: (params) => {
-                return <Typography>{shortenId(params.row.investor_id)}</Typography>;
-            },
-        },
-        {
             field: "county_id",
             headerName: "County",
             minWidth: 160,

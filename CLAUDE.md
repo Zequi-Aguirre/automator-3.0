@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Automator 2.0 is a Node.js + TypeScript lead automation platform for real estate. It ingests leads via CSV, validates them, applies business rules (blacklists, whitelists, cooldowns), and dispatches them to external vendors (like iSpeedToLead). The system includes a background worker/scheduler, admin dashboard, and multi-vendor support (MVP in development).
+Automator 2.0 is a Node.js + TypeScript lead automation platform for real estate. It ingests leads via CSV, validates them, applies business rules (blacklists, cooldowns), and dispatches them to external buyers via webhooks. The system includes a background worker/scheduler with per-buyer timing control, admin dashboard, and multi-buyer support with flexible routing (manual, worker, or both).
 
 ## Common Commands
 
@@ -75,11 +75,11 @@ The codebase follows a **layered clean architecture** with tsyringe dependency i
 - **data/** - DAOs: SQL execution only, soft delete filtering, no HTTP/Express imports
 - **services/** - Business logic with two types:
   - **Entity services (thin)**: Single-entity CRUD, call only DAOs
-  - **Orchestrator services**: Cross-entity workflows (e.g., LeadService coordinates affiliate/campaign/county/investor)
+  - **Orchestrator services**: Cross-entity workflows (e.g., LeadService coordinates leads/counties, BuyerDispatchService handles buyer routing)
 - **resources/** - Express route handlers: parse inputs, call services, return HTTP responses
 - **middleware/** - Authentication, CSV parsing, token generation
 - **worker/** - Background job scheduler (SendLeadsJob, TrashExpireLeadsJob)
-- **vendor/** - External API adapters (IAO = Incoming Affiliate Organization pattern)
+- **adapters/** - External API adapters (BuyerWebhookAdapter for generic buyer webhook dispatch)
 - **types/** - Single source of truth for domain types and DTOs
 
 ### Frontend (client/src/)
@@ -89,11 +89,15 @@ React 18 + Vite + TypeScript with MUI components, Tailwind CSS, and React Contex
 ## Key Business Rules
 
 - **Soft-delete enforcement**: Records are never permanently removed (`deleted IS NULL` = active)
-- **Lead lifecycle**: Imported → Verified → Sent → Logged
-- **Blacklist logic**: If any linked entity (affiliate, investor, campaign, county) is blacklisted, the lead is trashed
-- **Cooldown logic**: Prevents sending multiple leads from same county/investor within configured time
-- **Whitelist logic**: Overrides cooldowns but entries are consumed after one use
-- **Vendor-safe routing**: In non-production (`NODE_ENV !== 'production'`), leads route to `vendorReceiveDAO` (local storage) instead of external vendor APIs
+- **Lead lifecycle**: Imported → Verified → Dispatched to Buyers → Logged
+- **Blacklist logic**: If any linked entity (affiliate, campaign, county) is blacklisted, the lead is filtered out
+- **Per-buyer cooldowns**: Each buyer has configurable min/max minutes between sends with randomized timing
+- **Whitelist logic**: County whitelists override cooldowns and are consumed after one use
+- **Buyer dispatch modes**:
+  - `manual`: Only via UI/API calls
+  - `worker`: Only via background worker
+  - `both`: Available for both manual and worker dispatch
+- **Lead reuse**: Buyers can be configured with `allow_resell=true` to receive leads that have been sent to other buyers
 
 ## Database Conventions
 
@@ -118,10 +122,51 @@ React 18 + Vite + TypeScript with MUI components, Tailwind CSS, and React Contex
 
 ## Core Services
 
-- **LeadService** - Central orchestrator for lead lifecycle (import, verify, dispatch)
-- **WorkerService** - Automation controller for scheduled lead dispatch with cooldown/timing enforcement
-- **JobService** - Scheduler manager connecting job definitions to worker handlers
-- **SettingsService** - Runtime configuration manager for worker timing and scheduling
+- **LeadService** - Lead lifecycle management (import, verify, trash, enable worker)
+- **BuyerDispatchService** - Core buyer dispatch orchestrator:
+  - Validates if lead can be sent to buyer (cooldowns, resell rules, blacklists)
+  - Builds payload and sends via BuyerWebhookAdapter
+  - Creates send_log records
+  - Updates buyer timing (next_send_at for worker randomization)
+  - Handles lead_buyer_outcomes for sold status tracking
+- **WorkerService** - Background worker controller:
+  - Iterates through all buyers with dispatch_mode='worker' or 'both'
+  - Delegates to BuyerDispatchService.processBuyerQueue() for each buyer
+  - Respects per-buyer timing windows
+- **JobService** - Scheduler manager connecting cron definitions to worker handlers
+- **CountyService** - County management including blacklist/whitelist logic
+
+## Buyers Architecture
+
+The system uses a **buyer-based dispatch architecture** where leads are routed to multiple buyers via webhooks.
+
+### Buyers Table Schema
+Each buyer has:
+- `webhook_url` - POST endpoint for lead delivery
+- `dispatch_mode` - 'manual', 'worker', or 'both'
+- `priority` - Lower number = higher priority (for worker processing order)
+- `auto_send` - Auto-dispatch on lead import if true
+- `allow_resell` - Can receive leads already sent to other buyers
+- `requires_validation` - Lead must be verified before sending
+- Per-buyer timing: `min_minutes_between_sends`, `max_minutes_between_sends`, `next_send_at`
+- Authentication: `auth_header_name`, `auth_header_prefix`, `auth_token_encrypted`
+
+### Dispatch Flow
+1. **Manual send**: UI → LeadResource → LeadService.sendLeadToBuyer() → BuyerDispatchService
+2. **Worker send**: Cron → SendLeadsJob → WorkerService.processAllBuyers() → BuyerDispatchService.processBuyerQueue()
+3. **Auto-send**: CSV import → LeadService.importLeads() → BuyerDispatchService (for auto_send=true buyers)
+
+All paths converge at **BuyerDispatchService.sendLeadToBuyer()** which:
+- Validates send eligibility (cooldowns, resell rules, blacklists)
+- Sends via BuyerWebhookAdapter with buyer's auth config
+- Creates send_log record
+- Updates buyer's next_send_at (for worker timing randomization)
+
+### Lead Reuse System
+- `lead_buyer_outcomes` table tracks many-to-many sold relationships
+- Buyers with `allow_resell=false` will not receive leads already sent to them
+- Buyers with `allow_resell=true` can receive leads regardless of prior sends
+- Sold status tracked per lead-buyer pair
 
 ## Documentation & Extended Context
 

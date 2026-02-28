@@ -6,12 +6,10 @@ import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO";
 import CampaignDAO from "../data/campaignDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import CountyService from "../services/countyService";
-import InvestorService from "../services/investorService";
 import BuyerWebhookAdapter, { BuyerWebhookResponse } from "../adapters/buyerWebhookAdapter";
 import { Lead } from "../types/leadTypes";
 import { Buyer } from "../types/buyerTypes";
 import { SendLog } from "../types/sendLogTypes";
-import { Investor } from "../types/investorTypes";
 import { County } from "../types/countyTypes";
 
 @injectable()
@@ -24,7 +22,6 @@ export default class BuyerDispatchService {
         private readonly campaignDAO: CampaignDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly countyService: CountyService,
-        private readonly investorService: InvestorService,
         private readonly buyerWebhookAdapter: BuyerWebhookAdapter
     ) {}
 
@@ -295,9 +292,6 @@ export default class BuyerDispatchService {
 
         // Unique IDs for entity lookups
         const countyIds = [...new Set(leads.map(l => l.county_id))];
-        const investorIds = [...new Set(
-            leads.filter(l => l.investor_id).map(l => l.investor_id!)
-        )];
         const states = [...new Set(leads.map(l => l.state))];
 
         // Buyer-specific cooldown logs
@@ -322,17 +316,11 @@ export default class BuyerDispatchService {
             });
         }
 
-        // Load entities
-        const investors = investorIds.length > 0
-            ? await this.investorService.getManyByIds(investorIds)
-            : [];
+        // Load counties
         const counties = await this.countyService.getManyByIds(countyIds);
 
-        // Build lookup maps
-        const investorsById = new Map<string, Investor>();
+        // Build lookup map
         const countiesById = new Map<string, County>();
-
-        investors.forEach(i => investorsById.set(i.id, i));
         counties.forEach(c => countiesById.set(c.id, c));
 
         // Precompute current local time per timezone
@@ -353,7 +341,6 @@ export default class BuyerDispatchService {
         const final: Lead[] = [];
 
         for (const lead of leads) {
-            const investor = lead.investor_id ? investorsById.get(lead.investor_id) : null;
             const county = countiesById.get(lead.county_id);
 
             // County is required
@@ -362,13 +349,9 @@ export default class BuyerDispatchService {
                 continue;
             }
 
-            // 1. Blacklist checks
+            // 1. Blacklist check (county only - investors removed)
             if (county.blacklisted) {
                 console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County ${county.name} is blacklisted`);
-                continue;
-            }
-            if (investor && investor.blacklisted) {
-                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: Investor is blacklisted`);
                 continue;
             }
 

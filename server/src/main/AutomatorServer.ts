@@ -21,7 +21,6 @@ import LeadIntakeResource from "./resources/leadIntakeResource.ts";
 import LeadOpenResource from "./resources/leadOpenResource.ts";
 import { ApiKeyAuthenticator } from "./middleware/apiKeyAuth.ts";
 import WorkerSettingsDAO from "./data/workerSettingsDAO.ts";
-import InvestorResource from "./resources/investorResource.ts";
 import SendLogResource from "./resources/sendLogResource.ts";
 import BuyerResource from "./resources/buyerResource.ts";
 
@@ -58,7 +57,6 @@ export class AutomatorServer {
         this.app.use("/api/buyers", authFunc, cont.resolve(BuyerResource).routes());
         this.app.use("/api/counties", authFunc, cont.resolve(CountyResource).routes());
         this.app.use("/api/campaigns", authFunc, cont.resolve(CampaignResource).routes());
-        this.app.use("/api/investors", authFunc, cont.resolve(InvestorResource).routes());
         this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
         this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());
         this.app.use("/api/leads-intake", apiKeyFunc, cont.resolve(LeadIntakeResource).routes());
