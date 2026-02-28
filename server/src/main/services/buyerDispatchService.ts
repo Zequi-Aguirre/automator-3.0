@@ -23,9 +23,10 @@ export default class BuyerDispatchService {
      *
      * @param lead - Lead to send
      * @param buyer - Buyer to send to
+     * @param isWorkerSend - If true, updates buyer timing (worker randomization). Default: false (manual/auto-send)
      * @returns SendLog record with response details
      */
-    async sendLeadToBuyer(lead: Lead, buyer: Buyer): Promise<SendLog> {
+    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false): Promise<SendLog> {
         // Validation: Can we send this lead to this buyer?
         const canSend = await this.canSendToBuyer(lead, buyer);
         if (!canSend.allowed) {
@@ -78,7 +79,10 @@ export default class BuyerDispatchService {
         });
 
         // Schedule buyer's next send time (randomized delay)
-        await this.scheduleBuyerNext(buyer.id);
+        // Only for worker sends - manual/auto-send should not update timing
+        if (isWorkerSend) {
+            await this.scheduleBuyerNext(buyer.id);
+        }
 
         // Return updated log
         return updatedLog;

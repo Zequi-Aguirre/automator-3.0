@@ -1,10 +1,11 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
-import LeadService from "../services/leadService";
 import CountyService from "../services/countyService";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import SendLogDAO from "../data/sendLogDAO";
 import InvestorService from "../services/investorService";
+import BuyerDAO from "../data/buyerDAO";
+import BuyerDispatchService from "../services/buyerDispatchService";
 import { Lead } from "../types/leadTypes";
 import { Investor } from "../types/investorTypes";
 import { County } from "../types/countyTypes";
@@ -14,11 +15,12 @@ export default class WorkerService {
 
     constructor(
         private readonly leadDAO: LeadDAO,
-        private readonly leadService: LeadService,
         private readonly countyService: CountyService,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly sendLogDAO: SendLogDAO,
-        private readonly investorService: InvestorService
+        private readonly investorService: InvestorService,
+        private readonly buyerDAO: BuyerDAO,
+        private readonly buyerDispatchService: BuyerDispatchService
     ) {}
 
     async isTimeToSend(): Promise<boolean> {
@@ -191,33 +193,81 @@ export default class WorkerService {
         return final;
     }
 
-    async sendNextLead(): Promise<Lead> {
-        const lead = await this.pickLeadForWorker();
-        const sentLead = await this.leadService.sendLead(lead.id);
-        await this.scheduleNext();
-        return sentLead;
-    }
-
-    async forceSendLead(leadId: string): Promise<Lead> {
-        const sentLead = await this.leadService.sendLead(leadId);
-        await this.scheduleNext();
-        return sentLead;
-    }
-
-    private async scheduleNext(): Promise<void> {
-        const settings = await this.workerSettingsDAO.getCurrentSettings();
-        const { minutes_range_start, minutes_range_end } = settings;
-
-        const nextLeadTime = new Date();
-        const random = Math.floor(
-            Math.random() * (minutes_range_end - minutes_range_start + 1)
-        ) + minutes_range_start;
-
-        nextLeadTime.setMinutes(nextLeadTime.getMinutes() + random);
-
-        await this.workerSettingsDAO.updateNextLeadTime(
-            settings.id,
-            nextLeadTime.toISOString()
+    /**
+     * Send leads to all eligible worker buyers
+     * Returns count of successful sends
+     */
+    async sendNextLead(): Promise<number> {
+        // Get all buyers with dispatch_mode 'worker' or 'both'
+        const allBuyers = await this.buyerDAO.getByPriority();
+        const workerBuyers = allBuyers.filter(b =>
+            b.dispatch_mode === 'worker' || b.dispatch_mode === 'both'
         );
+
+        if (workerBuyers.length === 0) {
+            console.log('[Worker] No worker buyers configured');
+            return 0;
+        }
+
+        // Filter for buyers where next_send_at <= NOW (eligible to send)
+        const now = new Date();
+        const eligibleBuyers = workerBuyers.filter(b => {
+            if (!b.next_send_at) return true; // No timing constraint = eligible
+            return new Date(b.next_send_at) <= now;
+        });
+
+        if (eligibleBuyers.length === 0) {
+            console.log('[Worker] No eligible buyers (all waiting for next_send_at)');
+            return 0;
+        }
+
+        // Already sorted by priority from getByPriority()
+        console.log(`[Worker] Found ${eligibleBuyers.length} eligible buyers`);
+
+        let sendCount = 0;
+
+        // Send to ALL eligible buyers (Option B)
+        for (const buyer of eligibleBuyers) {
+            try {
+                // Pick a random lead for this buyer
+                const lead = await this.pickLeadForWorker();
+
+                // Send via buyer dispatch service with isWorkerSend=true
+                await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, true);
+
+                console.log(`[Worker] Sent lead ${lead.id} to buyer ${buyer.name} (priority ${buyer.priority})`);
+                sendCount++;
+            } catch (error) {
+                // Log error but continue to next buyer
+                console.error(`[Worker] Failed to send to buyer ${buyer.name}:`, error);
+            }
+        }
+
+        return sendCount;
+    }
+
+    /**
+     * Force send specific lead to first eligible worker buyer
+     * Used for manual worker triggers
+     */
+    async forceSendLead(leadId: string): Promise<void> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) {
+            throw new Error(`Lead ${leadId} not found`);
+        }
+
+        // Get first worker buyer
+        const allBuyers = await this.buyerDAO.getByPriority();
+        const workerBuyer = allBuyers.find(b =>
+            b.dispatch_mode === 'worker' || b.dispatch_mode === 'both'
+        );
+
+        if (!workerBuyer) {
+            throw new Error('No worker buyers configured');
+        }
+
+        // Send with worker timing update
+        await this.buyerDispatchService.sendLeadToBuyer(lead, workerBuyer, true);
+        console.log(`[Worker] Force sent lead ${leadId} to ${workerBuyer.name}`);
     }
 }
