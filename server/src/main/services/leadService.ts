@@ -4,7 +4,6 @@ import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/l
 import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
-import ISpeedToLeadIAO from "../vendor/iSpeedToLeadIAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
 import { County } from "../types/countyTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
@@ -24,7 +23,6 @@ export default class LeadService {
         private readonly leadDAO: LeadDAO,
         private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
-        private readonly iSpeedToLeadIAO: ISpeedToLeadIAO,
         private readonly sendLogDAO: SendLogDAO,
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
@@ -51,112 +49,6 @@ export default class LeadService {
 
     async updateLead(leadId: string, leadData: Partial<Lead>): Promise<Lead> {
         return await this.leadDAO.updateLead(leadId, leadData);
-    }
-
-    async sendLead(leadId: string): Promise<Lead> {
-        const lead = await this.leadDAO.getById(leadId);
-        if (!lead) {
-            throw new Error("Lead not found");
-        }
-        if (lead.sent) {
-            throw new Error("Lead already sent");
-        }
-        if (!lead.verified) {
-            throw new Error("Lead must be verified first");
-        }
-
-        const form = await this.leadFormInputDAO.getByLeadId(lead.id);
-        if (!form) {
-            throw new Error("Lead missing form data");
-        }
-
-        const county = await this.countyService.getById(lead.county_id);
-
-        if (!county) {
-            throw new Error("County not found for lead");
-        }
-
-        const payload: any = {
-            form_first_name: lead.first_name,
-            form_last_name: lead.last_name,
-            form_phone: lead.phone,
-            form_email: lead.email,
-            form_address: lead.address,
-            form_city: lead.city,
-            form_state: lead.state,
-            form_zip: lead.zipcode,
-            ...form
-        };
-
-        delete payload.created;
-        delete payload.modified;
-        delete payload.deleted;
-        delete payload.lead_id;
-        delete payload.id;
-
-        // Get iSpeedToLead buyer (all sends in old system go to iSpeedToLead)
-        const buyers = await this.buyerDAO.getByPriority();
-        const ispeedBuyer = buyers.find(b => b.name === 'iSpeedToLead');
-        if (!ispeedBuyer) {
-            throw new Error('iSpeedToLead buyer not found - please run backfill migration');
-        }
-
-        const log = await this.sendLogDAO.createLog({
-            lead_id: lead.id,
-            buyer_id: ispeedBuyer.id,
-            affiliate_id: null,
-            campaign_id: null,
-            investor_id: null,
-            status: "sent"
-        });
-
-        try {
-            const axiosResponse = await this.iSpeedToLeadIAO.sendLead(ispeedBuyer.webhook_url, payload);
-            const response = axiosResponse.data;
-
-            const payoutCents = (() => {
-                const payout = response?.payout;
-                if (!payout) {
-                    return null;
-                }
-                const num = Number(payout);
-                return Number.isFinite(num) ? Math.round(num * 100) : null;
-            })();
-
-            await this.sendLogDAO.updateLog(log.id, {
-                response_code: axiosResponse.status,
-                response_body: JSON.stringify(response),
-                payout_cents: payoutCents,
-                status: "sent"
-            });
-
-            // Note: No longer marking lead as sent in leads table
-            // Sent status determined from send_log table
-
-            // One-time whitelist consumption
-            if (county.whitelisted) {
-                await this.countyService.updateCountyMeta(county.id, {
-                    whitelisted: false
-                });
-            }
-
-            return lead;
-
-        } catch (err: any) {
-            // Note: No longer marking lead as sent on failure
-            const errorResponse = err.response?.data || err.message || "Unknown error";
-
-            await this.sendLogDAO.updateLog(log.id, {
-                response_code: err.response?.status ?? 0,
-                response_body: JSON.stringify(errorResponse),
-                payout_cents: null,
-                status: "failed"
-            });
-
-            throw new Error(
-                typeof errorResponse === "string" ? errorResponse : JSON.stringify(errorResponse)
-            );
-        }
     }
 
     async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE"): Promise<Lead> {
