@@ -1,7 +1,7 @@
 export interface SendLog {
     id: string;
     lead_id: string;
-    buyer_id: string | null;
+    buyer_id: string;
     affiliate_id: string | null;
     campaign_id: string | null;
     investor_id: string | null;
@@ -23,7 +23,7 @@ export interface SendLog {
 
 export interface SendLogInsert {
     lead_id: string;
-    buyer_id?: string | null;
+    buyer_id: string;
     affiliate_id: string | null;
     campaign_id: string | null;
     investor_id: string | null;
