@@ -9,6 +9,7 @@ export class EnvConfig {
     public readonly serverUrl: string;
     public readonly leadVendorURL: string;
     public readonly leadIntakeApiKey: string;
+    public readonly buyerAuthEncryptionKey: string;
 
     constructor() {
         this.dbConfig = new DBConfig();
@@ -17,6 +18,7 @@ export class EnvConfig {
         this.serverUrl = process.env.VITE_SERVER_URL!;
         this.leadVendorURL = process.env.LEAD_VENDOR_URL!;
         this.leadIntakeApiKey = process.env.LEAD_INTAKE_API_KEY!;
+        this.buyerAuthEncryptionKey = process.env.BUYER_AUTH_ENCRYPTION_KEY!;
     }
 }
 
