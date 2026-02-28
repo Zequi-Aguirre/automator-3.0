@@ -183,7 +183,12 @@ export default class BuyerDAO {
                 auth_header_name,
                 auth_header_prefix,
                 auth_token_encrypted,
-                blocked_affiliate_ids
+                blocked_affiliate_ids,
+                states_on_hold,
+                delay_same_county,
+                delay_same_state,
+                enforce_county_cooldown,
+                enforce_state_cooldown
             )
             VALUES (
                 $[name],
@@ -198,7 +203,12 @@ export default class BuyerDAO {
                 $[auth_header_name],
                 $[auth_header_prefix],
                 $[auth_token_encrypted],
-                $[blocked_affiliate_ids]
+                $[blocked_affiliate_ids],
+                $[states_on_hold],
+                $[delay_same_county],
+                $[delay_same_state],
+                $[enforce_county_cooldown],
+                $[enforce_state_cooldown]
             )
             RETURNING *;
         `;
@@ -216,7 +226,12 @@ export default class BuyerDAO {
             auth_header_name: dto.auth_header_name || 'Authorization',
             auth_header_prefix: dto.auth_header_prefix || null,
             auth_token_encrypted: authTokenEncrypted,
-            blocked_affiliate_ids: dto.blocked_affiliate_ids || []
+            blocked_affiliate_ids: dto.blocked_affiliate_ids || [],
+            states_on_hold: dto.states_on_hold || [],
+            delay_same_county: dto.delay_same_county ?? 36,
+            delay_same_state: dto.delay_same_state ?? 0,
+            enforce_county_cooldown: dto.enforce_county_cooldown ?? true,
+            enforce_state_cooldown: dto.enforce_state_cooldown ?? false
         });
     }
 
@@ -251,6 +266,11 @@ export default class BuyerDAO {
                 auth_header_prefix = $[auth_header_prefix],
                 auth_token_encrypted = $[auth_token_encrypted],
                 blocked_affiliate_ids = $[blocked_affiliate_ids],
+                states_on_hold = $[states_on_hold],
+                delay_same_county = $[delay_same_county],
+                delay_same_state = $[delay_same_state],
+                enforce_county_cooldown = $[enforce_county_cooldown],
+                enforce_state_cooldown = $[enforce_state_cooldown],
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL
@@ -271,7 +291,12 @@ export default class BuyerDAO {
             auth_header_name: dto.auth_header_name ?? existing.auth_header_name,
             auth_header_prefix: dto.auth_header_prefix !== undefined ? dto.auth_header_prefix : existing.auth_header_prefix,
             auth_token_encrypted: authTokenEncrypted,
-            blocked_affiliate_ids: dto.blocked_affiliate_ids ?? existing.blocked_affiliate_ids
+            blocked_affiliate_ids: dto.blocked_affiliate_ids ?? existing.blocked_affiliate_ids,
+            states_on_hold: dto.states_on_hold ?? existing.states_on_hold,
+            delay_same_county: dto.delay_same_county ?? existing.delay_same_county,
+            delay_same_state: dto.delay_same_state ?? existing.delay_same_state,
+            enforce_county_cooldown: dto.enforce_county_cooldown ?? existing.enforce_county_cooldown,
+            enforce_state_cooldown: dto.enforce_state_cooldown ?? existing.enforce_state_cooldown
         });
 
         if (!result) {
