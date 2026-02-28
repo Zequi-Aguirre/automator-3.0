@@ -1,6 +1,5 @@
 import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
-import WorkerService from "../services/workerService";
 import SettingsService from "../services/settingsService";
 import { Worker } from "../worker/Worker";
 
@@ -9,7 +8,6 @@ export default class WorkerResource {
     private readonly router: Router;
 
     constructor(
-        private readonly workerService: WorkerService,
         private readonly settingsService: SettingsService,
         private readonly worker: Worker
     ) {
@@ -19,33 +17,10 @@ export default class WorkerResource {
 
     private initializeRoutes(): void {
 
-        // Force-send a specific lead manually
-        this.router.patch(
-            "/admin/send-now/:leadId",
-            async (req: Request, res: Response) => {
-                try {
-                    const { leadId } = req.params;
-                    if (!leadId) {
-                        res.status(400).send({ success: false, message: "Missing leadId" });
-                        return;
-                    }
-
-                    const result = await this.workerService.forceSendLead(leadId);
-
-                    res.status(200).send({
-                        success: true,
-                        message: `Lead ${leadId} sent successfully`,
-                        lead: result
-                    });
-
-                } catch (err: any) {
-                    res.status(500).send({
-                        success: false,
-                        message: err instanceof Error ? err.message : "Unknown error"
-                    });
-                }
-            }
-        );
+        // REMOVED: Force-send endpoint (forceSendLead method removed in Sprint 4 refactor)
+        // Old endpoint: PATCH /admin/send-now/:leadId
+        // Reason: New architecture processes buyers, not individual leads
+        // Alternative: Use buyer send modal to send lead to specific buyer
 
         // Start worker (enable in DB, then initialize cron)
         this.router.patch(

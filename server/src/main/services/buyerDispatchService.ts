@@ -1,20 +1,30 @@
 import { injectable } from "tsyringe";
 import BuyerDAO from "../data/buyerDAO";
+import LeadDAO from "../data/leadDAO";
 import SendLogDAO from "../data/sendLogDAO";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO";
 import CampaignDAO from "../data/campaignDAO";
+import WorkerSettingsDAO from "../data/workerSettingsDAO";
+import CountyService from "../services/countyService";
+import InvestorService from "../services/investorService";
 import BuyerWebhookAdapter, { BuyerWebhookResponse } from "../adapters/buyerWebhookAdapter";
 import { Lead } from "../types/leadTypes";
 import { Buyer } from "../types/buyerTypes";
 import { SendLog } from "../types/sendLogTypes";
+import { Investor } from "../types/investorTypes";
+import { County } from "../types/countyTypes";
 
 @injectable()
 export default class BuyerDispatchService {
     constructor(
         private readonly buyerDAO: BuyerDAO,
+        private readonly leadDAO: LeadDAO,
         private readonly sendLogDAO: SendLogDAO,
         private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO,
         private readonly campaignDAO: CampaignDAO,
+        private readonly workerSettingsDAO: WorkerSettingsDAO,
+        private readonly countyService: CountyService,
+        private readonly investorService: InvestorService,
         private readonly buyerWebhookAdapter: BuyerWebhookAdapter
     ) {}
 
@@ -133,6 +143,47 @@ export default class BuyerDispatchService {
     }
 
     /**
+     * Process buyer's queue - main worker dispatch method
+     * Checks timing, gets eligible leads, and sends one if available
+     *
+     * @param buyerId - Buyer ID to process
+     * @returns SendLog if lead was sent, null if no lead available or buyer not ready
+     */
+    async processBuyerQueue(buyerId: string): Promise<SendLog | null> {
+        const buyer = await this.buyerDAO.getById(buyerId);
+        if (!buyer) {
+            throw new Error(`Buyer ${buyerId} not found`);
+        }
+
+        // Check if buyer is ready to send (timing check)
+        const ready = await this.isBuyerReadyToSend(buyerId);
+        if (!ready) {
+            console.log(`[BuyerDispatch][${buyer.name}] Not ready to send (next_send_at: ${buyer.next_send_at})`);
+            return null;
+        }
+
+        // Get eligible leads for this buyer
+        const leads = await this.getEligibleLeadsForBuyer(buyerId);
+        if (leads.length === 0) {
+            console.log(`[BuyerDispatch][${buyer.name}] No eligible leads available`);
+            return null;
+        }
+
+        // Pick first lead (oldest) and send it
+        const lead = leads[0];
+        console.log(`[BuyerDispatch][${buyer.name}] Processing lead ${lead.id} [verified: ${lead.verified}]`);
+
+        try {
+            const log = await this.sendLeadToBuyer(lead, buyer, true); // isWorkerSend=true
+            console.log(`[BuyerDispatch][${buyer.name}] Successfully sent lead ${lead.id}`);
+            return log;
+        } catch (error) {
+            console.error(`[BuyerDispatch][${buyer.name}] Failed to send lead ${lead.id}:`, error);
+            throw error; // Re-throw so WorkerService can handle per-buyer errors
+        }
+    }
+
+    /**
      * Schedule buyer's next send time with randomized delay
      * Uses buyer's min_minutes_between_sends and max_minutes_between_sends
      *
@@ -160,6 +211,216 @@ export default class BuyerDispatchService {
             next_send_at: nextSendAt,
             total_sends: buyer.total_sends + 1
         });
+    }
+
+    /**
+     * Check if buyer is ready to send (timing check)
+     *
+     * @param buyerId - Buyer ID to check
+     * @returns true if buyer is ready to send (next_send_at is null or <= NOW)
+     */
+    async isBuyerReadyToSend(buyerId: string): Promise<boolean> {
+        const buyer = await this.buyerDAO.getById(buyerId);
+        if (!buyer) {
+            throw new Error(`Buyer ${buyerId} not found`);
+        }
+
+        // No timing constraint = always ready
+        if (!buyer.next_send_at) {
+            return true;
+        }
+
+        // Check if next_send_at has passed
+        const now = new Date();
+        const nextSend = new Date(buyer.next_send_at);
+        return nextSend <= now;
+    }
+
+    /**
+     * Get eligible leads for a specific buyer
+     * Applies SQL-level filtering (already sent, sold to higher-priority)
+     * Then applies business logic filtering (blacklists, cooldowns, business hours)
+     *
+     * @param buyerId - Buyer ID to get leads for
+     * @returns Array of eligible leads (empty if none available)
+     */
+    async getEligibleLeadsForBuyer(buyerId: string): Promise<Lead[]> {
+        const buyer = await this.buyerDAO.getById(buyerId);
+        if (!buyer) {
+            throw new Error(`Buyer ${buyerId} not found`);
+        }
+
+        // Get leads from DAO (SQL-level filtering)
+        // Choose verified or unverified based on buyer's validation requirement
+        const leads = buyer.requires_validation
+            ? await this.leadDAO.getVerifiedLeadsForWorker(buyer.id, buyer.priority)
+            : await this.leadDAO.getUnverifiedLeadsForWorker(buyer.id, buyer.priority);
+
+        if (leads.length === 0) {
+            return [];
+        }
+
+        // Apply additional business logic filters
+        const filtered = await this.applyFilters(leads, buyer);
+
+        return filtered;
+    }
+
+    /**
+     * Apply business logic filters to leads
+     * Checks: blacklists, states on hold, cooldowns, business hours
+     *
+     * @param leads - Leads to filter
+     * @param buyer - Buyer with filter settings
+     * @returns Filtered leads
+     */
+    private async applyFilters(leads: Lead[], buyer: Buyer): Promise<Lead[]> {
+        if (leads.length === 0) {
+            return [];
+        }
+
+        const settings = await this.workerSettingsDAO.getCurrentSettings();
+
+        // Use per-buyer cooldown settings
+        const delayCountyMs = buyer.enforce_county_cooldown
+            ? buyer.delay_same_county * 60 * 60 * 1000
+            : 0;
+
+        const delayStateMs = buyer.enforce_state_cooldown
+            ? buyer.delay_same_state * 60 * 60 * 1000
+            : 0;
+
+        const businessStart = settings.business_hours_start;
+        const businessEnd = settings.business_hours_end;
+
+        // Unique IDs for entity lookups
+        const countyIds = [...new Set(leads.map(l => l.county_id))];
+        const investorIds = [...new Set(
+            leads.filter(l => l.investor_id).map(l => l.investor_id!)
+        )];
+        const states = [...new Set(leads.map(l => l.state))];
+
+        // Buyer-specific cooldown logs
+        let countyLogMap = new Map<string, any>();
+        let stateLogMap = new Map<string, any>();
+
+        if (buyer.enforce_county_cooldown && delayCountyMs > 0) {
+            const countyLogs = await this.sendLogDAO.getLatestLogsByBuyerAndCounties(buyer.id, countyIds);
+            countyLogs.forEach(log => {
+                if (log.county_id) {
+                    countyLogMap.set(log.county_id, log);
+                }
+            });
+        }
+
+        if (buyer.enforce_state_cooldown && delayStateMs > 0) {
+            const stateLogs = await this.sendLogDAO.getLatestLogsByBuyerAndStates(buyer.id, states);
+            stateLogs.forEach(log => {
+                if (log.state) {
+                    stateLogMap.set(log.state, log);
+                }
+            });
+        }
+
+        // Load entities
+        const investors = investorIds.length > 0
+            ? await this.investorService.getManyByIds(investorIds)
+            : [];
+        const counties = await this.countyService.getManyByIds(countyIds);
+
+        // Build lookup maps
+        const investorsById = new Map<string, Investor>();
+        const countiesById = new Map<string, County>();
+
+        investors.forEach(i => investorsById.set(i.id, i));
+        counties.forEach(c => countiesById.set(c.id, c));
+
+        // Precompute current local time per timezone
+        const timezoneLocalMinute = new Map<string, number>();
+        const now = new Date();
+
+        for (const county of counties) {
+            const tz = county.timezone;
+            if (!timezoneLocalMinute.has(tz)) {
+                const local = new Date(
+                    now.toLocaleString("en-US", { timeZone: tz })
+                );
+                const minuteOfDay = local.getHours() * 60 + local.getMinutes();
+                timezoneLocalMinute.set(tz, minuteOfDay);
+            }
+        }
+
+        const final: Lead[] = [];
+
+        for (const lead of leads) {
+            const investor = lead.investor_id ? investorsById.get(lead.investor_id) : null;
+            const county = countiesById.get(lead.county_id);
+
+            // County is required
+            if (!county) {
+                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County not found`);
+                continue;
+            }
+
+            // 1. Blacklist checks
+            if (county.blacklisted) {
+                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County ${county.name} is blacklisted`);
+                continue;
+            }
+            if (investor && investor.blacklisted) {
+                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: Investor is blacklisted`);
+                continue;
+            }
+
+            // 2. Buyer-specific state blocking
+            if (buyer.states_on_hold.includes(lead.state)) {
+                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: State ${lead.state} is on hold`);
+                continue;
+            }
+
+            // 3. Buyer-specific county cooldown (whitelisted counties skip cooldown)
+            if (!county.whitelisted && delayCountyMs > 0) {
+                const log = countyLogMap.get(lead.county_id);
+                if (log) {
+                    const lastSend = new Date(log.created).getTime();
+                    const minutesAgo = Math.round((Date.now() - lastSend) / 1000 / 60);
+                    if (Date.now() - lastSend <= delayCountyMs) {
+                        console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County cooldown (${minutesAgo} min ago)`);
+                        continue;
+                    }
+                }
+            }
+
+            // 4. Buyer-specific state cooldown
+            if (delayStateMs > 0) {
+                const log = stateLogMap.get(lead.state);
+                if (log) {
+                    const lastSend = new Date(log.created).getTime();
+                    const minutesAgo = Math.round((Date.now() - lastSend) / 1000 / 60);
+                    if (Date.now() - lastSend <= delayStateMs) {
+                        console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: State cooldown (${minutesAgo} min ago)`);
+                        continue;
+                    }
+                }
+            }
+
+            // 5. Business hours (using precomputed timezone local time)
+            const localMin = timezoneLocalMinute.get(county.timezone);
+            if (localMin === undefined) {
+                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: Could not determine timezone for ${county.timezone}`);
+                continue;
+            }
+
+            if (localMin < businessStart || localMin >= businessEnd) {
+                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: Outside business hours (${Math.floor(localMin / 60)}:${(localMin % 60).toString().padStart(2, '0')} in ${county.timezone})`);
+                continue;
+            }
+
+            console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - PASSED all filters`);
+            final.push(lead);
+        }
+
+        return final;
     }
 
     /**
