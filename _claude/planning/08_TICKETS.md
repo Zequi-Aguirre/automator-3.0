@@ -907,6 +907,66 @@ Current priority system uses simple integer values with unique constraints. Whil
 **Technical Notes**:
 - Current fixes handle gaps and soft-delete conflicts
 - This ticket is about improving UX for intentional reordering
+
+---
+
+### TICKET-042: Add dispute tracking for sold leads
+**Type**: Full Stack Feature
+**Priority**: P2 (Future Enhancement)
+**Estimate**: 8 hours
+
+**Background**:
+When leads are sold to buyers, buyers may dispute them later (wrong lead, bad data, etc.). VAs check buyer platforms (Compass, Sellers, etc.) and manually track disputes. Need system to record disputes with reasons for tracking and analytics.
+
+**Use Case**:
+1. VA checks Compass platform → sees lead XYZ was disputed
+2. VA finds lead XYZ in admin dashboard → marked as "Sold to Compass"
+3. VA clicks "Disputed" button next to "Sold"
+4. Modal opens with form: buyer name (pre-filled), dispute reason (text/dropdown), submit
+5. System records dispute with timestamp and VA user who logged it
+
+**Database**:
+- Extend `lead_buyer_outcomes` table with dispute fields:
+  - `disputed` BOOLEAN DEFAULT false
+  - `dispute_reason` TEXT
+  - `disputed_at` TIMESTAMP
+  - `disputed_by_user_id` UUID (references users table)
+
+**Backend**:
+- Add `disputeLead(leadId, buyerId, reason, userId)` to LeadService
+- Add PUT /api/leads/:id/buyers/:buyerId/dispute endpoint
+- Update getBuyerSendHistory to include dispute status
+
+**Frontend**:
+- Add "Disputed" button/badge next to "Sold" status in buyer send modal
+- Create dispute modal with form:
+  - Buyer name (read-only, pre-filled)
+  - Dispute reason (textarea or dropdown with common reasons)
+  - Submit button
+- Show dispute status in buyer history (disputed badge, reason tooltip)
+- Show dispute count in leads table (optional)
+
+**Acceptance Criteria**:
+- [ ] Can mark a sold lead as disputed with reason
+- [ ] Dispute recorded with timestamp and user who logged it
+- [ ] Dispute status visible in buyer send history
+- [ ] Can view dispute reason in UI
+- [ ] Can filter/search leads by disputed status (future)
+
+**Technical Notes**:
+- A lead can be sold to multiple buyers (Compass AND Sellers)
+- Each buyer can independently dispute
+- Disputes don't affect "sold" status (remain sold but flagged as disputed)
+- User/VA roles and permissions needed (depends on auth system implementation)
+
+**Dependencies**:
+- User authentication and role management system
+- TICKET-017 (buyer send modal) should be implemented first
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_dispute_tracking.sql`
+- Backend: `server/src/main/services/leadService.ts`, `server/src/main/resources/leadResource.ts`
+- Frontend: `client/src/components/common/leadDetails/buyerSendModal/DisputeModal.tsx`
 - Consider using libraries like react-beautiful-dnd or SortableJS
 
 **Files**: `client/src/components/admin/adminBuyersSection/AdminBuyersSection.tsx`
