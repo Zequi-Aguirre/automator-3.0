@@ -208,8 +208,7 @@ export default class BuyerDispatchService {
             zipcode: lead.zipcode,
 
             // Metadata
-            verified: lead.verified,
-            investor_id: lead.investor_id
+            verified: lead.verified
         };
     }
 }
