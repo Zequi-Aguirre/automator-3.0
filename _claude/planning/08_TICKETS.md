@@ -1061,6 +1061,99 @@ Current implementation fetches ALL buyers and filters client-side. This is ineff
 
 ---
 
+### TICKET-044: Fix CSV state validation - clean state values before enum validation
+**Type**: Backend Bug Fix (QA - Sprint 2)
+**Priority**: P0 (Critical)
+**Estimate**: 30 minutes
+
+**Background**:
+During QA testing, CSV import failed with error:
+```
+error: invalid input value for enum us_state: "GA."
+```
+CSV files have state values with trailing periods (e.g., "GA.", "TX.") but the database us_state enum expects clean values ("GA", "TX"). Need to normalize/clean state values before validation.
+
+**Tasks**:
+- Update CSV parsing middleware to clean state values
+- Trim whitespace and remove trailing periods
+- Apply cleaning before enum validation
+- Test with sample CSV containing "GA.", "TX.", etc.
+
+**Acceptance Criteria**:
+- [ ] CSV with "GA." imports successfully as "GA"
+- [ ] State values are trimmed and normalized
+- [ ] No database enum errors
+- [ ] Existing clean state values still work
+
+**Files**:
+- `server/src/main/middleware/parseAndValidateCSV.ts`
+
+---
+
+### TICKET-045: Fix frontend upload modal error handling
+**Type**: Frontend Bug Fix (QA - Sprint 2)
+**Priority**: P0 (Critical)
+**Estimate**: 45 minutes
+
+**Background**:
+During QA testing, when CSV import fails on backend (e.g., due to validation errors), the frontend upload modal:
+- Keeps showing loading spinner indefinitely
+- Doesn't display error message to user
+- Doesn't allow retry or close
+- User has to refresh page to recover
+
+**Current Behavior**:
+1. User uploads CSV
+2. Backend returns 400/500 error with message
+3. Frontend catches error but doesn't update UI
+4. Modal stays in loading state forever
+
+**Expected Behavior**:
+1. User uploads CSV
+2. Backend returns error
+3. Frontend shows error message (alert/snackbar)
+4. Loading stops
+5. User can close modal and retry
+
+**Tasks**:
+- Find CSV upload modal component
+- Add error state handling to catch failed API responses
+- Stop loading spinner on error
+- Display error message to user (MUI Alert or Snackbar)
+- Allow user to close modal and retry upload
+- Test with intentionally failing CSV
+
+**Acceptance Criteria**:
+- [ ] Error messages are displayed to user
+- [ ] Loading spinner stops on error
+- [ ] Modal can be closed after error
+- [ ] User can retry upload after error
+- [ ] Success case still works
+
+**Files**:
+- `client/src/components/*/UploadCSVModal.tsx` (or similar - need to locate)
+
+---
+
+## QA Session - Sprint 2
+
+**Date**: 2026-02-28
+**Branch**: `qa-sprint-2-bug-fixes`
+**Scope**: Test all Sprint 2 functionality (buyer dispatch system, modal, worker columns)
+
+### Bugs Found:
+1. **TICKET-044**: CSV import crashes with "invalid input value for enum us_state: 'GA.'" - state values have trailing periods
+2. **TICKET-045**: Frontend upload modal doesn't show errors, keeps loading indefinitely when backend fails
+
+### Testing Notes:
+- CSV sample file has states like "GA.", "TX." with periods
+- Backend validation rejects these as invalid enum values
+- Frontend error handling missing in upload flow
+
+**Status**: 🔴 In Progress - Fixing bugs before Sprint 3
+
+---
+
 ## Ticket Summary
 
 | Sprint | Tickets | Total Hours | Risk Level |

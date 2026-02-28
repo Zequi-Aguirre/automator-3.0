@@ -20,6 +20,11 @@ export function cleanPhone(phone: string): string {
     return "";
 }
 
+export function cleanState(state: string): string {
+    // Trim whitespace, remove trailing periods, convert to uppercase
+    return state.trim().replace(/\.+$/, "").toUpperCase();
+}
+
 export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     const records = parse(csvContent, {
         columns: true,
@@ -61,7 +66,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             email,
             address: Address,
             city: City,
-            state: State.toUpperCase(),
+            state: cleanState(State),
             zipcode: ZipCode || "",
             county: County || "",
             county_id: undefined,
