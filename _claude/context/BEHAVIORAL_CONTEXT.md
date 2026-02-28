@@ -29,15 +29,77 @@
 
 ---
 
-### 2. **"Later" = Create a Ticket**
+### 2. **Ticket Management - Behave Like a Real Developer**
 
+**CRITICAL BEHAVIOR**: Always work within the ticket system. This is NOT optional.
+
+#### **Before Starting ANY Work**
+1. **Check `_claude/planning/08_TICKETS.md`** for existing tickets
+2. If working on existing ticket → Reference it in commits/docs
+3. If no ticket exists → Create one FIRST, then work
+
+#### **When You Find a Bug**
+```
+❌ "There's a bug, let me fix it"
+✅ "Found bug: [description]
+   Creating TICKET-XXX: Fix [bug description]
+   [Then fix it and reference ticket]"
+```
+
+**DO THIS EVERY TIME:**
+1. Document the bug in a new ticket
+2. Add to `_claude/planning/08_TICKETS.md` or `FUTURE_ENHANCEMENTS.md`
+3. Reference ticket number in commit message
+4. Mark ticket complete when done
+
+#### **When Completing Work**
+```
+After finishing ANY code changes:
+1. Find the ticket in 08_TICKETS.md
+2. Update acceptance criteria checkboxes
+3. Add completion notes
+4. Mark ticket status (IN PROGRESS → COMPLETED)
+5. Update CURRENT_SPRINT.md with what was done
+```
+
+#### **When Finding a Blocker**
+```
+❌ "Can't proceed, stuck"
+✅ "BLOCKER on TICKET-XXX: [description]
+   - What blocked: [specific issue]
+   - Attempted solutions: [what I tried]
+   - Need: [what's needed to unblock]
+
+   Creating TICKET-XXX for workaround/fix"
+```
+
+**THEN**: Document in both the ticket AND `CURRENT_SPRINT.md`
+
+#### **"Later" = Create a Ticket**
 **RULE**: If you say "we'll do X later" or "we'll update Y after implementation", IMMEDIATELY create a ticket for it.
 
 **Examples**:
 - ❌ "We'll update the docs after we finish the implementation"
-- ✅ "We'll update the docs after implementation" → Creates TICKET-039: Update docs/AI/BASELINE files with buyers architecture
+- ✅ "We'll update the docs after implementation" → Creates TICKET-XXX in FUTURE_ENHANCEMENTS.md
 
 **Why**: Nothing gets lost. Every future task is tracked.
+
+#### **Ticket Lifecycle Management**
+```
+1. PLANNING: Ticket created in 08_TICKETS.md or FUTURE_ENHANCEMENTS.md
+2. STARTING: Mark ticket "IN PROGRESS" in status section
+3. WORKING: Reference ticket # in all commits
+4. TESTING: Update acceptance criteria checkboxes
+5. COMPLETING: Mark "COMPLETE", add to CURRENT_SPRINT.md
+6. DOCUMENTING: Note completion time, any issues, learnings
+```
+
+**NEVER:**
+- ❌ Work without a ticket
+- ❌ Fix bugs without documenting them
+- ❌ Complete tickets without updating status
+- ❌ Leave blockers undocumented
+- ❌ Say "we'll do it later" without creating a ticket
 
 ---
 

@@ -2,6 +2,32 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🎯 CRITICAL: Ticket-Driven Development
+
+**ALWAYS work within the ticket system. This is core behavior.**
+
+**Before ANY work:**
+1. Check `_claude/planning/08_TICKETS.md` for existing tickets
+2. If no ticket exists → Create one in `08_TICKETS.md` or `FUTURE_ENHANCEMENTS.md`
+3. Reference ticket # in ALL commits
+
+**When you find a bug:**
+- Create a ticket documenting it
+- Fix it
+- Mark ticket complete
+
+**When completing work:**
+- Update ticket status in `08_TICKETS.md`
+- Update `CURRENT_SPRINT.md` with what was done
+- Check off acceptance criteria
+
+**When blocked:**
+- Document blocker in ticket
+- Create follow-up ticket if needed
+- Update `CURRENT_SPRINT.md`
+
+**Full behavior details:** See `_claude/context/BEHAVIORAL_CONTEXT.md` → Section 2
+
 ## Project Overview
 
 Automator 2.0 is a Node.js + TypeScript lead automation platform for real estate. It ingests leads via CSV, validates them, applies business rules (blacklists, whitelists, cooldowns), and dispatches them to external vendors (like iSpeedToLead). The system includes a background worker/scheduler, admin dashboard, and multi-vendor support (MVP in development).

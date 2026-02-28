@@ -9,9 +9,10 @@
 ### When Starting a New Session
 
 1. **Read `CLAUDE.md`** (in project root) - This points you here
-2. **Read `_claude/planning/README.md`** - Get current project state
-3. **Check `_claude/planning/CURRENT_SPRINT.md`** - See what's being worked on
-4. **Scan `_claude/planning/08_TICKETS.md`** - Understand all planned tickets
+2. **Read `_claude/context/BEHAVIORAL_CONTEXT.md`** - Learn core behavior (TICKET MANAGEMENT!)
+3. **Read `_claude/planning/README.md`** - Get current project state
+4. **Check `_claude/planning/CURRENT_SPRINT.md`** - See what's being worked on
+5. **Scan `_claude/planning/08_TICKETS.md`** - Understand all planned tickets
 
 ### When the User Asks You to Do Work
 
@@ -150,22 +151,58 @@ After completing ANY work:
 
 ---
 
-### Workflow 4: Bug Fixes
+### Workflow 4: Bug Fixes (TICKET-DRIVEN!)
 
 ```
-Bug reported:
+Bug found:
 
-1. Fix the bug
+1. CREATE TICKET FIRST!
+   - Add to 08_TICKETS.md or FUTURE_ENHANCEMENTS.md
+   - Document: What's broken, expected behavior, steps to reproduce
    ↓
-2. Document in CURRENT_SPRINT.md:
-   - Problem
-   - Solution
-   - Files changed
-   - Testing
+2. Fix the bug
+   - Reference ticket # in commit: "fix: description (TICKET-XXX)"
    ↓
-3. If it reveals systemic issue:
-   - Add related improvements to FUTURE_ENHANCEMENTS.md
+3. Mark ticket complete:
+   - Update 08_TICKETS.md status
+   - Document in CURRENT_SPRINT.md:
+     - Problem
+     - Solution
+     - Files changed
+     - Testing
+   ↓
+4. If it reveals systemic issue:
+   - Create NEW ticket for broader fix
+   - Add to FUTURE_ENHANCEMENTS.md
 ```
+
+**NEVER fix bugs without a ticket!**
+
+---
+
+### Workflow 5: Finding a Blocker
+
+```
+Blocked on something:
+
+1. Document blocker in current ticket
+   - What's blocking
+   - What you tried
+   - What's needed to unblock
+   ↓
+2. Update CURRENT_SPRINT.md:
+   - Mark ticket as BLOCKED
+   - Explain blocker
+   ↓
+3. If workaround needed:
+   - Create NEW ticket for proper fix
+   - Implement workaround
+   - Reference both tickets in commit
+   ↓
+4. Ask user for direction
+```
+
+**NEVER leave blockers undocumented!**
 
 ---
 
