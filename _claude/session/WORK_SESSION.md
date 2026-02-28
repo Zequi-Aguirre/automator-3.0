@@ -79,12 +79,12 @@
 
 ## 🎯 CURRENT STATUS
 
-**Active Ticket**: TICKET-001 COMPLETED ✅
-**Current Branch**: ticket-001-create-buyers-table (pushed)
-**Last Action**: Created and tested buyers + lead_buyer_outcomes tables
+**Active Ticket**: TICKET-003 & TICKET-004 COMPLETED ✅
+**Current Branch**: ticket-003-buyer-daos (pushed)
+**Last Action**: Created BuyerDAO and LeadBuyerOutcomeDAO with encryption
 **Blockers**: None
 
-**Next Action**: Create PR for TICKET-001, then start TICKET-002
+**Next Action**: Wait for PR#14 merge, then start TICKET-005 & TICKET-006 (Types update)
 
 ---
 
@@ -99,26 +99,26 @@
   - **Completed**: 2024-02-27 11:35 PM PST
   - **Notes**: Migration tested locally, both tables created with all indexes and constraints
 
-- [ ] **TICKET-002**: Extend send_log and leads tables
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-002**: Extend send_log and leads tables
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-001-create-buyers-table
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/13
+  - **Completed**: 2024-02-27 11:45 PM PST
+  - **Notes**: Added buyer_id to send_log and worker_enabled to leads, merged with PR#1
 
-- [ ] **TICKET-003**: Create BuyerDAO with encryption utilities
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-003**: Create BuyerDAO with encryption utilities
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-003-buyer-daos
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/14
+  - **Completed**: 2024-02-28 12:15 AM PST
+  - **Notes**: Implemented with AES-256-CBC encryption, all CRUD methods, soft-delete filtering
 
-- [ ] **TICKET-004**: Create LeadBuyerOutcomeDAO
-  - **Status**: NOT STARTED
-  - **Branch**: -
-  - **PR**: -
-  - **Completed**: -
-  - **Notes**: -
+- [x] **TICKET-004**: Create LeadBuyerOutcomeDAO
+  - **Status**: ✅ COMPLETED
+  - **Branch**: ticket-003-buyer-daos
+  - **PR**: https://github.com/Anphanbuys/automator_2/pull/14
+  - **Completed**: 2024-02-28 12:15 AM PST
+  - **Notes**: Many-to-many sold status tracking, merged with TICKET-003
 
 - [ ] **TICKET-005**: Create buyerTypes.ts and leadBuyerOutcomeTypes.ts
   - **Status**: NOT STARTED
@@ -218,9 +218,10 @@ Production:
 ### Doppler Environment Variables
 
 Required for this refactor:
-- [ ] `BUYER_AUTH_ENCRYPTION_KEY` - NOT ADDED YET (needed for TICKET-003)
+- [ ] `BUYER_AUTH_ENCRYPTION_KEY` - ⚠️ NEEDS TO BE ADDED TO DOPPLER
   - Generate with: `openssl rand -hex 32`
-  - Add to Doppler before TICKET-003
+  - Already added to envConfig.ts in TICKET-003
+  - Must be added to Doppler before deploying or running locally
 
 ### Dependencies Installed
 
@@ -283,15 +284,15 @@ This will load:
 ## 📊 PROGRESS TRACKER
 
 **Total Tickets**: 40
-**Completed**: 1
+**Completed**: 4
 **In Progress**: 0
-**Remaining**: 39
+**Remaining**: 36
 
 **Estimated Completion**: 3 days (hackathon weekend)
 
 ### Sprint Progress
 
-- [ ] Sprint 1: Foundation & Admin UI (0/10 tickets)
+- [ ] Sprint 1: Foundation & Admin UI (4/10 tickets)
 - [ ] Sprint 2: Dispatch Logic & Manual Sends (0/8 tickets)
 - [ ] Sprint 3: iSpeedToLead Migration (0/2 tickets)
 - [ ] Sprint 4: Worker Switchover (0/5 tickets) ⚠️ HIGH RISK
@@ -340,4 +341,4 @@ This will load:
 
 **Ready to build! 💪**
 
-Last update: 2024-02-27 11:15 PM PST
+Last update: 2024-02-28 12:20 AM PST
