@@ -271,8 +271,8 @@ export default class LeadDAO {
                     AND lbo.status = 'sold'
                     AND b.priority < $[buyerPriority]
                     AND lbo.allow_resell = false
-                    AND lbo.deleted_at IS NULL
-                    AND b.deleted_at IS NULL
+                    AND lbo.deleted IS NULL
+                    AND b.deleted IS NULL
                 )
                 ORDER BY l.created ASC;
             `
@@ -314,8 +314,8 @@ export default class LeadDAO {
                     AND lbo.status = 'sold'
                     AND b.priority < $[buyerPriority]
                     AND lbo.allow_resell = false
-                    AND lbo.deleted_at IS NULL
-                    AND b.deleted_at IS NULL
+                    AND lbo.deleted IS NULL
+                    AND b.deleted IS NULL
                 )
                 ORDER BY l.created ASC;
             `
@@ -358,8 +358,8 @@ export default class LeadDAO {
                     AND lbo.status = 'sold'
                     AND b.priority < $[buyerPriority]
                     AND lbo.allow_resell = false
-                    AND lbo.deleted_at IS NULL
-                    AND b.deleted_at IS NULL
+                    AND lbo.deleted IS NULL
+                    AND b.deleted IS NULL
                 )
                 ORDER BY l.created ASC;
             `

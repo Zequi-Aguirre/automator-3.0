@@ -73,7 +73,11 @@ React 18 + Vite + TypeScript with MUI components, Tailwind CSS, and React Contex
 
 - UUID primary keys (`gen_random_uuid()`)
 - Soft deletes: `deleted` timestamptz column (NULL = active)
-- Audit fields: `created`, `modified`, `deleted` timestamps
+- **CRITICAL: Timestamp naming convention**
+  - Audit fields: `created`, `modified`, `deleted` (NO `_at` suffix)
+  - Exception: Only `buyers` and `lead_buyer_outcomes` use `created_at`, `modified_at`, `deleted_at`
+  - For all other tables: Use `created`, `modified`, `deleted` (without `_at`)
+  - Common mistake: Using `deleted_at` instead of `deleted` in queries
 - Migrations in `postgres/migrations/`
 
 ## DAO Contract
