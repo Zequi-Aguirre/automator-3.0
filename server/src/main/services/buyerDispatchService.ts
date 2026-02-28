@@ -208,7 +208,6 @@ export default class BuyerDispatchService {
             zipcode: lead.zipcode,
 
             // Metadata
-            imported_at: lead.created,
             verified: lead.verified,
             investor_id: lead.investor_id
         };
