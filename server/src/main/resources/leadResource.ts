@@ -121,6 +121,104 @@ export default class LeadResource {
                 });
             }
         });
+
+        // ========================================
+        // Buyer Dispatch & History Endpoints
+        // ========================================
+
+        // Send lead to specific buyer (manual send)
+        this.router.post("/:leadId/send-to-buyer", async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const { buyer_id } = req.body;
+
+                if (!buyer_id) {
+                    return res.status(400).send({ message: 'buyer_id is required' });
+                }
+
+                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id);
+                return res.status(200).send(sendLog);
+            } catch (error) {
+                console.error('Error sending lead to buyer:', error);
+
+                // Handle specific error cases
+                if (error instanceof Error) {
+                    if (error.message.includes('not found')) {
+                        return res.status(404).send({ message: error.message });
+                    }
+                    if (error.message.includes('Cannot send lead to buyer')) {
+                        return res.status(400).send({ message: error.message });
+                    }
+                }
+
+                return res.status(500).send({
+                    message: 'Failed to send lead to buyer',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // Get buyer send history for lead
+        this.router.get("/:leadId/buyers", async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const history = await this.leadService.getBuyerSendHistory(leadId);
+                return res.status(200).send({ buyers: history });
+            } catch (error) {
+                console.error('Error fetching buyer history:', error);
+                return res.status(500).send({
+                    message: 'Failed to fetch buyer history',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // Enable worker for lead
+        this.router.post("/:leadId/enable-worker", async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const lead = await this.leadService.enableWorker(leadId);
+                return res.status(200).send(lead);
+            } catch (error) {
+                console.error('Error enabling worker:', error);
+
+                if (error instanceof Error && error.message.includes('not found')) {
+                    return res.status(404).send({ message: error.message });
+                }
+
+                return res.status(500).send({
+                    message: 'Failed to enable worker',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // Mark lead as sold to buyer
+        this.router.post("/:leadId/buyers/:buyerId/sold", async (req: Request, res: Response) => {
+            try {
+                const { leadId, buyerId } = req.params;
+                const { sold_price } = req.body;
+
+                const outcome = await this.leadService.markSoldToBuyer(
+                    leadId,
+                    buyerId,
+                    sold_price ? Number(sold_price) : undefined
+                );
+
+                return res.status(200).send(outcome);
+            } catch (error) {
+                console.error('Error marking lead as sold:', error);
+
+                if (error instanceof Error && error.message.includes('not found')) {
+                    return res.status(404).send({ message: error.message });
+                }
+
+                return res.status(500).send({
+                    message: 'Failed to mark lead as sold',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
     }
 
     public routes(): Router {
