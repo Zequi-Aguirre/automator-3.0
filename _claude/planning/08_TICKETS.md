@@ -1154,6 +1154,104 @@ During QA testing, when CSV import fails on backend (e.g., due to validation err
 
 ---
 
+### TICKET-046: Implement affiliate-specific API key authentication for lead intake
+**Type**: Full Stack Feature
+**Priority**: P1 (High)
+**Estimate**: 4 hours
+
+**Background**:
+Currently, the `/api/leads-intake` endpoint uses a single global API key (`LEAD_INTAKE_API_KEY` from Doppler) for authentication. This doesn't allow tracking which affiliate sent each lead or provide per-affiliate access control.
+
+**Requirements**:
+Each affiliate should have their own unique API key. When a lead comes via the intake API:
+1. Extract `x-api-key` header
+2. Look up affiliate by API key
+3. Authenticate the request
+4. Associate the lead with that affiliate (via campaign_id)
+5. Track which affiliate sent the lead for reporting/analytics
+
+**Database Changes**:
+Add API key field to affiliates or campaigns table:
+```sql
+-- Option A: Add to affiliates table
+ALTER TABLE affiliates ADD COLUMN api_key_encrypted TEXT;
+CREATE UNIQUE INDEX idx_affiliates_api_key ON affiliates(api_key_encrypted) WHERE deleted IS NULL;
+
+-- Option B: Add to campaigns table (more granular)
+ALTER TABLE campaigns ADD COLUMN api_key_encrypted TEXT;
+CREATE UNIQUE INDEX idx_campaigns_api_key ON campaigns(api_key_encrypted) WHERE deleted IS NULL;
+```
+
+**Backend Changes**:
+1. Update `apiKeyAuth.ts` middleware:
+   - Remove check for `LEAD_INTAKE_API_KEY`
+   - Query affiliates/campaigns table by API key
+   - Attach affiliate/campaign info to `req` object
+   - Return 401 if API key not found
+
+2. Update `leadIntakeResource.ts`:
+   - Get affiliate/campaign from `req` (set by middleware)
+   - Pass to `leadService.importLeadsFromApi()`
+   - Associate leads with affiliate's campaign
+
+3. Update `leadService.importLeadsFromApi()`:
+   - Accept `campaign_id` parameter
+   - Set `campaign_id` on created leads
+   - This also sets `affiliate_id` via campaign relationship
+
+**Frontend Changes**:
+1. Add API key management to admin panel:
+   - Affiliates/Campaigns admin page
+   - "Generate API Key" button
+   - Show/copy/regenerate API key
+   - Encrypt before storing in database
+
+2. Display API key to affiliate (one-time show):
+   - Modal: "Your API key: XXXXX - Save this now, you won't see it again"
+   - Copy to clipboard button
+
+**Security Considerations**:
+- API keys stored encrypted (application-level AES-256, like buyer auth tokens)
+- Use cryptographically secure random generation (Node crypto)
+- Consider key rotation/expiration (future enhancement)
+- Rate limiting per affiliate (future enhancement)
+
+**Acceptance Criteria**:
+- [ ] Each affiliate/campaign can have unique API key
+- [ ] API key can be generated/regenerated via admin UI
+- [ ] Lead intake endpoint authenticates by API key
+- [ ] Leads are associated with correct affiliate/campaign
+- [ ] Invalid API key returns 401 Unauthorized
+- [ ] API keys are encrypted in database
+- [ ] Can track which affiliate sent each lead
+
+**Testing**:
+- Generate API key for test affiliate
+- Send lead via intake endpoint with affiliate's API key
+- Verify lead is associated with correct affiliate/campaign
+- Try with invalid API key → should fail with 401
+- Regenerate API key → old key should stop working
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_affiliate_api_keys.sql`
+- Backend: `server/src/main/middleware/apiKeyAuth.ts`, `server/src/main/resources/leadIntakeResource.ts`, `server/src/main/services/leadService.ts`
+- Frontend: `client/src/components/admin/adminAffiliatesSection/` or `adminCampaignsSection/`
+
+**Dependencies**:
+- Encryption utility (reuse buyer auth encryption logic)
+- Admin UI for affiliates/campaigns management
+
+**Notes**:
+- For now, using a TODO bypass to allow testing without authentication
+- This ticket must be completed before production launch
+- Consider whether API keys belong on affiliates or campaigns table (campaigns = more granular)
+
+---
+
+**Status**: 🔴 In Progress - Fixing bugs before Sprint 3
+
+---
+
 ## Ticket Summary
 
 | Sprint | Tickets | Total Hours | Risk Level |
