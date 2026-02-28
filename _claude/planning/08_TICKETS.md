@@ -15,15 +15,17 @@
 | **Sprint 5** | ⬜ TODO | #26-31 | 0/6 (0%) |
 | **Sprint 6** | ⬜ TODO | #32-41 | 0/10 (0%) |
 
-**Overall Progress:** 20/41 tickets (49%) from original plan + 1 bug fix (TICKET-021)
+**Overall Progress:** 20/41 tickets (49%) from original plan + 1 bug fix (BUG-001)
 
 **Current Work:** Sprint 3 complete - ready for review
-**Next Up:** Sprint 4 (Worker Switchover) - High Risk
+**Next Up:** Sprint 4 (Worker Switchover) - High Risk - starts with TICKET-021
 
 **Sprint 3 Summary:**
 - ✅ TICKET-019: Worker settings refactor and lead reuse system
 - ✅ TICKET-020: Database verification (Compass, Sellers, iSpeedToLead)
-- ✅ TICKET-021: Bug fix for WorkerSettingsDAO after migration (not in original plan)
+- ✅ BUG-001: Bug fix for WorkerSettingsDAO after migration (not in original plan)
+
+**Note:** BUG-001 was mistakenly labeled TICKET-021 in commit messages. The real TICKET-021 is in Sprint 4.
 
 ---
 

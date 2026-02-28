@@ -266,11 +266,11 @@ npm run dev-db-migrate
 1. `server/src/main/data/buyerDAO.ts` - Fixed missing fields
 2. `server/src/main/data/leadDAO.ts` - SQL filtering
 3. `server/src/main/data/leadBuyerOutcomeDAO.ts` - Allow resell capture
-4. `server/src/main/data/workerSettingsDAO.ts` - Fixed updateSettings(), removed updateNextLeadTime() (TICKET-021)
+4. `server/src/main/data/workerSettingsDAO.ts` - Fixed updateSettings(), removed updateNextLeadTime() (BUG-001)
 5. `server/src/main/services/leadService.ts` - Removed markLeadAsSent
 6. `server/src/main/services/workerService.ts` - Buyer context, no fallback
 7. `server/src/main/services/buyerDispatchService.ts` - Timing, validation
-8. `server/src/main/services/settingsService.ts` - Removed updateNextLeadTime() (TICKET-021)
+8. `server/src/main/services/settingsService.ts` - Removed updateNextLeadTime() (BUG-001)
 9. `server/src/main/types/leadBuyerOutcomeTypes.ts` - Added allow_resell
 
 ### Frontend (4 files)
@@ -297,7 +297,7 @@ npm run dev-db-migrate
 - Database: 1 hour
 - Testing: 2 hours
 
-**Tickets Completed:** 3 (TICKET-019, TICKET-020, TICKET-021)
+**Tickets Completed:** 2 (TICKET-019, TICKET-020) + 1 bug fix (BUG-001)
 
 ---
 
@@ -402,7 +402,8 @@ Result: All 3 buyers created successfully
 
 ---
 
-### TICKET-021: Fix WorkerSettingsDAO After Migration ✅ COMPLETE
+### BUG-001: Fix WorkerSettingsDAO After Migration ✅ COMPLETE
+**Note:** Not to be confused with TICKET-021 (Sprint 4 - WorkerService refactor)
 **Priority:** P0 (Blocker)
 **Actual Time:** 0.5 hours
 **Status:** ✅ COMPLETE
@@ -421,7 +422,7 @@ Migration moved timing/cooldown fields to `buyers` table, but DAO not updated to
    - Kept: `name`, `business_hours_start`, `business_hours_end`, `cron_schedule`, `worker_enabled`, `expire_after_hours`, `enforce_expiration`
    - Removed: `send_next_lead_at`, `minutes_range_start`, `minutes_range_end`, `delay_same_state`, `delay_same_county`, `delay_same_investor`, `states_on_hold`
 2. ✅ Removed deprecated `updateNextLeadTime()` method from DAO and service (references non-existent column)
-3. ✅ Added comments noting removal reason (TICKET-021)
+3. ✅ Added comments noting removal reason (BUG-001)
 
 **Files Changed:**
 - `server/src/main/data/workerSettingsDAO.ts`
@@ -451,7 +452,9 @@ Migration moved timing/cooldown fields to `buyers` table, but DAO not updated to
 **Ticket Status:**
 - ✅ TICKET-019: Worker settings refactor and lead reuse system - COMPLETE
 - ✅ TICKET-020: Database verification of 3 buyers (Compass, Sellers, iSpeedToLead) - COMPLETE
-- ✅ TICKET-021: Bug fix for WorkerSettingsDAO after migration - COMPLETE
+- ✅ BUG-001: Bug fix for WorkerSettingsDAO after migration - COMPLETE (not TICKET-021!)
 
 **Sprint Summary:**
-Sprint 3 included the originally planned work (TICKET-019, TICKET-020) plus an additional bug fix (TICKET-021) discovered during testing. All work is complete and ready for deployment.
+Sprint 3 included the originally planned work (TICKET-019, TICKET-020) plus an additional bug fix (BUG-001) discovered during testing. All work is complete and ready for deployment.
+
+**Note:** BUG-001 was mistakenly labeled as TICKET-021 in commit messages, but TICKET-021 is actually "Refactor WorkerService to use buyers with worker gating" in Sprint 4.
