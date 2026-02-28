@@ -345,6 +345,53 @@ npm run dev-db-migrate
 
 ---
 
+### TICKET-020: Verify iSpeedToLead Buyer in UI
+**Priority:** P0 (Critical)
+**Actual Time:** 0.5 hours (database verification only)
+**Status:** ⬜ Pending User Testing
+
+**Database Verification - COMPLETE:**
+- ✅ iSpeedToLead buyer exists in database
+- ✅ dispatch_mode = 'worker' (correct)
+- ✅ priority = 6
+- ✅ requires_validation = true
+- ✅ auto_send = true
+- ⚠️  webhook_url = PLACEHOLDER (needs real Make.com URL)
+
+**Verified:**
+```sql
+SELECT id, name, dispatch_mode, priority, webhook_url
+FROM buyers WHERE deleted IS NULL ORDER BY priority;
+
+Result: iSpeedToLead found with correct settings
+```
+
+**UI Testing Required (User Must Complete):**
+
+1. **Test 1:** Verify buyer shows in Admin UI
+   - Start backend: `npm run dev-be`
+   - Navigate to Admin → Buyers
+   - Confirm iSpeedToLead visible with dispatch_mode='worker'
+
+2. **Test 2:** Verify manual send is blocked
+   - Try to manually send lead to iSpeedToLead
+   - Should fail with error (worker-only buyer)
+
+3. **Test 3:** Verify worker send works
+   - Enable worker for a verified lead
+   - Run worker or wait for scheduled run
+   - Check send_log for entry
+
+**Blocker:**
+- Webhook URL is PLACEHOLDER - needs real Make.com webhook URL before worker testing
+
+**Files Changed:** None (testing only)
+
+**Verification Plan:** See `/tmp/ticket-020-verification.md` for complete test steps
+
+---
+
 **Sprint Completed:** 2026-02-28
 **Developer:** Claude Sonnet 4.5
 **Reviewed By:** TBD
+**TICKET-020 Status:** Database verified, awaiting user UI testing
