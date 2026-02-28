@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
 import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
-import { parseCsvToLeads, splitName, cleanPhone } from "../middleware/parseCsvToLeads.ts";
+import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
 import InvestorService from "../services/investorService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
@@ -417,7 +417,7 @@ export default class LeadService {
                 email,
                 address: p.address,
                 city: p.city,
-                state: (p.state || "").toUpperCase(),
+                state: cleanState(p.state || ""),
                 zipcode: p.zip_code || "",
                 county: p.county || "",
                 county_id: undefined,
