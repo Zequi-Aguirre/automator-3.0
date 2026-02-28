@@ -118,10 +118,22 @@ export default class BuyerService {
             throw new Error("webhook_url must be a valid URL");
         }
 
-        // Validation: priority unique (checked by database constraint, but we can validate first)
+        // Auto-assign next available priority if there's a conflict
         const existingBuyers = await this.buyerDAO.getByPriority();
         if (existingBuyers.some(b => b.priority === dto.priority)) {
-            throw new Error(`Priority ${dto.priority} is already in use`);
+            // Find first gap in priority sequence, or max + 1 if no gaps
+            const priorities = existingBuyers.map(b => b.priority).sort((a, b) => a - b);
+            let nextAvailable = 1;
+            for (const priority of priorities) {
+                if (priority === nextAvailable) {
+                    nextAvailable++;
+                } else if (priority > nextAvailable) {
+                    break; // Found a gap
+                }
+            }
+            throw new Error(
+                `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
+            );
         }
 
         try {
@@ -169,7 +181,19 @@ export default class BuyerService {
         if (dto.priority !== undefined && dto.priority !== existing.priority) {
             const existingBuyers = await this.buyerDAO.getByPriority();
             if (existingBuyers.some(b => b.priority === dto.priority)) {
-                throw new Error(`Priority ${dto.priority} is already in use`);
+                // Find first gap in priority sequence, or max + 1 if no gaps
+                const priorities = existingBuyers.map(b => b.priority).sort((a, b) => a - b);
+                let nextAvailable = 1;
+                for (const priority of priorities) {
+                    if (priority === nextAvailable) {
+                        nextAvailable++;
+                    } else if (priority > nextAvailable) {
+                        break; // Found a gap
+                    }
+                }
+                throw new Error(
+                    `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
+                );
             }
         }
 
