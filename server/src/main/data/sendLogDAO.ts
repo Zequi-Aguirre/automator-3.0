@@ -164,6 +164,36 @@ export default class SendLogDAO {
         return await this.db.manyOrNone<SendLog>(query, { countyIds });
     }
 
+    async getLatestLogsByBuyerAndCounties(buyerId: string, countyIds: string[]): Promise<SendLog[]> {
+        const query = `
+            SELECT DISTINCT ON (l.county_id)
+                sl.*,
+                l.county_id
+            FROM send_log sl
+            JOIN leads l ON sl.lead_id = l.id
+            WHERE sl.buyer_id = $[buyerId]::uuid
+              AND l.county_id = ANY($[countyIds]::uuid[])
+              AND sl.deleted IS NULL
+            ORDER BY l.county_id, sl.created DESC;
+        `;
+        return await this.db.manyOrNone<SendLog>(query, { buyerId, countyIds });
+    }
+
+    async getLatestLogsByBuyerAndStates(buyerId: string, states: string[]): Promise<SendLog[]> {
+        const query = `
+            SELECT DISTINCT ON (l.state)
+                sl.*,
+                l.state
+            FROM send_log sl
+            JOIN leads l ON sl.lead_id = l.id
+            WHERE sl.buyer_id = $[buyerId]::uuid
+              AND l.state = ANY($[states]::text[])
+              AND sl.deleted IS NULL
+            ORDER BY l.state, sl.created DESC;
+        `;
+        return await this.db.manyOrNone<SendLog>(query, { buyerId, states });
+    }
+
     async getLastByInvestor(investorId: string): Promise<SendLog | null> {
         const query = `
             SELECT *

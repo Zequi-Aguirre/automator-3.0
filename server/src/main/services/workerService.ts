@@ -42,6 +42,7 @@ export default class WorkerService {
             throw new Error("No leads available for worker");
         }
 
+        // No buyer-specific filtering for legacy method
         const filtered = await this.applyFilters(leads);
 
         if (filtered.length === 0) {
@@ -57,7 +58,16 @@ export default class WorkerService {
      * Prioritizes unverified leads for buyers that don't require validation
      * Saves verified leads for buyers that require validation
      */
-    async pickLeadForBuyer(buyer: { requires_validation: boolean; name: string }): Promise<Lead> {
+    async pickLeadForBuyer(buyer: {
+        id: string;
+        name: string;
+        requires_validation: boolean;
+        delay_same_county: number;
+        delay_same_state: number;
+        enforce_county_cooldown: boolean;
+        enforce_state_cooldown: boolean;
+        states_on_hold: string[];
+    }): Promise<Lead> {
         // Get leads based on buyer's validation requirement
         const leads = buyer.requires_validation
             ? await this.leadDAO.getVerifiedLeadsForWorker()
@@ -70,7 +80,7 @@ export default class WorkerService {
                 throw new Error(`No leads available for ${buyer.name}`);
             }
 
-            const filtered = await this.applyFilters(fallbackLeads);
+            const filtered = await this.applyFilters(fallbackLeads, buyer);
             if (filtered.length === 0) {
                 throw new Error(`No leads available for ${buyer.name} after applying filters`);
             }
@@ -79,8 +89,8 @@ export default class WorkerService {
             return filtered[0];
         }
 
-        // Apply worker filters
-        const filtered = await this.applyFilters(leads);
+        // Apply buyer-specific filters
+        const filtered = await this.applyFilters(leads, buyer);
 
         if (filtered.length === 0) {
             throw new Error(`No ${buyer.requires_validation ? 'verified' : 'unverified'} leads available for ${buyer.name} after applying filters`);
@@ -110,51 +120,62 @@ export default class WorkerService {
         );
     }
 
-    private async applyFilters(leads: Lead[]): Promise<Lead[]> {
+    private async applyFilters(leads: Lead[], buyer?: {
+        id: string;
+        delay_same_county: number;
+        delay_same_state: number;
+        enforce_county_cooldown: boolean;
+        enforce_state_cooldown: boolean;
+        states_on_hold: string[];
+    }): Promise<Lead[]> {
         if (leads.length === 0) {
             return [];
         }
 
         const settings = await this.workerSettingsDAO.getCurrentSettings();
 
-        const delayInvestorMs =
-            (settings.delay_same_investor || 0) * 60 * 60 * 1000;
+        // Use per-buyer cooldown settings if buyer provided
+        const delayCountyMs = buyer && buyer.enforce_county_cooldown
+            ? buyer.delay_same_county * 60 * 60 * 1000
+            : 0;
 
-        const delayCountyMs =
-            (settings.delay_same_county || 36) * 60 * 60 * 1000;
+        const delayStateMs = buyer && buyer.enforce_state_cooldown
+            ? buyer.delay_same_state * 60 * 60 * 1000
+            : 0;
 
         const businessStart = settings.business_hours_start;
         const businessEnd = settings.business_hours_end;
 
-        // Unique IDs - investor is now optional
-        const investorIds = [...new Set(
-            leads
-                .filter(l => l.investor_id)
-                .map(l => l.investor_id!)
-        )];
+        // Unique IDs for entity lookups
         const countyIds = [...new Set(leads.map(l => l.county_id))];
+        const investorIds = [...new Set(
+            leads.filter(l => l.investor_id).map(l => l.investor_id!)
+        )];
+        const states = [...new Set(leads.map(l => l.state))];
 
-        // Cooldown logs
-        const [investorLogs, countyLogs] = await Promise.all([
-            investorIds.length > 0
-                ? this.sendLogDAO.getLatestLogsByInvestorIds(investorIds)
-                : [],
-            this.sendLogDAO.getLatestLogsByCountyIds(countyIds)
-        ]);
+        // Buyer-specific cooldown logs (only if buyer provided and enforcement enabled)
+        let countyLogMap = new Map<string, any>();
+        let stateLogMap = new Map<string, any>();
 
-        const investorLogMap = new Map<string, any>();
-        investorLogs.forEach(log => {
-            if (log.investor_id) {
-                investorLogMap.set(log.investor_id, log);
+        if (buyer) {
+            if (buyer.enforce_county_cooldown && delayCountyMs > 0) {
+                const countyLogs = await this.sendLogDAO.getLatestLogsByBuyerAndCounties(buyer.id, countyIds);
+                countyLogs.forEach(log => {
+                    if (log.county_id) {
+                        countyLogMap.set(log.county_id, log);
+                    }
+                });
             }
-        });
 
-        const countyLogMap = new Map<string, any>();
-        countyLogs.forEach(log => {
-            if (log.county_id) {
-                countyLogMap.set(log.county_id, log);
+            if (buyer.enforce_state_cooldown && delayStateMs > 0) {
+                const stateLogs = await this.sendLogDAO.getLatestLogsByBuyerAndStates(buyer.id, states);
+                stateLogs.forEach(log => {
+                    if (log.state) {
+                        stateLogMap.set(log.state, log);
+                    }
+                });
             }
-        });
+        }
 
         // Load entities - only investors and counties
         const investors = investorIds.length > 0
@@ -196,7 +217,7 @@ export default class WorkerService {
                 continue;
             }
 
-            // 1. Blacklist checks (only county and investor now)
+            // 1. Blacklist checks
             if (county.blacklisted) {
                 console.log(`[Filter] Lead ${lead.id} - BLOCKED: County ${county.name} is blacklisted`);
                 continue;
@@ -206,31 +227,39 @@ export default class WorkerService {
                 continue;
             }
 
-            // 2. Investor cooldown (only if investor exists)
-            if (investor && !investor.whitelisted && delayInvestorMs > 0) {
-                const log = investorLogMap.get(lead.investor_id!);
-                if (log) {
-                    const lastSend = new Date(log.created).getTime();
-                    if (Date.now() - lastSend <= delayInvestorMs) {
-                        console.log(`[Filter] Lead ${lead.id} - BLOCKED: Investor cooldown (${Math.round((Date.now() - lastSend) / 1000 / 60)} min ago)`);
-                        continue;
-                    }
-                }
+            // 2. Buyer-specific state blocking
+            if (buyer && buyer.states_on_hold.includes(lead.state)) {
+                console.log(`[Filter] Lead ${lead.id} - BLOCKED: State ${lead.state} is on hold for buyer ${buyer.id}`);
+                continue;
             }
 
-            // 3. County cooldown
+            // 3. Buyer-specific county cooldown (whitelisted counties skip cooldown)
             if (!county.whitelisted && delayCountyMs > 0) {
                 const log = countyLogMap.get(lead.county_id);
                 if (log) {
                     const lastSend = new Date(log.created).getTime();
+                    const minutesAgo = Math.round((Date.now() - lastSend) / 1000 / 60);
                     if (Date.now() - lastSend <= delayCountyMs) {
-                        console.log(`[Filter] Lead ${lead.id} - BLOCKED: County cooldown (${Math.round((Date.now() - lastSend) / 1000 / 60)} min ago)`);
+                        console.log(`[Filter] Lead ${lead.id} - BLOCKED: County cooldown for buyer (${minutesAgo} min ago)`);
                         continue;
                     }
                 }
             }
 
-            // 4. Business hours (using precomputed timezone local time)
+            // 4. Buyer-specific state cooldown
+            if (delayStateMs > 0) {
+                const log = stateLogMap.get(lead.state);
+                if (log) {
+                    const lastSend = new Date(log.created).getTime();
+                    const minutesAgo = Math.round((Date.now() - lastSend) / 1000 / 60);
+                    if (Date.now() - lastSend <= delayStateMs) {
+                        console.log(`[Filter] Lead ${lead.id} - BLOCKED: State cooldown for buyer (${minutesAgo} min ago)`);
+                        continue;
+                    }
+                }
+            }
+
+            // 5. Business hours (using precomputed timezone local time)
             const localMin = timezoneLocalMinute.get(county.timezone);
             if (localMin === undefined) {
                 console.log(`[Filter] Lead ${lead.id} - BLOCKED: Could not determine timezone for ${county.timezone}`);
