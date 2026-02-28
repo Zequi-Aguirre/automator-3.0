@@ -53,28 +53,12 @@ export default class BuyerDispatchService {
         // Build payload (map lead fields to buyer's expected format)
         const payload = this.buildPayload(lead);
 
-        // Environment-aware routing: mock in non-prod
-        let response: BuyerWebhookResponse;
-
-        if (process.env.NODE_ENV === 'production') {
-            // Production: Call actual webhook
-            response = await this.buyerWebhookAdapter.sendToBuyer(
-                buyer.webhook_url,
-                payload,
-                authConfig
-            );
-        } else {
-            // Non-production: Mock response for safety
-            console.log(`[MOCK] Would send lead ${lead.id} to buyer ${buyer.name}:`, {
-                url: buyer.webhook_url,
-                payload
-            });
-            response = {
-                success: true,
-                statusCode: 200,
-                responseBody: { message: "MOCK: Success in non-production" }
-            };
-        }
+        // Send to actual webhook (Make.com URLs configured per environment)
+        const response: BuyerWebhookResponse = await this.buyerWebhookAdapter.sendToBuyer(
+            buyer.webhook_url,
+            payload,
+            authConfig
+        );
 
         // Log the attempt to send_log
         const log = await this.sendLogDAO.createLog({
