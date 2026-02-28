@@ -66,8 +66,8 @@ export default class BuyerDispatchService {
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
             buyer_id: buyer.id,
-            affiliate_id: null,
-            campaign_id: null,
+            affiliate_id: null, // TODO: Derive from campaign.affiliate_id if needed
+            campaign_id: lead.campaign_id,
             investor_id: lead.investor_id,
             status: response.success ? "sent" : "failed"
         });
