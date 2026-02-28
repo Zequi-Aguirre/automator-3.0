@@ -33,6 +33,28 @@ import { Edit, Delete } from '@mui/icons-material';
 import buyerService from '../../../services/buyer.service';
 import { Buyer, BuyerCreateDTO, BuyerUpdateDTO } from '../../../types/buyerTypes';
 import CustomPagination from '../../Pagination';
+import { US_STATES } from '../../../constants/usStates';
+
+// Helper function to format relative time
+const getRelativeTime = (date: string | null): string => {
+    if (!date) return 'Not scheduled';
+
+    const now = new Date();
+    const target = new Date(date);
+    const diffMs = target.getTime() - now.getTime();
+
+    if (diffMs < 0) return 'Ready now';
+
+    const diffMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+
+    if (hours > 0) {
+        return `in ${hours}h ${mins}m`;
+    } else {
+        return `in ${mins}m`;
+    }
+};
 
 const AdminBuyersSection = () => {
     const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -55,7 +77,12 @@ const AdminBuyersSection = () => {
         max_minutes_between_sends: 11,
         auth_header_name: 'Authorization',
         auth_header_prefix: null,
-        auth_token: null
+        auth_token: null,
+        states_on_hold: [],
+        delay_same_county: 36,
+        delay_same_state: 0,
+        enforce_county_cooldown: true,
+        enforce_state_cooldown: false
     });
 
     const [snack, setSnack] = useState({
@@ -97,7 +124,12 @@ const AdminBuyersSection = () => {
                 max_minutes_between_sends: buyer.max_minutes_between_sends,
                 auth_header_name: buyer.auth_header_name,
                 auth_header_prefix: buyer.auth_header_prefix,
-                auth_token: null // Don't show encrypted token
+                auth_token: null, // Don't show encrypted token
+                states_on_hold: buyer.states_on_hold || [],
+                delay_same_county: buyer.delay_same_county || 36,
+                delay_same_state: buyer.delay_same_state || 0,
+                enforce_county_cooldown: buyer.enforce_county_cooldown ?? true,
+                enforce_state_cooldown: buyer.enforce_state_cooldown ?? false
             });
         } else {
             setEditingBuyer(null);
@@ -113,7 +145,12 @@ const AdminBuyersSection = () => {
                 max_minutes_between_sends: 11,
                 auth_header_name: 'Authorization',
                 auth_header_prefix: null,
-                auth_token: null
+                auth_token: null,
+                states_on_hold: [],
+                delay_same_county: 36,
+                delay_same_state: 0,
+                enforce_county_cooldown: true,
+                enforce_state_cooldown: false
             });
         }
         setDialogOpen(true);
@@ -193,9 +230,9 @@ const AdminBuyersSection = () => {
                                     <TableRow>
                                         <TableCell>Priority</TableCell>
                                         <TableCell>Name</TableCell>
-                                        <TableCell>Webhook URL</TableCell>
+                                        <TableCell>Webhook</TableCell>
                                         <TableCell>Dispatch Mode</TableCell>
-                                        <TableCell>Auto Send</TableCell>
+                                        <TableCell>Next Lead</TableCell>
                                         <TableCell>Total Sends</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
@@ -205,11 +242,32 @@ const AdminBuyersSection = () => {
                                         <TableRow key={buyer.id}>
                                             <TableCell>{buyer.priority}</TableCell>
                                             <TableCell>{buyer.name}</TableCell>
-                                            <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                {buyer.webhook_url}
+                                            <TableCell>
+                                                {buyer.webhook_url ? 'Valid' : 'Invalid'}
                                             </TableCell>
                                             <TableCell>{buyer.dispatch_mode}</TableCell>
-                                            <TableCell>{buyer.auto_send ? 'Yes' : 'No'}</TableCell>
+                                            <TableCell>
+                                                {buyer.next_send_at ? (
+                                                    <Box>
+                                                        <Typography variant="body2">
+                                                            {new Date(buyer.next_send_at).toLocaleString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: 'numeric',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            })}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {getRelativeTime(buyer.next_send_at)}
+                                                        </Typography>
+                                                    </Box>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Not scheduled
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{buyer.total_sends}</TableCell>
                                             <TableCell>
                                                 <IconButton size="small" onClick={() => handleOpenDialog(buyer)}>
@@ -314,6 +372,52 @@ const AdminBuyersSection = () => {
                             value={formData.auth_token || ''}
                             onChange={(e) => setFormData({ ...formData, auth_token: e.target.value || null })}
                             helperText={editingBuyer ? "Leave empty to keep current token" : ""}
+                        />
+
+                        <Typography variant="h6" sx={{ mt: 2 }}>Cooldown & Filtering</Typography>
+
+                        <TextField
+                            select
+                            fullWidth
+                            label="States on Hold"
+                            SelectProps={{
+                                multiple: true,
+                                value: formData.states_on_hold || []
+                            }}
+                            onChange={(e) => setFormData({ ...formData, states_on_hold: e.target.value as any })}
+                            helperText="States this buyer won't accept leads from"
+                        >
+                            {US_STATES.map((state) => (
+                                <MenuItem key={state} value={state}>
+                                    {state}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+
+                        <TextField
+                            label="Delay Same County (hours)"
+                            type="number"
+                            value={formData.delay_same_county}
+                            onChange={(e) => setFormData({ ...formData, delay_same_county: parseInt(e.target.value) })}
+                            helperText="Hours to wait before sending another lead from same county to this buyer"
+                        />
+
+                        <TextField
+                            label="Delay Same State (hours)"
+                            type="number"
+                            value={formData.delay_same_state}
+                            onChange={(e) => setFormData({ ...formData, delay_same_state: parseInt(e.target.value) })}
+                            helperText="Hours to wait before sending another lead from same state to this buyer"
+                        />
+
+                        <FormControlLabel
+                            control={<Checkbox checked={formData.enforce_county_cooldown} onChange={(e) => setFormData({ ...formData, enforce_county_cooldown: e.target.checked })} />}
+                            label="Enforce County Cooldown"
+                        />
+
+                        <FormControlLabel
+                            control={<Checkbox checked={formData.enforce_state_cooldown} onChange={(e) => setFormData({ ...formData, enforce_state_cooldown: e.target.checked })} />}
+                            label="Enforce State Cooldown"
                         />
                     </Stack>
                 </DialogContent>
