@@ -19,7 +19,6 @@ export default class SendLogDAO {
                 buyer_id,
                 affiliate_id,
                 campaign_id,
-                investor_id,
                 status
             )
             VALUES (
@@ -27,7 +26,6 @@ export default class SendLogDAO {
                 $[buyer_id],
                 $[affiliate_id],
                 $[campaign_id],
-                $[investor_id],
                 $[status]
             )
             RETURNING *;

@@ -27,7 +27,6 @@ export interface SendLogInsert {
     buyer_id: string;
     affiliate_id: string | null;
     campaign_id: string | null;
-    investor_id: string | null;
     status: "sent" | "failed";
 }
 
