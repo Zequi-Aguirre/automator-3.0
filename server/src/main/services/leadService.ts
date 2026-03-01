@@ -250,7 +250,15 @@ export default class LeadService {
         };
     }
 
-    async importLeadsFromApi(payloads: ApiLeadPayload[]) {
+    /**
+     * Import leads from API with source and campaign tracking
+     * TICKET-046: Updated to accept source_id and campaign_id
+     */
+    async importLeadsFromApi(
+        payloads: ApiLeadPayload[],
+        source_id?: string,
+        campaign_id?: string
+    ) {
         const leads: parsedLeadFromCSV[] = payloads.map(p => {
             const { first_name, last_name } = splitName(p.name || "");
             const phone = cleanPhone(p.phone || "");
@@ -270,6 +278,8 @@ export default class LeadService {
                 county_id: undefined,
                 private_notes: p.private_note || null,
                 investor_id: null,
+                source_id: source_id || null,  // TICKET-046: Associate with source
+                campaign_id: campaign_id || null,  // TICKET-046: Associate with campaign
             };
         });
 
