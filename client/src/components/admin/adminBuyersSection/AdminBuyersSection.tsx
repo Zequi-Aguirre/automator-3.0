@@ -30,6 +30,10 @@ import {
     Switch
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { Dayjs } from 'dayjs';
 
 import buyerService from '../../../services/buyer.service';
 import { Buyer, BuyerCreateDTO, BuyerUpdateDTO } from '../../../types/buyerTypes';
@@ -103,6 +107,11 @@ const AdminBuyersSection = () => {
         message: '',
         severity: 'success' as 'success' | 'error'
     });
+
+    // Date picker state
+    const [datePickerOpen, setDatePickerOpen] = useState(false);
+    const [editingBuyerForDate, setEditingBuyerForDate] = useState<Buyer | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
 
     const fetchBuyers = async () => {
         setLoading(true);
@@ -218,6 +227,34 @@ const AdminBuyersSection = () => {
         setSnack(prev => ({ ...prev, open: false }));
     };
 
+    const handleOpenDatePicker = (buyer: Buyer) => {
+        setEditingBuyerForDate(buyer);
+        setSelectedDate(buyer.next_send_at ? dayjs(buyer.next_send_at) : dayjs());
+        setDatePickerOpen(true);
+    };
+
+    const handleCloseDatePicker = () => {
+        setDatePickerOpen(false);
+        setEditingBuyerForDate(null);
+        setSelectedDate(null);
+    };
+
+    const handleSaveNextSendTime = async () => {
+        if (!editingBuyerForDate || !selectedDate) return;
+
+        try {
+            await buyerService.update(editingBuyerForDate.id, {
+                next_send_at: selectedDate.toISOString()
+            });
+            setSnack({ open: true, message: "Next send time updated successfully", severity: "success" });
+            handleCloseDatePicker();
+            fetchBuyers();
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to update next send time: ${errorMessage}`, severity: "error" });
+        }
+    };
+
     return (
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -260,26 +297,39 @@ const AdminBuyersSection = () => {
                                             </TableCell>
                                             <TableCell>{formatDispatchMode(buyer.dispatch_mode)}</TableCell>
                                             <TableCell>
-                                                {buyer.next_send_at ? (
-                                                    <Box>
-                                                        <Typography variant="body2">
-                                                            {new Date(buyer.next_send_at).toLocaleString('en-US', {
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: 'numeric',
-                                                                minute: '2-digit',
-                                                                hour12: true
-                                                            })}
+                                                <Box
+                                                    onClick={() => handleOpenDatePicker(buyer)}
+                                                    sx={{
+                                                        cursor: 'pointer',
+                                                        '&:hover': {
+                                                            backgroundColor: 'action.hover',
+                                                            borderRadius: 1
+                                                        },
+                                                        padding: 1,
+                                                        margin: -1
+                                                    }}
+                                                >
+                                                    {buyer.next_send_at ? (
+                                                        <Box>
+                                                            <Typography variant="body2">
+                                                                {new Date(buyer.next_send_at).toLocaleString('en-US', {
+                                                                    month: 'short',
+                                                                    day: 'numeric',
+                                                                    hour: 'numeric',
+                                                                    minute: '2-digit',
+                                                                    hour12: true
+                                                                })}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {getRelativeTime(buyer.next_send_at)}
+                                                            </Typography>
+                                                        </Box>
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            Not scheduled
                                                         </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {getRelativeTime(buyer.next_send_at)}
-                                                        </Typography>
-                                                    </Box>
-                                                ) : (
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        Not scheduled
-                                                    </Typography>
-                                                )}
+                                                    )}
+                                                </Box>
                                             </TableCell>
                                             <TableCell>{buyer.total_sends}</TableCell>
                                             <TableCell>
@@ -452,6 +502,34 @@ const AdminBuyersSection = () => {
                     <Button onClick={handleCloseDialog}>Cancel</Button>
                     <Button onClick={handleSave} variant="contained">
                         {editingBuyer ? 'Update' : 'Create'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Date/Time Picker Dialog */}
+            <Dialog open={datePickerOpen} onClose={handleCloseDatePicker}>
+                <DialogTitle>Edit Next Send Time</DialogTitle>
+                <DialogContent>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                        <Box sx={{ mt: 2 }}>
+                            <DateTimePicker
+                                label="Next Send Time"
+                                value={selectedDate}
+                                onChange={(newValue) => setSelectedDate(newValue)}
+                                slotProps={{
+                                    textField: {
+                                        fullWidth: true,
+                                        helperText: 'Set when this buyer should receive the next lead'
+                                    }
+                                }}
+                            />
+                        </Box>
+                    </LocalizationProvider>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDatePicker}>Cancel</Button>
+                    <Button onClick={handleSaveNextSendTime} variant="contained">
+                        Save
                     </Button>
                 </DialogActions>
             </Dialog>
