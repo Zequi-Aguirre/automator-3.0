@@ -136,43 +136,6 @@ export default class CountyService {
         return countyMap;
     }
 
-    /**
-     * @deprecated Use matchLeadsToCounties() instead. This method auto-creates counties without metadata.
-     */
-    async loadOrCreateCounties(leads: parsedLeadFromCSV[]): Promise<Map<string, County>> {
-        const existingCounties = await this.countyDAO.getAllCounties();
-        const countyMap = new Map<string, County>();
-
-        for (const county of existingCounties) {
-            const key = `${county.name.toLowerCase()}_${county.state.toLowerCase()}`;
-            countyMap.set(key, county);
-        }
-
-        for (const lead of leads) {
-            const rawCounty = (lead.county ?? "").trim().replace(/^,/, "").trim();
-            const rawState = (lead.state ?? "").trim();
-
-            if (!rawCounty || !rawState) {
-                continue;
-            }
-
-            const key = `${rawCounty.toLowerCase()}_${rawState.toLowerCase()}`;
-
-            if (!countyMap.has(key)) {
-                const newCounty = await this.countyDAO.insertCounty({
-                    name: rawCounty,
-                    state: rawState,
-                    population: null,
-                    timezone: null
-                });
-
-                countyMap.set(key, newCounty);
-            }
-        }
-
-        return countyMap;
-    }
-
     async importCounties(csvContent: string): Promise<{
         imported: number;
         rejected: number;
