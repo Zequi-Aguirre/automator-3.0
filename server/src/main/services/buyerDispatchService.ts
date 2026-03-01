@@ -329,6 +329,13 @@ export default class BuyerDispatchService {
 
         for (const county of counties) {
             const tz = county.timezone;
+
+            // Skip counties with null timezone (auto-created counties missing metadata)
+            if (!tz) {
+                console.warn(`[BuyerDispatch] County ${county.name} (${county.id}) has null timezone - skipping time zone calculation`);
+                continue;
+            }
+
             if (!timezoneLocalMinute.has(tz)) {
                 const local = new Date(
                     now.toLocaleString("en-US", { timeZone: tz })
