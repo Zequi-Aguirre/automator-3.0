@@ -74,7 +74,6 @@ export default class BuyerDispatchService {
             buyer_id: buyer.id,
             affiliate_id: affiliateId,
             campaign_id: lead.campaign_id,
-            investor_id: lead.investor_id,
             status: response.success ? "sent" : "failed"
         });
 
