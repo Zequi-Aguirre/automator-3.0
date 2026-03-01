@@ -36,6 +36,12 @@ import { Buyer, BuyerCreateDTO, BuyerUpdateDTO } from '../../../types/buyerTypes
 import CustomPagination from '../../Pagination';
 import { US_STATES } from '../../../constants/usStates';
 
+// Helper function to format dispatch mode
+const formatDispatchMode = (mode: string): string => {
+    if (mode === 'both') return 'Worker / Manual';
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+};
+
 // Helper function to format relative time
 const getRelativeTime = (date: string | null): string => {
     if (!date) return 'Not scheduled';
@@ -252,7 +258,7 @@ const AdminBuyersSection = () => {
                                             <TableCell>
                                                 {buyer.webhook_url ? 'Valid' : 'Invalid'}
                                             </TableCell>
-                                            <TableCell>{buyer.dispatch_mode}</TableCell>
+                                            <TableCell>{formatDispatchMode(buyer.dispatch_mode)}</TableCell>
                                             <TableCell>
                                                 {buyer.next_send_at ? (
                                                     <Box>
