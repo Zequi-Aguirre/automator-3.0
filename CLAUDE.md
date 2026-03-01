@@ -28,6 +28,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Full behavior details:** See `_claude/context/BEHAVIORAL_CONTEXT.md` → Section 2
 
+## 🚨 CRITICAL: Git Workflow - NEVER Commit to Main Branches
+
+**ALWAYS use feature branches and pull requests. This is mandatory.**
+
+### Proper Git Workflow
+
+**1. NEVER commit directly to:**
+- `main` - Production branch
+- `develop` - Integration branch
+
+**2. Always create a feature branch:**
+```bash
+# Create descriptive branch name
+git checkout -b feature/ticket-number-short-description
+# Examples:
+#   feature/ticket-005-remove-details-button
+#   feature/quick-wins-1-and-5
+#   feature/bug-001-fix-csv-import
+```
+
+**3. Work on feature branch:**
+- Make commits with proper messages
+- Reference ticket numbers
+- Include Co-Authored-By trailer
+
+**4. Push and create PR:**
+```bash
+git push -u origin feature/your-branch-name
+# Then create PR to develop via GitHub/GitLab UI
+```
+
+**5. After PR is merged:**
+```bash
+git checkout develop
+git pull origin develop
+git branch -d feature/your-branch-name  # Delete local branch
+```
+
+### If You Accidentally Commit to develop/main
+
+**Immediately revert:**
+```bash
+# Reset to before your commits
+git log --oneline -5  # Find commit hash before your work
+git reset --hard <commit-hash>
+
+# Create feature branch
+git checkout -b feature/your-work
+
+# Re-apply your changes on the feature branch
+```
+
+### Commit Message Format
+
+```
+<type>: <subject> (#ticket-number)
+
+<optional body with details>
+
+Ticket: <ticket-file>#<ticket-number>
+Related: <related tickets>
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+**Types:** feat, fix, docs, refactor, test, chore
+
 ## Project Overview
 
 Automator 2.0 is a Node.js + TypeScript lead automation platform for real estate. It ingests leads via CSV, validates them, applies business rules (blacklists, cooldowns), and dispatches them to external buyers via webhooks. The system includes a background worker/scheduler with per-buyer timing control, admin dashboard, and multi-buyer support with flexible routing (manual, worker, or both).

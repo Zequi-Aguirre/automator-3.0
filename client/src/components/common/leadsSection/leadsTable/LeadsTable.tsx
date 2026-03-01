@@ -2,7 +2,7 @@ import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { Button, Snackbar, Alert, Typography, IconButton, Badge, Chip } from "@mui/material";
 import { Groups as GroupsIcon, PlayArrow as PlayArrowIcon } from "@mui/icons-material";
 import { Lead } from "../../../../types/leadTypes.ts";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
 import {useContext, useEffect, useState} from "react";
 import { DateTime } from "luxon";
@@ -315,37 +315,22 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         {
             field: "actions",
             headerName: "Actions",
-            flex: 1,
+            flex: 0.5,
             sortable: false,
             filterable: false,
             renderCell: (params) => (
-                <div className="flex gap-2">
-                    <Button
-                        component={Link}
-                        to={`/${isAdmin ? 'a' : 'u'}/leads/${params.row.id}`}
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                        }}
-                    >
-                        Details
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        size="small"
-                        sx={{ marginLeft: "20px" }}
-                        disabled={params.row.raw?.sent}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleTrashLead(params.row.id);
-                        }}
-                    >
-                        Trash
-                    </Button>
-                </div>
+                <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    disabled={params.row.raw?.sent}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleTrashLead(params.row.id);
+                    }}
+                >
+                    Trash
+                </Button>
             ),
         },
     ];
