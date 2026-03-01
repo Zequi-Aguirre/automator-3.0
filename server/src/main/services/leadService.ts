@@ -145,19 +145,26 @@ export default class LeadService {
     async importLeads(csvContent: string) {
         const { leads } = parseCsvToLeads(csvContent);
 
-        // Load / create ref data (only counties now)
-        const countyMap = await this.countyService.loadOrCreateCounties(leads);
+        // Match leads to existing counties using fuzzy matching (no auto-create)
+        const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
         const resolvedLeads: parsedLeadFromCSV[] = [];
+        const errors: string[] = [];
+        let rejectedCount = 0;
 
         for (const lead of leads) {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
             const county = countyMap.get(countyKey);
-            // County is required
+
+            // County is required - reject leads with no county match
             if (!county) {
+                rejectedCount++;
+                errors.push(`Lead rejected: Unknown county "${lead.county}, ${lead.state}" (no match found)`);
                 continue;
             }
+
             lead.county_id = county.id;
+            lead.county = county.name; // Use standardized county name
             lead.investor_id = null;
 
             resolvedLeads.push(lead);
@@ -166,9 +173,9 @@ export default class LeadService {
         if (resolvedLeads.length === 0) {
             return {
                 imported: 0,
-                rejected: 0,
+                rejected: rejectedCount,
                 trashed: 0,
-                errors: ["No valid leads to import after resolving references"]
+                errors: errors.length > 0 ? errors : ["No valid leads to import after county matching"]
             };
         }
 
@@ -195,7 +202,7 @@ export default class LeadService {
         }
 
         const survivors: parsedLeadFromCSV[] = [];
-        const errors: string[] = [];
+        // errors array already declared above for county matching failures
         let trashedCount = 0;
 
         for (const lead of resolvedLeads) {
@@ -237,7 +244,7 @@ export default class LeadService {
 
         return {
             imported: successCount,
-            rejected: trashedCount + failedInsertCount,
+            rejected: rejectedCount + trashedCount + failedInsertCount,
             trashed: trashedCount,
             errors
         };
@@ -266,7 +273,8 @@ export default class LeadService {
             };
         });
 
-        const countyMap = await this.countyService.loadOrCreateCounties(leads);
+        // Match leads to existing counties using fuzzy matching (no auto-create)
+        const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
         const resolvedLeads: parsedLeadFromCSV[] = [];
         const resolvedPayloads: ApiLeadPayload[] = [];
@@ -278,11 +286,12 @@ export default class LeadService {
             const county = countyMap.get(countyKey);
 
             if (!county) {
-                errors.push(`Could not resolve county "${lead.county}" in state "${lead.state}"`);
+                errors.push(`Lead rejected: Unknown county "${lead.county}, ${lead.state}" (no match found)`);
                 continue;
             }
 
             lead.county_id = county.id;
+            lead.county = county.name; // Use standardized county name
             resolvedLeads.push(lead);
             resolvedPayloads.push(payloads[i]);
         }

@@ -264,24 +264,33 @@ ADD COLUMN counties_on_hold UUID[] DEFAULT '{}';
 
 ---
 
-### 15. County Matching on Import - Reject Unknown Counties ⭐
+### 15. County Matching on Import - Reject Unknown Counties ⭐ ✅ COMPLETE
 **Priority:** High
 **Effort:** 4-6 hours
+**Status:** ✅ Complete (2026-03-01)
+**PR:** #28
 
 **Problem:**
 - CSV import auto-creates counties (missing metadata like timezone, FIPS)
 - Unknown counties should be flagged, not auto-created
 
-**Solution:**
-1. Import must match to existing county in DB
-2. If no match → mark lead as "Needs Review" status
-3. Don't auto-create counties
-4. Use existing code from Compass backend for matching
+**Solution Implemented:**
+1. Import matches leads to existing counties using fuzzy matching ✅
+2. Levenshtein distance algorithm with 55% similarity threshold ✅
+3. County name normalization (St./Saint, apostrophes, Parish suffix) ✅
+4. Leads with unknown counties are rejected (not trashed) ✅
+5. Counties organized by state and cached for performance ✅
+6. Ported from Northstar app (validated matching logic) ✅
 
-**Files:**
-- `server/src/main/services/leadService.ts` (importLeads)
-- `server/src/main/services/countyService.ts`
-- New "needs_review" status/flag
+**Files Changed:**
+- `server/src/main/services/leadService.ts` - Updated importLeads() and importLeadsFromApi()
+- `server/src/main/services/countyService.ts` - Added matchLeadsToCounties(), getCountiesByState(), normalization helpers
+- Deprecated loadOrCreateCounties() (auto-create behavior)
+
+**Notes:**
+- Leads are rejected (not imported) rather than using "needs_review" status
+- Requires master county CSV import (see #12) for proper operation
+- Import results now include `rejected` count for tracking
 
 **Related:** Works with #12 (Import Counties from CSV)
 
@@ -432,32 +441,32 @@ ADD COLUMN needs_review BOOLEAN DEFAULT false;
 
 ## Prioritization Matrix
 
-| # | Enhancement | Priority | Effort | Impact | Hours |
-|---|-------------|----------|--------|--------|-------|
-| **HIGH PRIORITY (Critical)** |||||
-| 14 | Counties Blacklist Enforcement | High | Small | High | 2-3 |
-| 15 | County Matching - Reject Unknown | High | Medium | High | 4-6 |
-| 16 | Incomplete Leads Filter/Status | High | Medium | High | 3-4 |
-| 4 | Click to Edit Next Send Time | High | Medium | High | 4-5 |
-| 8 | Advanced Filtering | High | Large | High | 8-10 |
-| 10 | Show Success/Failure Status | High | Small | Medium | 2 |
-| 12 | Import Counties from CSV | High | Medium | High | 4-6 |
-| **MEDIUM PRIORITY** |||||
-| 17 | Form Data in Lead Intake API | Medium | Medium | High | 4-5 |
-| 18 | Campaigns Nested in Affiliates | Medium | Large | Medium | 6-8 |
-| 19 | Verify Toggle in Leads Table | Medium | Small | Medium | 2-3 |
-| 20 | Enable Worker from Detail Page | Medium | Small | Medium | 2-3 |
-| 9 | Track Send Method | Medium | Medium | Medium | 4-5 |
-| 11 | Show Lead Context | Medium | Medium | High | 3-4 |
-| 13 | Buyer-Specific County Blocking | Medium | Medium | Medium | 4-5 |
-| 2 | Show Buyer Settings Columns | Medium | Medium | Low | 3-4 |
-| 3 | Collapsible Authorization | Medium | Small | Low | 2-3 |
-| 5 | Click Name to Open Details | Medium | Small | Low | 1-2 |
-| 7 | Enable/Disable Worker Toggle | Medium | Medium | Medium | 3-4 |
-| **LOW PRIORITY** |||||
-| 21 | Column Ordering in Leads Table | Low | Small | Low | 2-3 |
-| 1 | Display "Worker / Manual" | Low | Small | Low | 1-2 |
-| 6 | Use Icon for Trash | Low | Small | Low | 1 |
+| # | Enhancement | Priority | Effort | Impact | Hours | Status |
+|---|-------------|----------|--------|--------|-------|--------|
+| **HIGH PRIORITY (Critical)** ||||||
+| 14 | Counties Blacklist Enforcement | High | Small | High | 2-3 | |
+| 15 | County Matching - Reject Unknown | High | Medium | High | 4-6 | ✅ Complete (PR #28) |
+| 16 | Incomplete Leads Filter/Status | High | Medium | High | 3-4 | |
+| 4 | Click to Edit Next Send Time | High | Medium | High | 4-5 | ✅ Complete (PR #26) |
+| 8 | Advanced Filtering | High | Large | High | 8-10 | |
+| 10 | Show Success/Failure Status | High | Small | Medium | 2 | |
+| 12 | Import Counties from CSV | High | Medium | High | 4-6 | |
+| **MEDIUM PRIORITY** ||||||
+| 17 | Form Data in Lead Intake API | Medium | Medium | High | 4-5 | |
+| 18 | Campaigns Nested in Affiliates | Medium | Large | Medium | 6-8 | |
+| 19 | Verify Toggle in Leads Table | Medium | Small | Medium | 2-3 | |
+| 20 | Enable Worker from Detail Page | Medium | Small | Medium | 2-3 | |
+| 9 | Track Send Method | Medium | Medium | Medium | 4-5 | |
+| 11 | Show Lead Context | Medium | Medium | High | 3-4 | |
+| 13 | Buyer-Specific County Blocking | Medium | Medium | Medium | 4-5 | |
+| 2 | Show Buyer Settings Columns | Medium | Medium | Low | 3-4 | |
+| 3 | Collapsible Authorization | Medium | Small | Low | 2-3 | |
+| 5 | Click Name to Open Details | Medium | Small | Low | 1-2 | |
+| 7 | Enable/Disable Worker Toggle | Medium | Medium | Medium | 3-4 | |
+| **LOW PRIORITY** ||||||
+| 21 | Column Ordering in Leads Table | Low | Small | Low | 2-3 | |
+| 1 | Display "Worker / Manual" | Low | Small | Low | 1-2 | |
+| 6 | Use Icon for Trash | Low | Small | Low | 1 | |
 
 **Total Estimated:** ~75-95 hours
 
