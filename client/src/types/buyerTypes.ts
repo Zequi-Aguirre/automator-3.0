@@ -57,6 +57,7 @@ export type BuyerUpdateDTO = {
     requires_validation?: boolean;
     min_minutes_between_sends?: number;
     max_minutes_between_sends?: number;
+    next_send_at?: string; // ISO datetime string for next scheduled send
     auth_header_name?: string;
     auth_header_prefix?: string | null;
     auth_token?: string | null; // Plain text token (will be encrypted by backend)
