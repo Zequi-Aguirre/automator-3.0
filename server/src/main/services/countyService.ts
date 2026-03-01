@@ -3,6 +3,7 @@ import CountyDAO from "../data/countyDAO";
 import { County } from "../types/countyTypes.ts";
 import { parseCsvToCounties } from "../middleware/parseCsvToCounties.ts";
 import { parsedLeadFromCSV } from "../types/leadTypes.ts";
+import { CountiesSingletonFactory, normalizeCountyName } from "../data/countiesSingleton.ts";
 
 /**
  * County with normalized name for fuzzy matching
@@ -42,20 +43,6 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 /**
- * Normalizes county names for consistent matching
- * - Converts to lowercase
- * - Removes apostrophes
- * - Replaces "St." with "Saint"
- * - Removes " Parish" suffix (for Louisiana counties)
- */
-function normalizeCountyName(name: string): string {
-    return name.toLowerCase()
-        .replace(/'/g, '')           // Remove apostrophes (e.g., "O'Brien" -> "obrien")
-        .replace(/st\./g, 'saint')   // Standardize Saint (e.g., "St. Louis" -> "saint louis")
-        .replace(/ parish\s*$/, ''); // Remove "Parish" suffix (e.g., "East Baton Rouge Parish" -> "east baton rouge")
-}
-
-/**
  * Finds the closest county based on Levenshtein distance
  * @param counties - Array of counties for a specific state
  * @param leadState - The state from the lead
@@ -92,49 +79,26 @@ function findClosestCounty(
 
 @injectable()
 export default class CountyService {
-    private countiesCache: Record<string, CountyWithNormalized[]> | null = null;
-
-    constructor(private readonly countyDAO: CountyDAO) {}
+    constructor(
+        private readonly countyDAO: CountyDAO,
+        private readonly countiesSingletonFactory: CountiesSingletonFactory
+    ) {}
 
     async getAll(): Promise<County[]> {
         return await this.countyDAO.getAllCounties();
     }
 
     /**
-     * Get counties organized by state with normalized names (cached)
-     * Used for efficient lead-to-county matching
-     */
-    async getCountiesByState(): Promise<Record<string, CountyWithNormalized[]>> {
-        if (this.countiesCache) {
-            return this.countiesCache;
-        }
-
-        const allCounties = await this.countyDAO.getAllCounties();
-        const countiesByState: Record<string, CountyWithNormalized[]> = {};
-
-        for (const county of allCounties) {
-            const state = county.state.toUpperCase();
-            if (!countiesByState[state]) {
-                countiesByState[state] = [];
-            }
-            countiesByState[state].push({
-                ...county,
-                normalizedName: normalizeCountyName(county.name)
-            });
-        }
-
-        this.countiesCache = countiesByState;
-        return countiesByState;
-    }
-
-    /**
      * Match leads to existing counties using fuzzy matching
+     * Uses singleton to avoid repeated DB queries
      * Does NOT auto-create counties - returns map of matched counties only
      * @param leads - Array of leads to match
      * @returns Map of matched counties (key: "countyname_state")
      */
     async matchLeadsToCounties(leads: parsedLeadFromCSV[]): Promise<Map<string, County>> {
-        const countiesByState = await this.getCountiesByState();
+        // Get counties from singleton (cached in memory)
+        const singleton = await this.countiesSingletonFactory.singleton();
+        const countiesByState = singleton.getAllCountiesOrderedByState();
         const countyMap = new Map<string, County>();
 
         for (const lead of leads) {
