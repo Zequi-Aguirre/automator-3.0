@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { IDatabase } from "pg-promise";
 import { DBContainer } from "../config/DBContainer";
-import { Campaign, CampaignCreateDTO, CampaignUpdateDTO, CampaignFilters } from "../types/campaignTypes";
+import { Campaign, CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
 
 /**
