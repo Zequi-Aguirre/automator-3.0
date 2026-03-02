@@ -186,7 +186,8 @@ export default class CountyService {
                     name,
                     state,
                     population: row.population ? Number(row.population) : null,
-                    timezone: row.timezone || null
+                    timezone: row.timezone || null,
+                    zip_codes: row.zip_codes || null  // TICKET-047: Include ZIP codes
                 });
 
                 existingMap.set(key, created);
