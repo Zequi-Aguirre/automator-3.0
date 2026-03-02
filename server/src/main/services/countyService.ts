@@ -89,6 +89,16 @@ export default class CountyService {
     }
 
     /**
+     * TICKET-047: Lookup county by zip code
+     * Uses zip_codes array for deterministic lookup (no fuzzy matching needed)
+     * @param zipCode - 5-digit zip code
+     * @returns County if found, null otherwise
+     */
+    async getByZipCode(zipCode: string): Promise<County | null> {
+        return await this.countyDAO.getByZipCode(zipCode);
+    }
+
+    /**
      * Match leads to existing counties using fuzzy matching
      * Uses singleton to avoid repeated DB queries
      * Does NOT auto-create counties - returns map of matched counties only
