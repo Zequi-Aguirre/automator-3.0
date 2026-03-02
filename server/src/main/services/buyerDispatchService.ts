@@ -69,11 +69,10 @@ export default class BuyerDispatchService {
         );
 
         // Log the attempt to send_log
-        // Note: affiliate_id column is being repurposed for source_id (same semantic meaning)
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
             buyer_id: buyer.id,
-            affiliate_id: sourceId,  // TODO: Rename column to source_id in future migration
+            source_id: sourceId,
             campaign_id: lead.campaign_id,
             status: response.success ? "sent" : "failed"
         });
