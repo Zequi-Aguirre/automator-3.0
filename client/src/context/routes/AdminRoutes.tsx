@@ -6,12 +6,11 @@ import AdminCampaignsView from "../../views/adminViews/AdminCampaignsView.tsx";
 import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanelView.tsx";
 import AdminJobsSection from "../../views/adminViews/AdminWorkerJobsView.tsx";
 import AdminJobDetailsView from "../../views/adminViews/AdminJobDetailsView.tsx";
-import AdminAffiliatesView from "../../views/adminViews/AdminAffiliatesView.tsx";
-import AdminAffiliateDetailsView from "../../views/adminViews/AdminAffiliatesDetailsView.tsx";
 import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
 import AdminLogsView from "../../views/adminViews/AdminLogsView.tsx";
 import AdminBuyersView from "../../views/adminViews/AdminBuyersView.tsx";
 import AdminSourcesView from "../../views/adminViews/AdminSourcesView.tsx";
+import AdminSourceDetailsView from "../../views/adminViews/AdminSourceDetailsView.tsx";
 
 const AdminRoutes = () => {
     return (
@@ -32,16 +31,6 @@ const AdminRoutes = () => {
                         <AdminCampaignsView/>
                     </VerifyAdmin>
                 }/>
-                <Route path="/a/affiliates" element={
-                    <VerifyAdmin>
-                        <AdminAffiliatesView/>
-                    </VerifyAdmin>
-                }/>
-                <Route path="/a/affiliates/:id" element={
-                    <VerifyAdmin>
-                        <AdminAffiliateDetailsView/>
-                    </VerifyAdmin>
-                }/>
                 <Route path="/a/buyers" element={
                     <VerifyAdmin>
                         <AdminBuyersView/>
@@ -50,6 +39,11 @@ const AdminRoutes = () => {
                 <Route path="/a/sources" element={
                     <VerifyAdmin>
                         <AdminSourcesView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/sources/:id" element={
+                    <VerifyAdmin>
+                        <AdminSourceDetailsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/counties" element={

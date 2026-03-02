@@ -129,21 +129,36 @@ export default class SourceDAO {
 
     /**
      * Update existing source
-     * Uses COALESCE pattern - only updates provided fields
+     * Only updates fields that are provided (not undefined)
      */
     async update(id: string, data: SourceUpdateDTO | { token: string }): Promise<Source> {
+        // Get existing source to merge with updates
+        const existing = await this.getById(id);
+        if (!existing) {
+            throw new Error('Source not found');
+        }
+
         const query = `
             UPDATE sources
             SET
-                name = COALESCE($[name], name),
-                email = COALESCE($[email], email),
-                token = COALESCE($[token], token)
+                name = $[name],
+                email = $[email],
+                token = $[token],
+                modified = NOW()
             WHERE id = $[id]
                 AND deleted IS NULL
             RETURNING *;
         `;
 
-        return await this.db.one<Source>(query, { id, ...data });
+        // Merge with existing values - only update what's provided
+        const updateData = {
+            id,
+            name: 'name' in data ? data.name : existing.name,
+            email: 'email' in data ? data.email : existing.email,
+            token: 'token' in data ? data.token : existing.token
+        };
+
+        return await this.db.one<Source>(query, updateData);
     }
 
     /**
