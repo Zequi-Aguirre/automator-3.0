@@ -21,6 +21,7 @@ import DataContext from "../../context/DataContext.tsx";
 const adminPages = [
     "Leads",
     "Buyers",
+    "Sources",
     "Campaigns",
     "Affiliates",
     "Counties",
@@ -57,6 +58,9 @@ export default function NavBar() {
                 break;
             case "Buyers":
                 navigate("/a/buyers");
+                break;
+            case "Sources":
+                navigate("/a/sources");
                 break;
             case "Campaigns":
                 navigate("/a/campaigns");
@@ -105,6 +109,9 @@ export default function NavBar() {
                 break;
             case path.includes("/buyers"):
                 setCurrentPage("Buyers");
+                break;
+            case path.includes("/sources"):
+                setCurrentPage("Sources");
                 break;
             case path.includes("/campaigns"):
                 setCurrentPage("Campaigns");
