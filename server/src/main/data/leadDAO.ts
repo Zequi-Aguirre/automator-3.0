@@ -419,11 +419,13 @@ export default class LeadDAO {
                         `
                           INSERT INTO leads (
                             first_name, last_name, email, phone, address, city, state, zipcode,
-                            county, county_id, private_notes, source_id, campaign_id
+                            county, county_id, private_notes, source_id, campaign_id,
+                            external_lead_id, external_ad_id, external_ad_name, raw_payload
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
-                            $[county], $[county_id], $[private_notes], $[source_id], $[campaign_id]
+                            $[county], $[county_id], $[private_notes], $[source_id], $[campaign_id],
+                            $[external_lead_id], $[external_ad_id], $[external_ad_name], $[raw_payload]
                           )
                           RETURNING *;
                         `,
@@ -433,11 +435,21 @@ export default class LeadDAO {
                     results.push({ success: true, lead: postedLead });
                 } catch (e) {
                     const error = e as { message?: string };
-                    results.push({
-                        success: false,
-                        failedLead: lead,
-                        error: error?.message ?? "Unknown error"
-                    });
+
+                    // Check for duplicate external_lead_id error
+                    if (error?.message?.includes('idx_leads_external_unique')) {
+                        results.push({
+                            success: false,
+                            failedLead: lead,
+                            error: `Duplicate lead: external_lead_id '${lead.external_lead_id}' already exists for this source`
+                        });
+                    } else {
+                        results.push({
+                            success: false,
+                            failedLead: lead,
+                            error: error?.message ?? "Unknown error"
+                        });
+                    }
                 }
             }
 

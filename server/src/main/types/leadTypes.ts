@@ -161,4 +161,9 @@ export type parsedLeadFromCSV = {
     investor_id?: string | null;  // Deprecated - kept for backward compatibility
     source_id?: string | null;  // TICKET-046: Lead source (for API intake)
     campaign_id?: string | null;  // TICKET-046: Campaign (for API intake)
+    // TICKET-047: External platform tracking
+    external_lead_id?: string | null;
+    external_ad_id?: string | null;
+    external_ad_name?: string | null;
+    raw_payload?: Record<string, any> | null;
 };
