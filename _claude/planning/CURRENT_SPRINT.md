@@ -40,14 +40,20 @@ Implement a source & campaign system where each source gets a unique API key for
 **Architecture:**
 - **Source** (formerly "affiliate"): Organization sending leads via API
 - **Campaign**: Named marketing campaign under a source
-- **API Key**: Encrypted, unique per source, used for authentication
+- **API Key**: 64-char hex token (plaintext, high entropy), unique per source, used for authentication
 - **Lead Association**: Each lead linked to source via campaign
 
 **Flow:**
-1. Source sends lead to `/api/leads-intake` with `x-api-key` header
-2. Middleware validates API key, looks up source and campaign
+1. Source sends lead to `/api/leads-intake` with `Authorization: Bearer <token>` header
+2. Middleware validates Bearer token, looks up source and campaign
 3. Lead is created and associated with source/campaign
 4. Analytics can track performance by source and campaign
+
+**Recent Updates:**
+- ✅ API testing complete: 17 test leads successfully imported with source/campaign association
+- ✅ Database verification: All fields complete (first_name, last_name, zipcode, source_id, campaign_id)
+- ✅ CSV import null safety fix: Added optional chaining for campaign.source_id access (commit c877a95)
+- 🔲 CSV import testing pending: Verify null safety fix resolves "Property 'source_id' doesn't exist" errors
 
 ---
 
@@ -160,9 +166,9 @@ Create migration with:
 
 ---
 
-## Tasks Completed (14 commits)
+## Tasks Completed (29 commits)
 
-### ✅ Backend Implementation (10 commits)
+### ✅ Backend Implementation (14 commits)
 
 **Commit 1:** Database migration
 - Created `20260301182640.do._create_sources_and_campaigns.sql`
@@ -238,6 +244,29 @@ Create migration with:
 **Commit 14:** AdminRoutes and NavBar updates
 - Added /a/sources route to AdminRoutes
 - Added "Sources" menu item to NavBar (between Buyers and Campaigns)
+
+### ✅ Bug Fixes & Enhancements (15 commits)
+
+**Commit 15-21:** Backend refinements
+- 15: Updated campaign/auth files for source integration
+- 16: Planning documents for source API auth implementation
+- 17: Updated buyerDispatchService to use source_id instead of affiliate_id
+- 18: Removed unused CampaignFilters import from campaignDAO
+- 19: Added getAll() method to campaignDAO with filters
+- 20: Set default campaign rating to 3 to satisfy CHECK constraint
+- 21: Support first_name/last_name in API lead payload (TICKET-046)
+
+**Commit 22-26:** API intake improvements
+- 22: Process each lead with its own campaign_name
+- 23: Rename affiliate_id to source_id in send_log table
+- 24: Update sendLog API to use source_id instead of affiliate_id
+- 25: Support both zipcode and zip_code in API payload
+- 26: Add null safety for campaign.source_id in buyer dispatch
+
+**Commit 27-29:** Additional fixes
+- 27: Update leadService to use source_id/campaign_id from API
+- 28: Fix sendLogDAO createLog to use correct parameter mapping
+- 29: Add null safety for campaign.source_id in buyer dispatch (CSV import fix)
 
 ---
 
@@ -390,38 +419,31 @@ All implementation completed (14 commits pushed to PR #29):
 6. ✅ Frontend implemented (admin UI with token management)
 7. ✅ PR #29 created and description updated
 
-### 🟡 Testing Phase (User Action Required)
+### ✅ Testing Phase - Mostly Complete
 
-**Before merging PR #29:**
-1. 🔲 Run migration: `npm run dev-db-migrate`
-2. 🔲 Start dev server: `npm run dev-be` and `npm run dev-fe`
-3. 🔲 Navigate to /a/sources in browser
-4. 🔲 Create test source via UI
-5. 🔲 Copy API token from one-time display dialog
-6. 🔲 Test lead intake API with Bearer token:
-   ```bash
-   curl -X POST http://localhost:3000/api/leads-intake \
-     -H "Authorization: Bearer <your-token-here>" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "campaign_name": "Test Campaign",
-       "leads": [{
-         "first_name": "John",
-         "last_name": "Doe",
-         "email": "john@example.com",
-         "phone": "555-1234",
-         "address": "123 Main St",
-         "city": "Anytown",
-         "state": "CA",
-         "zipcode": "90210",
-         "county": "Los Angeles"
-       }]
-     }'
-   ```
-7. 🔲 Verify lead is associated with correct source and campaign in database
-8. 🔲 Test token refresh (verify old token fails)
-9. 🔲 Test soft delete (verify token fails immediately)
-10. 🔲 Test UI operations (create, edit, delete)
+**Completed Tests:**
+1. ✅ Migration executed successfully
+2. ✅ Dev servers running (backend + frontend)
+3. ✅ Source UI tested and working
+4. ✅ Test source created via UI
+5. ✅ API token copied from one-time display dialog
+6. ✅ Lead intake API tested with Bearer token
+   - Sent 17 test leads across 5 campaigns
+   - All leads successfully imported
+   - Verified database associations (source_id, campaign_id)
+   - Confirmed all fields complete (first_name, last_name, zipcode)
+7. ✅ Database verification complete
+   - 1 source ("Test")
+   - 5 campaigns with proper source_id
+   - 17 leads with complete data
+
+**Pending Tests (before merge):**
+1. 🔲 CSV import testing (verify null safety fix)
+   - Previous error: "Property 'source_id' doesn't exist." (65+ occurrences)
+   - Fix applied: Optional chaining in buyerDispatchService.ts (commit c877a95)
+   - Action needed: Retry CSV import to confirm fix works
+2. 🔲 Test token refresh (verify old token fails)
+3. 🔲 Test soft delete (verify token fails immediately)
 
 ### After Testing Passes
 1. Merge PR #29 to develop
@@ -443,8 +465,9 @@ All implementation completed (14 commits pushed to PR #29):
 ---
 
 **Sprint Started:** 2026-03-01
-**Sprint Completed:** 2026-03-01
-**Status:** ✅ COMPLETE - Ready for Testing
-**Actual Duration:** ~4 hours (single session)
-**Current Phase:** Testing & Review
-**PR:** #29 (14 commits, ready for merge after testing)
+**Sprint Completed:** 2026-03-01 (implementation), 2026-03-02 (testing + fixes)
+**Status:** 🟡 99% COMPLETE - Final CSV Import Test Pending
+**Actual Duration:** ~6 hours (across 2 sessions)
+**Current Phase:** Final Testing & Review
+**PR:** #29 (29 commits, ready for merge after CSV import test passes)
+**Latest Fix:** Null safety for campaign.source_id (commit c877a95) - fixes CSV import errors
