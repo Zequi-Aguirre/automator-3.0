@@ -287,7 +287,7 @@ export default class LeadService {
                 address: p.address,
                 city: p.city,
                 state: cleanState(p.state || ""),
-                zipcode: p.zip_code || "",
+                zipcode: p.zipcode || p.zip_code || "",  // Support both zipcode and zip_code
                 county: p.county || "",
                 county_id: undefined,
                 private_notes: p.private_note || null,
