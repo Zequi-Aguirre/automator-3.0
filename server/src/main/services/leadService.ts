@@ -321,8 +321,8 @@ export default class LeadService {
                 last_name,
                 phone,
                 email,
-                address: p.address,
-                city: p.city,
+                address: p.address || "",
+                city: p.city || "",
                 state: cleanState(p.state || ""),
                 zipcode: p.zipcode || p.zip_code || "",  // Support both zipcode and zip_code
                 county: p.county || "",
