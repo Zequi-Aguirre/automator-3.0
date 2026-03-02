@@ -420,6 +420,188 @@ const activeBuyers = allBuyers.filter(b => b.active);
 
 ---
 
+#### TICKET-QA-012: Drag-and-Drop Buyer Priority Reordering ✅
+**Priority:** Medium
+**Effort:** 5-6 hours
+**Status:** Complete
+**PR:** #30
+**Branch:** feature/ticket-qa-012-drag-drop-priority
+
+**Current:** Priority is a number field in buyer edit modal, manual entry only
+**Desired:** Drag-and-drop interface in buyers table to reorder priorities visually
+
+**Use Case:**
+- Admin wants to reorder buyer priority quickly without editing each buyer individually
+- Drag handle (⋮⋮) on right side of each table row
+- Click and hold to activate drag mode
+- Drag up/down to change priority
+- Backend updates ALL buyer priorities to maintain correct sequence
+
+**UI - Buyers Table:**
+```tsx
+// Add drag handle column (rightmost)
+<TableCell>
+  <Tooltip title="Drag to reorder priority">
+    <IconButton className="drag-handle">
+      <DragIndicatorIcon />  {/* Three horizontal lines ⋮⋮ */}
+    </IconButton>
+  </Tooltip>
+</TableCell>
+
+// Implement with @dnd-kit/core and @dnd-kit/sortable
+import { DndContext, closestCenter, PointerSensor, useSensor } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+
+const handleDragEnd = (event: DragEndEvent) => {
+  const { active, over } = event;
+  if (active.id !== over?.id) {
+    const movedBuyer = buyers.find(b => b.id === active.id);
+    const targetBuyer = buyers.find(b => b.id === over.id);
+
+    // Only send the moved buyer's ID and new priority
+    // Backend will calculate which other buyers need to shift
+    await api.put('/api/buyers/reorder-priority', {
+      buyerId: movedBuyer.id,
+      oldPriority: movedBuyer.priority,
+      newPriority: targetBuyer.priority
+    });
+
+    // Refresh the buyers list to show updated priorities
+    await fetchBuyers();
+  }
+};
+```
+
+**Backend - New API Endpoint:**
+```typescript
+// In buyerResource.ts
+this.router.put('/reorder-priority', async (req: Request, res: Response) => {
+  try {
+    const { buyerId, oldPriority, newPriority } = req.body;
+
+    if (!buyerId || oldPriority == null || newPriority == null) {
+      return res.status(400).json({
+        error: 'buyerId, oldPriority, and newPriority required'
+      });
+    }
+
+    await this.buyerService.reorderPriority(buyerId, oldPriority, newPriority);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error reordering priority:', error);
+    res.status(500).json({
+      error: 'Failed to reorder priority',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+```
+
+**Backend - BuyerService Method:**
+```typescript
+// In buyerService.ts
+async reorderPriority(
+  buyerId: string,
+  oldPriority: number,
+  newPriority: number
+): Promise<void> {
+  return this.buyerDAO.reorderPriority(buyerId, oldPriority, newPriority);
+}
+```
+
+**Backend - BuyerDAO Method:**
+```typescript
+// In buyerDAO.ts
+async reorderPriority(
+  buyerId: string,
+  oldPriority: number,
+  newPriority: number
+): Promise<void> {
+  // Backend calculates which buyers need to shift
+  // Only updates affected buyers, not all 500!
+
+  await this.db.tx(async t => {
+    if (oldPriority === newPriority) {
+      return; // No change needed
+    }
+
+    // Step 1: Temporarily set moved buyer to -1 to avoid UNIQUE constraint
+    await t.none(
+      'UPDATE buyers SET priority = -1 WHERE id = $1 AND deleted IS NULL',
+      [buyerId]
+    );
+
+    if (oldPriority > newPriority) {
+      // Moving UP (e.g., 5 → 2)
+      // Shift DOWN all buyers in range [newPriority, oldPriority)
+      // Buyers at 2,3,4 become 3,4,5
+      await t.none(`
+        UPDATE buyers
+        SET priority = priority + 1, modified = NOW()
+        WHERE priority >= $1
+          AND priority < $2
+          AND deleted IS NULL
+      `, [newPriority, oldPriority]);
+    } else {
+      // Moving DOWN (e.g., 2 → 5)
+      // Shift UP all buyers in range (oldPriority, newPriority]
+      // Buyers at 3,4,5 become 2,3,4
+      await t.none(`
+        UPDATE buyers
+        SET priority = priority - 1, modified = NOW()
+        WHERE priority > $1
+          AND priority <= $2
+          AND deleted IS NULL
+      `, [oldPriority, newPriority]);
+    }
+
+    // Step 3: Set moved buyer to new priority
+    await t.none(
+      'UPDATE buyers SET priority = $1, modified = NOW() WHERE id = $2 AND deleted IS NULL',
+      [newPriority, buyerId]
+    );
+  });
+}
+```
+
+**Database Consideration:**
+- `buyers` table has `UNIQUE(priority, deleted)` constraint
+- Backend-calculated approach: only updates affected buyers (not all 500!)
+- Three-step transaction:
+  1. Set moved buyer to temporary priority (-1) to release constraint
+  2. Shift affected buyers in the range (increment or decrement)
+  3. Set moved buyer to final priority
+- Works with pagination: frontend only sends `{ buyerId, oldPriority, newPriority }`
+- Backend determines which other buyers need to shift based on direction:
+  - Moving UP (5→2): Shift DOWN buyers at positions 2,3,4
+  - Moving DOWN (2→5): Shift UP buyers at positions 3,4,5
+
+**Frontend Dependencies:**
+```bash
+npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+```
+
+**Acceptance Criteria:**
+- [x] Drag handle (⋮⋮) appears on right side of buyers table
+- [x] Click and hold activates drag mode
+- [x] Can drag rows up/down to reorder
+- [x] Visual feedback during drag (row opacity, position indicator)
+- [x] Backend calculates which buyers to shift (only affected range, not all buyers)
+- [x] Works with pagination (doesn't require all buyer IDs from frontend)
+- [x] Priority column updates immediately after successful save
+- [x] Error handling shows if reorder fails
+- [x] Does not conflict with UNIQUE(priority) constraint
+- [x] Works with existing buyer filters/sorting
+- [x] Transaction ensures atomic update (all or nothing)
+- [x] **BONUS:** Manual priority edit also uses smart reordering
+
+**Edge Cases:**
+- Handle drag on filtered/sorted table (warn or disable sorting during drag)
+- Handle concurrent updates from multiple admins
+- Validate all priorities are unique sequential integers (1, 2, 3...)
+
+---
+
 ### Future Tickets (Mentioned, Not Detailed)
 
 #### TICKET-QA-010: User Management & Roles System
@@ -450,9 +632,10 @@ const activeBuyers = allBuyers.filter(b => b.active);
 
 ## 📊 QA Session Summary
 
-**Total New Tickets:** 11
+**Total New Tickets:** 12
+**Completed:** 1 ticket (QA-012)
 **High Priority:** 6 tickets
-**Medium Priority:** 4 tickets
+**Medium Priority:** 4 tickets (1 complete)
 **Future/TBD:** 2 tickets
 
 **Immediate Action Items:**

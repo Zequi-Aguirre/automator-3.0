@@ -29,7 +29,10 @@ import {
     Checkbox,
     Switch
 } from '@mui/material';
-import { Edit, Delete } from '@mui/icons-material';
+import { Edit, Delete, DragIndicator } from '@mui/icons-material';
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -73,6 +76,101 @@ const getRelativeTime = (date: string | null): string => {
     }
 };
 
+// Sortable row component for drag-and-drop
+interface SortableRowProps {
+    buyer: Buyer;
+    onEdit: (buyer: Buyer) => void;
+    onDelete: (id: string) => void;
+    onOpenDatePicker: (buyer: Buyer) => void;
+}
+
+const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker }: SortableRowProps) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: buyer.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        backgroundColor: isDragging ? '#f5f5f5' : 'inherit',
+    };
+
+    return (
+        <TableRow ref={setNodeRef} style={style}>
+            <TableCell>
+                <Box
+                    {...attributes}
+                    {...listeners}
+                    sx={{
+                        cursor: 'grab',
+                        display: 'flex',
+                        alignItems: 'center',
+                        '&:active': { cursor: 'grabbing' }
+                    }}
+                >
+                    <DragIndicator sx={{ color: 'text.secondary', mr: 1 }} />
+                    {buyer.priority}
+                </Box>
+            </TableCell>
+            <TableCell>{buyer.name}</TableCell>
+            <TableCell>
+                {buyer.webhook_url ? 'Valid' : 'Invalid'}
+            </TableCell>
+            <TableCell>{formatDispatchMode(buyer.dispatch_mode)}</TableCell>
+            <TableCell>
+                <Box
+                    onClick={() => onOpenDatePicker(buyer)}
+                    sx={{
+                        cursor: 'pointer',
+                        '&:hover': {
+                            backgroundColor: 'action.hover',
+                            borderRadius: 1
+                        },
+                        padding: 1,
+                        margin: -1
+                    }}
+                >
+                    {buyer.next_send_at ? (
+                        <Box>
+                            <Typography variant="body2">
+                                {new Date(buyer.next_send_at).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true
+                                })}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {getRelativeTime(buyer.next_send_at)}
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <Typography variant="body2" color="text.secondary">
+                            Not scheduled
+                        </Typography>
+                    )}
+                </Box>
+            </TableCell>
+            <TableCell>{buyer.total_sends}</TableCell>
+            <TableCell>
+                <IconButton size="small" onClick={() => onEdit(buyer)}>
+                    <Edit />
+                </IconButton>
+                <IconButton size="small" onClick={() => onDelete(buyer.id)}>
+                    <Delete />
+                </IconButton>
+            </TableCell>
+        </TableRow>
+    );
+};
+
 const AdminBuyersSection = () => {
     const [buyers, setBuyers] = useState<Buyer[]>([]);
     const [count, setCount] = useState(0);
@@ -112,6 +210,15 @@ const AdminBuyersSection = () => {
     const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [editingBuyerForDate, setEditingBuyerForDate] = useState<Buyer | null>(null);
     const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
+
+    // Drag-and-drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Require 8px movement before drag starts
+            },
+        })
+    );
 
     const fetchBuyers = async () => {
         setLoading(true);
@@ -255,6 +362,49 @@ const AdminBuyersSection = () => {
         }
     };
 
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) {
+            return; // No reorder needed
+        }
+
+        const movedBuyer = buyers.find(b => b.id === active.id);
+        const targetBuyer = buyers.find(b => b.id === over.id);
+
+        if (!movedBuyer || !targetBuyer) {
+            return;
+        }
+
+        try {
+            // Optimistically update UI
+            const oldIndex = buyers.findIndex(b => b.id === active.id);
+            const newIndex = buyers.findIndex(b => b.id === over.id);
+
+            // Reorder the array temporarily for immediate feedback
+            const reordered = [...buyers];
+            const [removed] = reordered.splice(oldIndex, 1);
+            reordered.splice(newIndex, 0, removed);
+            setBuyers(reordered);
+
+            // Call backend to persist the change
+            await buyerService.reorderPriority(
+                movedBuyer.id,
+                movedBuyer.priority,
+                targetBuyer.priority
+            );
+
+            // Refresh to get updated priorities from backend
+            await fetchBuyers();
+            setSnack({ open: true, message: "Priority updated successfully", severity: "success" });
+        } catch (error: any) {
+            // Revert on error
+            await fetchBuyers();
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to update priority: ${errorMessage}`, severity: "error" });
+        }
+    };
+
     return (
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -274,77 +424,43 @@ const AdminBuyersSection = () => {
                     </Box>
                 ) : (
                     <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <TableContainer component={Paper}>
-                            <Table stickyHeader>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Priority</TableCell>
-                                        <TableCell>Name</TableCell>
-                                        <TableCell>Webhook</TableCell>
-                                        <TableCell>Dispatch Mode</TableCell>
-                                        <TableCell>Next Lead</TableCell>
-                                        <TableCell>Total Sends</TableCell>
-                                        <TableCell>Actions</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {buyers.map((buyer) => (
-                                        <TableRow key={buyer.id}>
-                                            <TableCell>{buyer.priority}</TableCell>
-                                            <TableCell>{buyer.name}</TableCell>
-                                            <TableCell>
-                                                {buyer.webhook_url ? 'Valid' : 'Invalid'}
-                                            </TableCell>
-                                            <TableCell>{formatDispatchMode(buyer.dispatch_mode)}</TableCell>
-                                            <TableCell>
-                                                <Box
-                                                    onClick={() => handleOpenDatePicker(buyer)}
-                                                    sx={{
-                                                        cursor: 'pointer',
-                                                        '&:hover': {
-                                                            backgroundColor: 'action.hover',
-                                                            borderRadius: 1
-                                                        },
-                                                        padding: 1,
-                                                        margin: -1
-                                                    }}
-                                                >
-                                                    {buyer.next_send_at ? (
-                                                        <Box>
-                                                            <Typography variant="body2">
-                                                                {new Date(buyer.next_send_at).toLocaleString('en-US', {
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                    hour: 'numeric',
-                                                                    minute: '2-digit',
-                                                                    hour12: true
-                                                                })}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {getRelativeTime(buyer.next_send_at)}
-                                                            </Typography>
-                                                        </Box>
-                                                    ) : (
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            Not scheduled
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell>{buyer.total_sends}</TableCell>
-                                            <TableCell>
-                                                <IconButton size="small" onClick={() => handleOpenDialog(buyer)}>
-                                                    <Edit />
-                                                </IconButton>
-                                                <IconButton size="small" onClick={() => handleDelete(buyer.id)}>
-                                                    <Delete />
-                                                </IconButton>
-                                            </TableCell>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <TableContainer component={Paper}>
+                                <Table stickyHeader>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Priority</TableCell>
+                                            <TableCell>Name</TableCell>
+                                            <TableCell>Webhook</TableCell>
+                                            <TableCell>Dispatch Mode</TableCell>
+                                            <TableCell>Next Lead</TableCell>
+                                            <TableCell>Total Sends</TableCell>
+                                            <TableCell>Actions</TableCell>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                                    </TableHead>
+                                    <SortableContext
+                                        items={buyers.map(b => b.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <TableBody>
+                                            {buyers.map((buyer) => (
+                                                <SortableRow
+                                                    key={buyer.id}
+                                                    buyer={buyer}
+                                                    onEdit={handleOpenDialog}
+                                                    onDelete={handleDelete}
+                                                    onOpenDatePicker={handleOpenDatePicker}
+                                                />
+                                            ))}
+                                        </TableBody>
+                                    </SortableContext>
+                                </Table>
+                            </TableContainer>
+                        </DndContext>
                     </Box>
                 )}
 

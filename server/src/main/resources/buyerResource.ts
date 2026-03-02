@@ -41,6 +41,30 @@ export default class BuyerResource {
             }
         });
 
+        // PUT /api/buyers/reorder-priority - Reorder buyer priority (drag-and-drop)
+        // TICKET-QA-012
+        // IMPORTANT: This route must come BEFORE /:id routes to avoid matching "reorder-priority" as an ID
+        this.router.put('/reorder-priority', async (req: Request, res: Response) => {
+            try {
+                const { buyerId, oldPriority, newPriority } = req.body;
+
+                if (!buyerId || oldPriority == null || newPriority == null) {
+                    return res.status(400).json({
+                        error: 'buyerId, oldPriority, and newPriority required'
+                    });
+                }
+
+                await this.buyerService.reorderPriority(buyerId, oldPriority, newPriority);
+                res.status(200).json({ success: true });
+            } catch (error) {
+                console.error('Error reordering priority:', error);
+                res.status(500).json({
+                    error: 'Failed to reorder priority',
+                    message: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // GET /api/buyers/:id - Get buyer by ID
         this.router.get('/:id', async (req: Request, res: Response) => {
             try {
