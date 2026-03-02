@@ -162,7 +162,21 @@ export default class CampaignDAO {
             RETURNING *;
         `;
 
-        return await this.db.one<Campaign>(query, data);
+        // Ensure all fields exist (set to null if not provided)
+        const params = {
+            source_id: data.source_id,
+            name: data.name,
+            blacklisted: data.blacklisted,
+            rating: data.rating,
+            platform: data.platform ?? null,
+            external_campaign_id: data.external_campaign_id ?? null,
+            external_campaign_name: data.external_campaign_name ?? null,
+            external_form_id: data.external_form_id ?? null,
+            external_adset_id: data.external_adset_id ?? null,
+            external_adset_name: data.external_adset_name ?? null
+        };
+
+        return await this.db.one<Campaign>(query, params);
     }
 
     /**
