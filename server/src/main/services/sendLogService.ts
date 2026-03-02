@@ -15,7 +15,7 @@ export default class SendLogService {
         limit: number;
         status?: string;
         investor_id?: string;
-        affiliate_id?: string;
+        source_id?: string;  // TICKET-046: Renamed from affiliate_id
         campaign_id?: string;
         county_id?: string;
     }): Promise<{ logs: SendLog[]; count: number }> {
