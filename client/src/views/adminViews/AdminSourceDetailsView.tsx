@@ -48,7 +48,7 @@ const AdminSourceDetailsView = () => {
         source_id: id || '',
         name: '',
         blacklisted: false,
-        rating: 0
+        rating: 3
     });
 
     // Refresh token dialog
@@ -182,7 +182,7 @@ const AdminSourceDetailsView = () => {
                 source_id: id || '',
                 name: '',
                 blacklisted: false,
-                rating: 0
+                rating: 3
             });
         }
         setCampaignDialogOpen(true);
