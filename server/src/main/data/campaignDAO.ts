@@ -247,7 +247,7 @@ export default class CampaignDAO {
             source_id: sourceId,
             name,
             blacklisted: false,
-            rating: 0
+            rating: 3  // Default rating (CHECK constraint requires 1-5)
         });
     }
 }

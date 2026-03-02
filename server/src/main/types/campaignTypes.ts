@@ -25,7 +25,7 @@ export type CampaignCreateDTO = {
     source_id: string;
     name: string;
     blacklisted?: boolean;  // Default false
-    rating?: number;  // Default 0
+    rating?: number;  // Default 3 (CHECK constraint requires 1-5)
 };
 
 /**
