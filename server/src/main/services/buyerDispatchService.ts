@@ -45,7 +45,7 @@ export default class BuyerDispatchService {
         if (lead.campaign_id) {
             try {
                 const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                sourceId = campaign.source_id;
+                sourceId = campaign?.source_id || null;
             } catch (error) {
                 // Campaign not found or error - continue without source_id
                 console.warn(`Could not fetch campaign ${lead.campaign_id}:`, error);
@@ -115,7 +115,7 @@ export default class BuyerDispatchService {
         if (lead.campaign_id && buyer.blocked_affiliate_ids.length > 0) {
             try {
                 const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                if (buyer.blocked_affiliate_ids.includes(campaign.source_id)) {
+                if (campaign?.source_id && buyer.blocked_affiliate_ids.includes(campaign.source_id)) {
                     return { allowed: false, reason: "Buyer has blocked this source" };
                 }
             } catch (error) {
