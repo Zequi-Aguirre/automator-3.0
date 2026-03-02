@@ -163,4 +163,24 @@ export default class CountyDAO {
         `;
         return this.db.any<County>(query, { ids });
     }
+
+    /**
+     * TICKET-047: Lookup county by zip code
+     * Uses the zip_codes array for deterministic county lookup
+     *
+     * @param zipCode - 5-digit zip code
+     * @returns County if found, null otherwise
+     */
+    async getByZipCode(zipCode: string): Promise<County | null> {
+        const query = `
+            SELECT *
+            FROM counties
+            WHERE deleted IS NULL
+                AND zip_codes IS NOT NULL
+                AND $[zipCode] = ANY(zip_codes)
+            LIMIT 1;
+        `;
+
+        return await this.db.oneOrNone<County>(query, { zipCode });
+    }
 }
