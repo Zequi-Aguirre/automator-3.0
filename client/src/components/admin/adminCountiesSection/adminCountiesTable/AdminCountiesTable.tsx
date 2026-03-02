@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Button,
     Snackbar,
@@ -14,6 +15,7 @@ interface Props {
 }
 
 const AdminCountiesTable = ({ counties, setCounties }: Props) => {
+    const navigate = useNavigate();
     const [snack, setSnack] = useState({
         open: false,
         message: '',
@@ -99,6 +101,9 @@ const AdminCountiesTable = ({ counties, setCounties }: Props) => {
                 columns={columns}
                 disableRowSelectionOnClick
                 hideFooter
+                onRowClick={(params) => {
+                    navigate(`/a/counties/${params.id}`);
+                }}
                 onSortModelChange={(params) => {
                     console.log("Sort model changed:", params[0]);
                 }}
@@ -108,6 +113,9 @@ const AdminCountiesTable = ({ counties, setCounties }: Props) => {
                 sx={{
                     "& .MuiDataGrid-cell": { py: 2 },
                     "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
+                    "& .MuiDataGrid-row": {
+                        cursor: "pointer"
+                    },
                 }}
             />
 

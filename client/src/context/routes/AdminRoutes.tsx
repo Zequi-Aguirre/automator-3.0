@@ -7,6 +7,7 @@ import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanel
 import AdminJobsSection from "../../views/adminViews/AdminWorkerJobsView.tsx";
 import AdminJobDetailsView from "../../views/adminViews/AdminJobDetailsView.tsx";
 import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
+import AdminCountyDetailsView from "../../views/adminViews/AdminCountyDetailsView.tsx";
 import AdminLogsView from "../../views/adminViews/AdminLogsView.tsx";
 import AdminBuyersView from "../../views/adminViews/AdminBuyersView.tsx";
 import AdminSourcesView from "../../views/adminViews/AdminSourcesView.tsx";
@@ -49,6 +50,11 @@ const AdminRoutes = () => {
                 <Route path="/a/counties" element={
                     <VerifyAdmin>
                         <AdminCountiesView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/counties/:id" element={
+                    <VerifyAdmin>
+                        <AdminCountyDetailsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/logs" element={

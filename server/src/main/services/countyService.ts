@@ -211,6 +211,16 @@ export default class CountyService {
         return await this.countyDAO.updateCounty(id, updates);
     }
 
+    /**
+     * TICKET-047: Update county including zip_codes
+     */
+    async updateCounty(
+        id: string,
+        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted" | "zip_codes">>
+    ): Promise<County> {
+        return await this.countyDAO.updateCounty(id, updates);
+    }
+
     async getManyByIds(ids: string[]): Promise<County[]> {
         return this.countyDAO.getManyByIds(ids);
     }
