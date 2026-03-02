@@ -23,7 +23,6 @@ const adminPages = [
     "Buyers",
     "Sources",
     "Campaigns",
-    "Affiliates",
     "Counties",
     "Logs",
     "Settings",
@@ -64,9 +63,6 @@ export default function NavBar() {
                 break;
             case "Campaigns":
                 navigate("/a/campaigns");
-                break;
-            case "Affiliates":
-                navigate("/a/affiliates");
                 break;
             case "Counties":
                 navigate("/a/counties");
@@ -115,9 +111,6 @@ export default function NavBar() {
                 break;
             case path.includes("/campaigns"):
                 setCurrentPage("Campaigns");
-                break;
-            case path.includes("/affiliates"):
-                setCurrentPage("Affiliates");
                 break;
             case path.includes("/counties"):
                 setCurrentPage("Counties");
