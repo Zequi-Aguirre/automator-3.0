@@ -260,7 +260,21 @@ export default class LeadService {
         campaign_id?: string
     ) {
         const leads: parsedLeadFromCSV[] = payloads.map(p => {
-            const { first_name, last_name } = splitName(p.name || "");
+            // TICKET-046: Support both formats: first_name/last_name OR combined name
+            let first_name: string;
+            let last_name: string;
+
+            if (p.first_name || p.last_name) {
+                // Use provided first_name/last_name if available
+                first_name = p.first_name || "";
+                last_name = p.last_name || "";
+            } else {
+                // Fall back to splitting combined name field
+                const split = splitName(p.name || "");
+                first_name = split.first_name;
+                last_name = split.last_name;
+            }
+
             const phone = cleanPhone(p.phone || "");
             const email = (p.email || "").toLowerCase();
 
