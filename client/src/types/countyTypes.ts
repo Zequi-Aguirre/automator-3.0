@@ -5,4 +5,6 @@ export type County = {
     population: number;
     timezone: string;
     blacklisted: boolean;
+    whitelisted: boolean;
+    zip_codes: string[] | null;
 }

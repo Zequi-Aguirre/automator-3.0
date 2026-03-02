@@ -17,14 +17,16 @@ export default class CountyDAO {
         state: string;
         population?: number | null;
         timezone?: string | null;
+        zip_codes?: string[] | null; // TICKET-047: ZIP codes array
     }): Promise<County> {
         const query = `
-            INSERT INTO counties (name, state, population, timezone)
+            INSERT INTO counties (name, state, population, timezone, zip_codes)
             VALUES (
                        INITCAP(LOWER($[name])),
                        $[state],
                        $[population],
-                       $[timezone]
+                       $[timezone],
+                       $[zip_codes]
                    )
                 RETURNING *;
         `;
@@ -109,7 +111,7 @@ export default class CountyDAO {
 
     async updateCounty(
         id: string,
-        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted">>
+        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted" | "zip_codes">>
     ): Promise<County> {
         const fields: string[] = [];
 
@@ -135,6 +137,11 @@ export default class CountyDAO {
 
         if (updates.whitelisted !== undefined) {
             fields.push("whitelisted = $[whitelisted]");
+        }
+
+        // TICKET-047: Support zip_codes updates
+        if (updates.zip_codes !== undefined) {
+            fields.push("zip_codes = $[zip_codes]");
         }
 
         if (fields.length === 0) {
