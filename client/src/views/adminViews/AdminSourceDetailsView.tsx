@@ -26,7 +26,7 @@ import {
     FormControlLabel,
     Checkbox,
 } from '@mui/material';
-import { ArrowBack, Edit, Delete, Refresh, Add } from '@mui/icons-material';
+import { ArrowBack, Edit, Delete, Refresh, Add, ContentCopy, CheckCircle } from '@mui/icons-material';
 
 import sourceService from '../../services/source.service';
 import campaignService from '../../services/campaign.service';
@@ -53,6 +53,15 @@ const AdminSourceDetailsView = () => {
 
     // Refresh token dialog
     const [refreshDialogOpen, setRefreshDialogOpen] = useState(false);
+
+    // Token display dialog (after refresh)
+    const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+    const [displayToken, setDisplayToken] = useState('');
+    const [tokenCopied, setTokenCopied] = useState(false);
+
+    // Edit source dialog
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editFormData, setEditFormData] = useState({ name: '', email: '' });
 
     const [snack, setSnack] = useState({
         open: false,
@@ -108,13 +117,53 @@ const AdminSourceDetailsView = () => {
     const handleRefreshToken = async () => {
         if (!id) return;
         try {
-            await sourceService.refreshToken(id);
-            setSnack({ open: true, message: 'Token refreshed successfully', severity: 'success' });
+            const response = await sourceService.refreshToken(id);
             setRefreshDialogOpen(false);
+
+            // Show new token in one-time display dialog
+            setDisplayToken(response.token);
+            setTokenCopied(false);
+            setTokenDialogOpen(true);
+
+            setSnack({ open: true, message: 'Token refreshed successfully', severity: 'success' });
             fetchSourceDetails();
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
             setSnack({ open: true, message: `Failed to refresh token: ${errorMessage}`, severity: 'error' });
+        }
+    };
+
+    const handleCopyToken = () => {
+        navigator.clipboard.writeText(displayToken);
+        setTokenCopied(true);
+    };
+
+    const handleCloseTokenDialog = () => {
+        setTokenDialogOpen(false);
+        setDisplayToken('');
+        setTokenCopied(false);
+    };
+
+    const handleOpenEditDialog = () => {
+        if (source) {
+            setEditFormData({
+                name: source.name,
+                email: source.email
+            });
+            setEditDialogOpen(true);
+        }
+    };
+
+    const handleSaveEdit = async () => {
+        if (!id) return;
+        try {
+            await sourceService.update(id, editFormData);
+            setSnack({ open: true, message: 'Source updated successfully', severity: 'success' });
+            setEditDialogOpen(false);
+            fetchSourceDetails();
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to update source: ${errorMessage}`, severity: 'error' });
         }
     };
 
@@ -203,6 +252,13 @@ const AdminSourceDetailsView = () => {
                     <Typography variant="h4" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
                         {source.name}
                     </Typography>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Edit />}
+                        onClick={handleOpenEditDialog}
+                    >
+                        Edit Source
+                    </Button>
                     <Button
                         variant="outlined"
                         color="warning"
@@ -359,7 +415,7 @@ const AdminSourceDetailsView = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Refresh Token Dialog */}
+            {/* Refresh Token Confirmation Dialog */}
             <Dialog open={refreshDialogOpen} onClose={() => setRefreshDialogOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Refresh API Token?</DialogTitle>
                 <DialogContent>
@@ -378,6 +434,76 @@ const AdminSourceDetailsView = () => {
                     <Button onClick={() => setRefreshDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleRefreshToken} variant="contained" color="warning">
                         Refresh Token
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Token Display Dialog (one-time display after refresh) */}
+            <Dialog open={tokenDialogOpen} onClose={handleCloseTokenDialog} maxWidth="sm" fullWidth>
+                <DialogTitle>New API Token - Save This Now!</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <Alert severity="warning">
+                            This token will only be shown once. Copy it now and store it securely.
+                            You will not be able to view it again.
+                        </Alert>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                value={displayToken}
+                                fullWidth
+                                InputProps={{
+                                    readOnly: true,
+                                    sx: { fontFamily: 'monospace', fontSize: '0.875rem' }
+                                }}
+                            />
+                            <IconButton
+                                onClick={handleCopyToken}
+                                color={tokenCopied ? "success" : "default"}
+                                title="Copy token"
+                            >
+                                {tokenCopied ? <CheckCircle /> : <ContentCopy />}
+                            </IconButton>
+                        </Box>
+                        {tokenCopied && (
+                            <Typography variant="body2" color="success.main">
+                                ✓ Token copied to clipboard!
+                            </Typography>
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseTokenDialog} variant="contained">
+                        I've Saved the Token
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Edit Source Dialog */}
+            <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Edit Source</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            label="Name"
+                            value={editFormData.name}
+                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                            required
+                            fullWidth
+                        />
+                        <TextField
+                            label="Email"
+                            type="email"
+                            value={editFormData.email}
+                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                            required
+                            fullWidth
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveEdit} variant="contained">
+                        Update
                     </Button>
                 </DialogActions>
             </Dialog>
