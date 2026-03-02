@@ -20,7 +20,7 @@ import {
     FormControlLabel,
     Checkbox,
 } from '@mui/material';
-import { ArrowBack, Edit, Delete, Add } from '@mui/icons-material';
+import { ArrowBack, Edit, Add } from '@mui/icons-material';
 
 import countyService from '../../services/county.service';
 import { County } from '../../types/countyTypes';
@@ -45,7 +45,6 @@ const AdminCountyDetailsView = () => {
     });
 
     // ZIP code management state
-    const [zipDialogOpen, setZipDialogOpen] = useState(false);
     const [newZipCode, setNewZipCode] = useState('');
 
     const [snack, setSnack] = useState({

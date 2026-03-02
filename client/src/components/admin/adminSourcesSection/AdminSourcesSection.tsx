@@ -26,7 +26,7 @@ import { Edit, Delete, Refresh, ContentCopy, CheckCircle } from '@mui/icons-mate
 import { useNavigate } from 'react-router-dom';
 
 import sourceService from '../../../services/source.service';
-import { Source, SourceCreateDTO, SourceUpdateDTO, CreateSourceResponse, RefreshTokenResponse } from '../../../types/sourceTypes';
+import { Source, SourceCreateDTO, SourceUpdateDTO } from '../../../types/sourceTypes';
 import CustomPagination from '../../Pagination';
 
 const AdminSourcesSection = () => {
