@@ -1,27 +1,52 @@
 # Current Work: QA Session Follow-up
 
-**Latest Completed:** TICKET-QA-012 - Drag-and-Drop Buyer Priority Reordering
+**Latest Completed:** TICKET-QA-001 & QA-002 - Navbar Cleanup (Quick Wins)
 **Date:** 2026-03-02
-**Status:** ✅ COMPLETE - PR #30 Ready for Review
-**Branch:** `feature/ticket-qa-012-drag-drop-priority`
-**Ticket:** TICKET-QA-012 (from QA_SESSION_2026-03-02.md)
-**PR:** #30
+**Status:** ✅ COMPLETE - PR #31 Ready for Review
+**Branch:** `feature/qa-001-002-navbar-cleanup`
+**PR:** #31 (2 commits)
 
 ---
 
-## TICKET-QA-012 Summary
+## TICKET-QA-001 & QA-002 Summary
+
+Two navbar cleanup tasks completed in separate commits.
+
+### TICKET-QA-002: Remove Affiliates from Navbar ⚡
+**Effort:** ~30 minutes
+
+- ✅ Removed "Affiliates" from navbar array
+- ✅ Removed affiliate routes from AdminRoutes
+- ✅ Removed affiliate view imports
+- ✅ Database table kept for historical data
+
+### TICKET-QA-001: Nest Campaigns in Sources
+**Effort:** ~2-3 hours
+
+- ✅ Removed "Campaigns" from navbar
+- ✅ Added Campaign icon button (📋) to each source row
+- ✅ Button navigates to `/a/campaigns?source_id=xxx`
+- ✅ Campaigns route kept accessible (not in navbar)
+- ✅ Achieves "nesting" from UX perspective
+
+**Files Changed:** 3 files, 22 insertions, 18 deletions
+
+---
+
+## Previous: TICKET-QA-012 - Drag-and-Drop Priority ✅ MERGED
+
+**Date:** 2026-03-02
+**Status:** ✅ MERGED to develop (PR #30)
 
 Implemented drag-and-drop interface for reordering buyer priorities with smart backend calculation.
 
 **Key Features:**
 - ✅ Drag-and-drop with @dnd-kit library
-- ✅ Drag handle (⋮⋮) next to priority in buyers table
 - ✅ Pagination-friendly (backend calculates shifts)
 - ✅ Two-pass UPDATE strategy to avoid UNIQUE constraint violations
 - ✅ Works in both drag-and-drop and manual edit scenarios
-- ✅ No more "priority already in use" errors
 
-**Files Changed:** 9 files, 619 insertions, 90 deletions
+**Files Changed:** 8 files, 634 insertions, 92 deletions
 
 ---
 

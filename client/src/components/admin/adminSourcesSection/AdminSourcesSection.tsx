@@ -23,12 +23,14 @@ import {
     DialogActions,
 } from '@mui/material';
 import { Edit, Delete, Refresh, ContentCopy, CheckCircle } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 import sourceService from '../../../services/source.service';
 import { Source, SourceCreateDTO, SourceUpdateDTO, CreateSourceResponse, RefreshTokenResponse } from '../../../types/sourceTypes';
 import CustomPagination from '../../Pagination';
 
 const AdminSourcesSection = () => {
+    const navigate = useNavigate();
     const [sources, setSources] = useState<Source[]>([]);
     const [count, setCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -219,7 +221,12 @@ const AdminSourcesSection = () => {
                                 </TableHead>
                                 <TableBody>
                                     {sources.map((source) => (
-                                        <TableRow key={source.id}>
+                                        <TableRow
+                                            key={source.id}
+                                            hover
+                                            onClick={() => navigate(`/a/sources/${source.id}`)}
+                                            sx={{ cursor: 'pointer' }}
+                                        >
                                             <TableCell>{source.name}</TableCell>
                                             <TableCell>{source.email}</TableCell>
                                             <TableCell>
@@ -231,7 +238,7 @@ const AdminSourcesSection = () => {
                                                     minute: '2-digit'
                                                 })}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
                                                 <IconButton size="small" onClick={() => handleOpenDialog(source)} title="Edit source">
                                                     <Edit />
                                                 </IconButton>

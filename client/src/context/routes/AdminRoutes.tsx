@@ -10,6 +10,7 @@ import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
 import AdminLogsView from "../../views/adminViews/AdminLogsView.tsx";
 import AdminBuyersView from "../../views/adminViews/AdminBuyersView.tsx";
 import AdminSourcesView from "../../views/adminViews/AdminSourcesView.tsx";
+import AdminSourceDetailsView from "../../views/adminViews/AdminSourceDetailsView.tsx";
 
 const AdminRoutes = () => {
     return (
@@ -38,6 +39,11 @@ const AdminRoutes = () => {
                 <Route path="/a/sources" element={
                     <VerifyAdmin>
                         <AdminSourcesView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/sources/:id" element={
+                    <VerifyAdmin>
+                        <AdminSourceDetailsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/counties" element={
