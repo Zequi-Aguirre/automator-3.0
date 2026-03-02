@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { IDatabase } from "pg-promise";
 import { DBContainer } from "../config/DBContainer";
-import { Campaign, CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
+import { Campaign, CampaignCreateDTO, CampaignUpdateDTO, CampaignFilters } from "../types/campaignTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
 
 /**
@@ -27,6 +27,58 @@ export default class CampaignDAO {
               AND deleted IS NULL;
         `;
         return await this.db.one<Campaign>(query, { campaignId });
+    }
+
+    /**
+     * Get all campaigns with pagination and filters
+     * TICKET-046: Supports source_id filtering and search
+     */
+    async getAll(filters: CampaignFilters): Promise<{ items: Campaign[]; count: number }> {
+        const { page, limit, source_id, search, includeDeleted } = filters;
+        const offset = (page - 1) * limit;
+
+        // Build WHERE conditions
+        const conditions: string[] = [];
+        const params: any = { limit, offset };
+
+        if (!includeDeleted) {
+            conditions.push('deleted IS NULL');
+        }
+
+        if (source_id) {
+            conditions.push('source_id = ${source_id}');
+            params.source_id = source_id;
+        }
+
+        if (search) {
+            conditions.push('name ILIKE ${search}');
+            params.search = `%${search}%`;
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        // Query campaigns with pagination
+        const itemsQuery = `
+            SELECT *
+            FROM campaigns
+            ${whereClause}
+            ORDER BY modified DESC
+            LIMIT ${limit} OFFSET ${offset}
+        `;
+        const items = await this.db.manyOrNone<Campaign>(itemsQuery, params) || [];
+
+        // Query total count
+        const countQuery = `
+            SELECT COUNT(*)::int AS total
+            FROM campaigns
+            ${whereClause}
+        `;
+        const result = await this.db.one<{ total: number }>(countQuery, params);
+
+        return {
+            items,
+            count: result.total
+        };
     }
 
     async getManyByIds(ids: string[]): Promise<Campaign[]> {
