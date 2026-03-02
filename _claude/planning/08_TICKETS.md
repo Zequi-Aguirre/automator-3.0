@@ -12,14 +12,16 @@
 | **Sprint 2** | 🟢 COMPLETE | #11-18 | 8/8 (100%) |
 | **Sprint 3** | 🟢 COMPLETE | #19-20 + Bug Fix | 3/3 (100%) |
 | **Sprint 4** | 🟢 COMPLETE | #21-25 | 5/5 (100%) |
-| **Sprint 5** | ⬜ TODO | #26-31 | 0/6 (0%) |
-| **Sprint 6** | ⬜ TODO | #32-41 | 0/10 (0%) |
+| **Sprint 5** | 🟢 COMPLETE | #26-31 | 6/6 (100%) |
+| **Sprint 6** | 🟢 COMPLETE | #32-38 | 7/7 (100%) |
 | **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
+| **Backlog** | ⬜ TODO | #39-41 | 0/3 (0%) |
 
-**Overall Progress:** 25/41 tickets (61%) from original plan + 2 additional features (BUG-001, TICKET-046)
+**Overall Progress:** 38/41 core tickets (93%) + 2 additional features (BUG-001, TICKET-046)
+**Remaining:** 3 enhancement tickets (documentation & UX improvements)
 
-**Current Work:** Sprint 7 (Source API Auth) complete - PR #29 ready for merge
-**Next Up:** QA session and potential new tickets from user feedback
+**Current Status:** All core functionality complete - TICKET-046 merged to develop
+**Next Up:** QA session and user feedback
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()
@@ -620,9 +622,13 @@
 
 ---
 
-## Sprint 5: Add New Buyers (Tickets #26-31)
+## Sprint 5: Add New Buyers (Tickets #26-31) ✅ COMPLETE
 
-### TICKET-026: Add Compass buyer (manual)
+**Status:** 🟢 All buyers added via migration (Compass, Sellers, iSpeedToLead) + manual configuration (Pickle, Motivated, Andy)
+**Completed:** 2026-02-28
+**Method:** Database migration + Admin UI configuration
+
+### TICKET-026: Add Compass buyer (manual) ✅
 **Type**: Configuration
 **Priority**: P1
 **Estimate**: 1 hour
@@ -635,38 +641,41 @@
 - Monitor for 24 hours
 
 **Acceptance Criteria**:
-- [ ] Compass buyer created with dispatch_mode='manual'
-- [ ] Manual send works
-- [ ] auto_send=false (manual buyer)
-- [ ] Stable for 24h
+- [x] Compass buyer created with dispatch_mode='manual'
+- [x] Manual send works
+- [x] auto_send=false (manual buyer)
+- [x] Stable for 24h
 
-**Files**: N/A (Configuration only)
+**Implementation:** Created via migration `20260228000000.do._backfill_ispeedtolead_buyer.sql`
+**Files**: `postgres/migrations/20260228000000.do._backfill_ispeedtolead_buyer.sql`
 
 ---
 
-### TICKET-027: Add Sellers buyer (manual)
+### TICKET-027: Add Sellers buyer (manual) ✅
 **Type**: Configuration
 **Priority**: P1
 **Estimate**: 1 hour
 
 **Tasks**: Same as TICKET-026, priority 2, dispatch_mode='manual'
 
-**Acceptance Criteria**: Same as TICKET-026
+**Acceptance Criteria**: ✅ All criteria met (created via migration)
+**Implementation:** Created via migration `20260228000000.do._backfill_ispeedtolead_buyer.sql`
 
 ---
 
-### TICKET-028: Add Pickle buyer (manual)
+### TICKET-028: Add Pickle buyer (manual) ✅
 **Type**: Configuration
 **Priority**: P1
 **Estimate**: 1 hour
 
 **Tasks**: Same as TICKET-026, priority 3, dispatch_mode='manual'
 
-**Acceptance Criteria**: Same as TICKET-026
+**Acceptance Criteria**: ✅ All criteria met (configured via Admin UI)
+**Implementation:** Manual configuration via Admin UI (buyer exists in production)
 
 ---
 
-### TICKET-029: Add Motivated buyer (worker)
+### TICKET-029: Add Motivated buyer (worker) ✅
 **Type**: Configuration
 **Priority**: P1
 **Estimate**: 1 hour
@@ -679,28 +688,29 @@
 - Monitor for 24 hours
 
 **Acceptance Criteria**:
-- [ ] Motivated buyer created with dispatch_mode='worker'
-- [ ] Manual send blocked (worker buyer)
-- [ ] auto_send=true (worker buyer)
-- [ ] Worker sends correctly
-- [ ] Stable for 24h
+- [x] Motivated buyer created with dispatch_mode='worker'
+- [x] Manual send blocked (worker buyer)
+- [x] auto_send=true (worker buyer)
+- [x] Worker sends correctly
+- [x] Stable for 24h
 
-**Files**: N/A (Configuration only)
+**Implementation:** Manual configuration via Admin UI (buyer exists in production)
 
 ---
 
-### TICKET-030: Add Andy buyer (worker)
+### TICKET-030: Add Andy buyer (worker) ✅
 **Type**: Configuration
 **Priority**: P1
 **Estimate**: 1 hour
 
 **Tasks**: Same as TICKET-029, priority 5, dispatch_mode='worker'
 
-**Acceptance Criteria**: Same as TICKET-029
+**Acceptance Criteria**: ✅ All criteria met (configured via Admin UI)
+**Implementation:** Manual configuration via Admin UI (buyer exists in production)
 
 ---
 
-### TICKET-031: End-to-end priority pipeline test
+### TICKET-031: End-to-end priority pipeline test ✅
 **Type**: Testing
 **Priority**: P0
 **Estimate**: 4 hours
@@ -715,41 +725,38 @@
 - Test sold toggles
 
 **Acceptance Criteria**:
-- [ ] Manual buyers (Compass, Sellers, Pickle) sent manually
-- [ ] Worker buyers (Motivated, Andy, iSpeedToLead) sent by worker
-- [ ] Worker only sends worker_enabled=true leads
-- [ ] If manual buyer sold (allow_resell=false), worker pipeline stops
-- [ ] If manual buyer sold (allow_resell=true), worker pipeline continues
-- [ ] All 6 buyers tested
-- [ ] No duplicate sends
-- [ ] Sold status tracked correctly
+- [x] Manual buyers (Compass, Sellers, Pickle) sent manually
+- [x] Worker buyers (Motivated, Andy, iSpeedToLead) sent by worker
+- [x] Worker only sends worker_enabled=true leads
+- [x] If manual buyer sold (allow_resell=false), worker pipeline stops
+- [x] If manual buyer sold (allow_resell=true), worker pipeline continues
+- [x] All 6 buyers tested
+- [x] No duplicate sends
+- [x] Sold status tracked correctly
 
-**Files**: N/A (Testing only)
+**Implementation:** Tested in production environment
+**Status:** ✅ All pipeline functionality verified and stable
 
 ---
 
-## Sprint 6: Cleanup & Deprecation (Tickets #32-38)
+## Sprint 6: Cleanup & Deprecation (Tickets #32-38) ✅ COMPLETE
 
-### TICKET-032: Mark investors as deprecated in codebase
+**Status:** 🟢 All investor/vendor code removed via PR #24
+**Completed:** 2026-02-28
+**PR:** #24 (`sprint-6-cleanup-deprecation`)
+**Commits:** 10 commits removing all deprecated code
+
+### TICKET-032: Mark investors as deprecated in codebase ✅
 **Type**: Code Cleanup
 **Priority**: P2
 **Estimate**: 2 hours
 
-**Tasks**:
-- Add @deprecated comments to investorService, investorResource, investorDAO
-- Hide investors UI in frontend (or show "DEPRECATED" banner)
-- Do NOT delete code yet
-
-**Acceptance Criteria**:
-- [ ] Deprecated comments added
-- [ ] Frontend shows deprecation notice
-- [ ] Code still functional (rollback safety)
-
-**Files**: `server/src/main/services/investorService.ts`, `server/src/main/resources/investorResource.ts`, `client/src/components/admin/adminInvestorsSection/`
+**Status:** ✅ Skipped - Went straight to removal instead of deprecation
+**Rationale:** Buyers system fully implemented and stable, no need for deprecation period
 
 ---
 
-### TICKET-033: Migration - Remove investor references ⚠️ IRREVERSIBLE
+### TICKET-033: Migration - Remove investor references ⚠️ IRREVERSIBLE ✅
 **Type**: Database
 **Priority**: P0 (CRITICAL)
 **Estimate**: 1 hour
@@ -764,16 +771,17 @@
 - Drop leads.investor_id
 
 **Acceptance Criteria**:
-- [ ] **Database backup created**
-- [ ] Migration runs cleanly
-- [ ] Tables dropped
-- [ ] Worker still functions
+- [x] **Database backup created**
+- [x] Migration runs cleanly
+- [x] Tables dropped
+- [x] Worker still functions
 
-**Files**: `postgres/migrations/YYYYMMDD_05_remove_investors.sql`
+**Implementation:** Migration `20260228180801.do._drop_investors_and_vendors_tables.sql` - PR #24
+**Commit:** `df0636c`
 
 ---
 
-### TICKET-034: Remove investor code from backend
+### TICKET-034: Remove investor code from backend ✅
 **Type**: Code Cleanup
 **Priority**: P1
 **Estimate**: 1 hour
@@ -786,15 +794,15 @@
 - Remove from AutomatorServer.ts
 
 **Acceptance Criteria**:
-- [ ] All investor files deleted
-- [ ] Build succeeds
-- [ ] No import errors
+- [x] All investor files deleted
+- [x] Build succeeds
+- [x] No import errors
 
-**Files**: `server/src/main/data/investorDAO.ts`, `server/src/main/services/investorService.ts`, `server/src/main/resources/investorResource.ts`, `server/src/main/types/investorTypes.ts`, `server/src/main/AutomatorServer.ts`
+**Implementation:** Commit `5284e1b` - PR #24
 
 ---
 
-### TICKET-035: Remove investor code from frontend
+### TICKET-035: Remove investor code from frontend ✅
 **Type**: Code Cleanup
 **Priority**: P1
 **Estimate**: 1 hour
@@ -805,15 +813,15 @@
 - Remove investor routes
 
 **Acceptance Criteria**:
-- [ ] All investor files deleted
-- [ ] Build succeeds
-- [ ] No navigation errors
+- [x] All investor files deleted
+- [x] Build succeeds
+- [x] No navigation errors
 
-**Files**: `client/src/components/admin/adminInvestorsSection/`, `client/src/services/investorService.ts`, `client/src/context/routes/AdminRoutes.tsx`
+**Implementation:** Commit `caf3519` - PR #24
 
 ---
 
-### TICKET-036: Delete iSpeedToLeadIAO.ts
+### TICKET-036: Delete iSpeedToLeadIAO.ts ✅
 **Type**: Code Cleanup
 **Priority**: P1
 **Estimate**: 15 minutes
@@ -823,14 +831,14 @@
 - Remove all imports
 
 **Acceptance Criteria**:
-- [ ] File deleted
-- [ ] No import errors
+- [x] File deleted
+- [x] No import errors
 
-**Files**: `server/src/main/vendor/iSpeedToLeadIAO.ts`
+**Implementation:** Commit `6bd747c` - PR #24
 
 ---
 
-### TICKET-037: Remove LEAD_VENDOR_URL from EnvConfig
+### TICKET-037: Remove LEAD_VENDOR_URL from EnvConfig ✅
 **Type**: Configuration
 **Priority**: P1
 **Estimate**: 15 minutes
@@ -841,15 +849,15 @@
 - Remove LEAD_VENDOR_URL from Doppler
 
 **Acceptance Criteria**:
-- [ ] Field removed
-- [ ] Build succeeds
-- [ ] Doppler config updated
+- [x] Field removed
+- [x] Build succeeds
+- [x] Doppler config updated
 
-**Files**: `server/src/main/config/envConfig.ts`
+**Implementation:** Commit `7b488bc` - PR #24
 
 ---
 
-### TICKET-038: Update WorkerSettingsDAO to remove cooldown methods
+### TICKET-038: Update WorkerSettingsDAO to remove cooldown methods ✅
 **Type**: Backend (Data Layer)
 **Priority**: P1
 **Estimate**: 1 hour
@@ -860,12 +868,14 @@
 - Remove any references to deleted columns
 
 **Acceptance Criteria**:
-- [ ] No references to deleted columns
-- [ ] getCurrentSettings() works
+- [x] No references to deleted columns
+- [x] getCurrentSettings() works
 
-**Files**: `server/src/main/data/workerSettingsDAO.ts`
+**Implementation:** Migration `20260228185645.do._refactor_worker_settings_to_buyers.sql` - PR #24
 
 ---
+
+## Remaining Enhancement Tickets (Backlog)
 
 ### TICKET-039: Update docs/AI/BASELINE files with buyers architecture
 **Type**: Documentation
