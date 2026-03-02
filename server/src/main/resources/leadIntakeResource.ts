@@ -3,7 +3,6 @@ import { injectable } from "tsyringe";
 import LeadService from '../services/leadService';
 import CampaignService from '../services/campaignService';
 import CountyService from '../services/countyService';
-import { ApiLeadPayload } from '../types/leadTypes';
 
 // TICKET-047: Required fields updated for new structured format
 // county is now optional (can be looked up by zip)
