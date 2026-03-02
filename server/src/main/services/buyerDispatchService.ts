@@ -356,11 +356,9 @@ export default class BuyerDispatchService {
                 continue;
             }
 
-            // 1. Blacklist check (county only - investors removed)
-            if (county.blacklisted) {
-                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County ${county.name} is blacklisted`);
-                continue;
-            }
+            // 1. County blacklist check removed - will be per-buyer in future
+            // TODO: Implement per-buyer county blacklists (buyers table should have blacklisted_county_ids)
+            // Global county blacklists no longer block sends
 
             // 2. Buyer-specific state blocking
             if (buyer.states_on_hold.includes(lead.state)) {

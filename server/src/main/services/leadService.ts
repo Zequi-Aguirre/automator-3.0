@@ -428,44 +428,19 @@ export default class LeadService {
     }
 
     private getTrashReasonForImport(
-        lead: parsedLeadFromCSV,
-        deps: {
+        _lead: parsedLeadFromCSV,
+        _deps: {
             countiesById: Map<string, County>;
             countyLogsByCountyId: Map<string, any>;
             delaySameCountyMs: number;
         }
     ): LeadTrashReason | null {
 
-        const countyId = lead.county_id;
+        // NOTE: County blacklists and cooldowns are now per-buyer, not global
+        // They are checked during the SEND phase (buyerDispatchService), not during IMPORT
+        // All leads should be imported successfully regardless of county blacklist/whitelist status
 
-        // County is required
-        if (!countyId) {
-            return null;
-        }
-
-        const county = deps.countiesById.get(countyId);
-
-        // 1. Blacklists (absolute rules)
-        if (county && county.blacklisted) {
-            return "BLACKLISTED_COUNTY";
-        }
-
-        // 2. Whitelists: only affect cooldowns
-        const countyIsWhitelisted = !!(county && county.whitelisted);
-
-        // 3. County cooldown (unless whitelisted)
-        if (!countyIsWhitelisted) {
-            const countyLog = deps.countyLogsByCountyId.get(countyId);
-
-            if (countyLog && deps.delaySameCountyMs > 0) {
-                const last = new Date(countyLog.created).getTime();
-
-                if (Date.now() - last <= deps.delaySameCountyMs) {
-                    return "COUNTY_COOLDOWN";
-                }
-            }
-        }
-
+        // No trash reasons during import - all valid leads should be imported
         return null;
     }
 
