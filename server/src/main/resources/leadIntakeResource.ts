@@ -45,32 +45,16 @@ export default class LeadIntakeResource {
                     });
                 }
 
-                // TICKET-046: Extract campaign name from request body
-                // Expecting { campaign_name: string, leads: ApiLeadPayload[] }
-                // OR just ApiLeadPayload[] with campaign_name on first item
-                let campaignName: string | undefined;
-                let leads: ApiLeadPayload[];
-
-                if (body[0] && 'campaign_name' in body[0]) {
-                    // Campaign name on each lead
-                    campaignName = body[0].campaign_name;
-                    leads = body;
-                } else {
-                    // No campaign specified - use default
-                    campaignName = 'Default';
-                    leads = body;
-                }
-
-                if (!campaignName || campaignName.trim().length === 0) {
-                    return res.status(400).json({
-                        message: "campaign_name is required"
-                    });
-                }
-
                 // Validate required fields on each payload
                 const validationErrors: string[] = [];
-                for (let i = 0; i < leads.length; i++) {
-                    const item = leads[i];
+                for (let i = 0; i < body.length; i++) {
+                    const item = body[i];
+
+                    // Check for campaign_name on each lead
+                    if (!item.campaign_name || String(item.campaign_name).trim() === "") {
+                        validationErrors.push(`Item ${i}: campaign_name is required`);
+                    }
+
                     const missing = REQUIRED_FIELDS.filter(f => !item[f] || String(item[f]).trim() === "");
                     if (missing.length > 0) {
                         validationErrors.push(`Item ${i}: missing required fields: ${missing.join(", ")}`);
@@ -84,17 +68,44 @@ export default class LeadIntakeResource {
                     });
                 }
 
-                // TICKET-046: Get or create campaign for this source
-                const campaign = await this.campaignService.getOrCreate(source.id, campaignName);
+                // TICKET-046: Process each lead with its own campaign
+                // Group leads by campaign_name to minimize campaign lookups
+                const leadsByCampaign = new Map<string, ApiLeadPayload[]>();
 
-                // Import leads with source and campaign association
-                const result = await this.leadService.importLeadsFromApi(
-                    leads as ApiLeadPayload[],
-                    source.id,
-                    campaign.id
-                );
+                for (const lead of body) {
+                    const campaignName = lead.campaign_name.trim();
+                    if (!leadsByCampaign.has(campaignName)) {
+                        leadsByCampaign.set(campaignName, []);
+                    }
+                    leadsByCampaign.get(campaignName)!.push(lead);
+                }
 
-                return res.status(200).json(result);
+                // Process each campaign group
+                let totalImported = 0;
+                let totalFailed = 0;
+                const allErrors: string[] = [];
+
+                for (const [campaignName, campaignLeads] of leadsByCampaign.entries()) {
+                    // Get or create campaign for this source
+                    const campaign = await this.campaignService.getOrCreate(source.id, campaignName);
+
+                    // Import leads for this campaign
+                    const result = await this.leadService.importLeadsFromApi(
+                        campaignLeads,
+                        source.id,
+                        campaign.id
+                    );
+
+                    totalImported += result.imported;
+                    totalFailed += result.failed;
+                    allErrors.push(...result.errors);
+                }
+
+                return res.status(200).json({
+                    imported: totalImported,
+                    failed: totalFailed,
+                    errors: allErrors
+                });
             } catch (error) {
                 console.error("Error handling lead intake:", error);
                 return res.status(500).json({
