@@ -3,6 +3,8 @@ import LeadDAO from "../data/leadDAO";
 import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
+import SourceService from "../services/sourceService.ts";
+import CampaignService from "../services/campaignService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
 import { County } from "../types/countyTypes.ts";
@@ -23,11 +25,41 @@ export default class LeadService {
         private readonly leadDAO: LeadDAO,
         private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
+        private readonly sourceService: SourceService,
+        private readonly campaignService: CampaignService,
         private readonly sendLogDAO: SendLogDAO,
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
         private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO
     ) {}
+
+    // CSV Import Source Management
+    private async ensureCsvSource(): Promise<{ sourceId: string; campaignId: string }> {
+        const CSV_SOURCE_NAME = "CSV_IMPORT";
+        const CSV_CAMPAIGN_NAME = "Default CSV Campaign";
+        const CSV_EMAIL = "csv@import.internal";
+
+        // Check if CSV_IMPORT source exists
+        const sources = await this.sourceService.getAll({ page: 1, limit: 100 });
+        let csvSource = sources.items.find(s => s.name === CSV_SOURCE_NAME);
+
+        // Create if doesn't exist
+        if (!csvSource) {
+            csvSource = await this.sourceService.create({
+                name: CSV_SOURCE_NAME,
+                email: CSV_EMAIL
+            });
+            console.info('Created CSV_IMPORT source', { id: csvSource.id });
+        }
+
+        // Get or create campaign
+        const campaign = await this.campaignService.getOrCreate(csvSource.id, CSV_CAMPAIGN_NAME);
+
+        return {
+            sourceId: campaign.source_id!,
+            campaignId: campaign.id
+        };
+    }
 
     // Lead Management Methods
     async getLeadById(leadId: string): Promise<Lead | null> {
@@ -145,6 +177,9 @@ export default class LeadService {
     async importLeads(csvContent: string) {
         const { leads } = parseCsvToLeads(csvContent);
 
+        // Get or create CSV_IMPORT source and campaign
+        const { sourceId, campaignId } = await this.ensureCsvSource();
+
         // Match leads to existing counties using fuzzy matching (no auto-create)
         const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
@@ -166,6 +201,8 @@ export default class LeadService {
             lead.county_id = county.id;
             lead.county = county.name; // Use standardized county name
             lead.investor_id = null;
+            lead.source_id = sourceId;
+            lead.campaign_id = campaignId;
 
             resolvedLeads.push(lead);
         }

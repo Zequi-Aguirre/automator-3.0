@@ -24,7 +24,7 @@ export default class SendLogDAO {
             VALUES (
                 $[lead_id],
                 $[buyer_id],
-                $[affiliate_id],
+                $[source_id],
                 $[campaign_id],
                 $[status]
             )
