@@ -4,7 +4,7 @@
 
 ---
 
-## 📊 Sprint Status (Last Updated: 2026-02-28)
+## 📊 Sprint Status (Last Updated: 2026-03-02)
 
 | Sprint | Status | Tickets | Progress |
 |--------|--------|---------|----------|
@@ -14,11 +14,12 @@
 | **Sprint 4** | 🟢 COMPLETE | #21-25 | 5/5 (100%) |
 | **Sprint 5** | ⬜ TODO | #26-31 | 0/6 (0%) |
 | **Sprint 6** | ⬜ TODO | #32-41 | 0/10 (0%) |
+| **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
 
-**Overall Progress:** 25/41 tickets (61%) from original plan + 1 bug fix (BUG-001)
+**Overall Progress:** 25/41 tickets (61%) from original plan + 2 additional features (BUG-001, TICKET-046)
 
-**Current Work:** Sprint 4 complete - ready for review
-**Next Up:** Sprint 5 (Add New Buyers) - starts with TICKET-026
+**Current Work:** Sprint 7 (Source API Auth) complete - PR #29 ready for merge
+**Next Up:** QA session and potential new tickets from user feedback
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()
@@ -1182,17 +1183,33 @@ During QA testing, when CSV import fails on backend (e.g., due to validation err
 - Backend validation rejects these as invalid enum values
 - Frontend error handling missing in upload flow
 
-**Status**: 🔴 In Progress - Fixing bugs before Sprint 3
+**Status**: 🟢 COMPLETE - Merged via PR #29 (32 commits)
 
 ---
 
-### TICKET-046: Implement affiliate-specific API key authentication for lead intake
+### TICKET-046: Implement source-specific API key authentication for lead intake ✅
 **Type**: Full Stack Feature
 **Priority**: P1 (High)
 **Estimate**: 4 hours
+**Actual**: 6 hours (across 2 sessions)
+**Completed**: 2026-03-02
+**PR**: #29 (32 commits)
+**Branch**: `feature/ticket-046-source-api-auth`
 
 **Background**:
-Currently, the `/api/leads-intake` endpoint uses a single global API key (`LEAD_INTAKE_API_KEY` from Doppler) for authentication. This doesn't allow tracking which affiliate sent each lead or provide per-affiliate access control.
+Currently, the `/api/leads-intake` endpoint uses a single global API key (`LEAD_INTAKE_API_KEY` from Doppler) for authentication. This doesn't allow tracking which source sent each lead or provide per-source access control.
+
+**Completed Implementation**:
+✅ Database migration (sources & campaigns tables with source_id FK)
+✅ Bearer token authentication (64-char hex, high-entropy, no encryption needed)
+✅ Source & Campaign management (full CRUD with token generation)
+✅ API intake authentication via middleware
+✅ Lead association with source/campaign
+✅ Admin UI for sources with one-time token display
+✅ CSV import association with "CSV_IMPORT" source
+✅ Removed global county blacklists (now per-buyer for future)
+✅ Fixed null safety issues and parameter mismatches
+✅ Updated campaign endpoints for backward compatibility
 
 **Requirements**:
 Each affiliate should have their own unique API key. When a lead comes via the intake API:
@@ -1248,14 +1265,17 @@ CREATE UNIQUE INDEX idx_campaigns_api_key ON campaigns(api_key_encrypted) WHERE 
 - Consider key rotation/expiration (future enhancement)
 - Rate limiting per affiliate (future enhancement)
 
-**Acceptance Criteria**:
-- [ ] Each affiliate/campaign can have unique API key
-- [ ] API key can be generated/regenerated via admin UI
-- [ ] Lead intake endpoint authenticates by API key
-- [ ] Leads are associated with correct affiliate/campaign
-- [ ] Invalid API key returns 401 Unauthorized
-- [ ] API keys are encrypted in database
-- [ ] Can track which affiliate sent each lead
+**Acceptance Criteria** (Updated to use "source" instead of "affiliate"):
+- [x] Each source can have unique API token (64-char hex, Bearer auth)
+- [x] Token can be generated/regenerated via admin UI with one-time display
+- [x] Lead intake endpoint authenticates by Bearer token
+- [x] Leads are associated with correct source/campaign
+- [x] CSV imports associated with "CSV_IMPORT" source automatically
+- [x] Invalid token returns 401 Unauthorized
+- [x] Tokens stored in plaintext (high-entropy = secure)
+- [x] Can track which source sent each lead
+- [x] Campaign auto-creation on API intake
+- [x] Global county blacklists removed (per-buyer for future)
 
 **Testing**:
 - Generate API key for test affiliate

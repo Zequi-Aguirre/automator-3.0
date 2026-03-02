@@ -1,9 +1,69 @@
 # Future Enhancements Backlog
 
-**Last Updated:** 2026-03-01
+**Last Updated:** 2026-03-02
 **Status:** Backlog / Post-Current Sprint
 
 These are UI/UX enhancements and feature requests identified during current sprint. NOT part of the original refactor tickets (#1-41). Prioritize for upcoming sprints.
+
+---
+
+## High Priority Features
+
+### Per-Buyer County Blacklists
+**Priority:** High
+**Effort:** 6-8 hours (backend + frontend)
+**Requested:** 2026-03-02 (during TICKET-046)
+
+**Background:**
+Global county blacklists were removed during TICKET-046. County filtering should be per-buyer, not global.
+
+**Requirements:**
+1. **Buyers can blacklist specific counties**
+   - Each buyer maintains their own list of blacklisted counties
+   - Blacklists are independent (Buyer A can blacklist County X, Buyer B can still receive it)
+   - Checked during send phase, NOT during import phase
+
+2. **Buyer UI - County Blacklist Management**
+   - Add "Blacklisted Counties" section to buyer edit modal
+   - Multi-select dropdown or transfer list component
+   - Show county name and state
+   - Save as array of county IDs
+
+3. **County UI - Show Which Buyers Blacklisted**
+   - Add "Blacklisted By" section to county details view
+   - List buyers who have blacklisted this county
+   - Read-only display (manage from buyer side)
+
+**Database Changes:**
+```sql
+-- Add to buyers table
+ALTER TABLE buyers ADD COLUMN blacklisted_county_ids UUID[] DEFAULT '{}';
+CREATE INDEX idx_buyers_blacklisted_counties ON buyers USING GIN(blacklisted_county_ids);
+```
+
+**Backend Changes:**
+- Update Buyer type to include `blacklisted_county_ids: string[]`
+- Update buyerDAO CRUD to handle array column
+- Update buyerDispatchService to check `lead.county_id IN buyer.blacklisted_county_ids`
+- Add validation: county IDs must exist
+
+**Frontend Changes:**
+- Update BuyerEditDialog with county multi-select
+- Fetch all counties for dropdown
+- Display selected counties as chips
+- Add "County Details" view showing blacklist status
+
+**Acceptance Criteria:**
+- [ ] Buyers can add/remove counties from their blacklist via UI
+- [ ] Worker respects per-buyer county blacklists (skips blacklisted leads)
+- [ ] Manual send blocked if county is blacklisted for that buyer
+- [ ] County details view shows which buyers blacklisted it
+- [ ] Import phase never rejects leads (blacklists only affect send)
+
+**Files:**
+- Migration: `postgres/migrations/YYYYMMDD_add_buyer_county_blacklists.sql`
+- Backend: `server/src/main/types/buyerTypes.ts`, `server/src/main/data/buyerDAO.ts`, `server/src/main/services/buyerDispatchService.ts`
+- Frontend: `client/src/components/admin/adminBuyersSection/BuyerEditDialog.tsx`, county details view
 
 ---
 
