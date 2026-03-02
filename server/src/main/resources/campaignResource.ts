@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import CampaignService from "../services/campaignService";
+import SourceService from "../services/sourceService";
 import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 
 /**
@@ -16,7 +17,10 @@ import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 export default class CampaignResource {
     private readonly router: Router;
 
-    constructor(private readonly campaignService: CampaignService) {
+    constructor(
+        private readonly campaignService: CampaignService,
+        private readonly sourceService: SourceService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -179,15 +183,32 @@ export default class CampaignResource {
 
         // Legacy endpoints for backward compatibility
         this.router.get("/admin/get-many", async (req: Request, res: Response) => {
-            const filters = {
-                page: Number(req.query.page) || 1,
-                limit: Number(req.query.limit) || 10,
-                source_id: undefined,
-                search: undefined,
-                includeDeleted: false
-            };
-            const result = await this.campaignService.getAll(filters);
-            res.status(200).send(result);
+            try {
+                const filters = {
+                    page: Number(req.query.page) || 1,
+                    limit: Number(req.query.limit) || 10,
+                    source_id: undefined,
+                    search: undefined,
+                    includeDeleted: false
+                };
+                const result = await this.campaignService.getAll(filters);
+
+                // Get all sources for dropdown (frontend expects "affiliates")
+                const sources = await this.sourceService.getAll({ page: 1, limit: 1000 });
+
+                // Transform response to match frontend expectations
+                res.status(200).send({
+                    campaigns: result.items,
+                    count: result.count,
+                    affiliates: sources.items  // Sources mapped as affiliates for backward compatibility
+                });
+            } catch (error) {
+                console.error('Error in get-many campaigns:', error);
+                res.status(500).send({
+                    message: 'Failed to fetch campaigns',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
         });
 
         this.router.patch("/admin/update-meta/:campaignId", async (req: Request, res: Response) => {
