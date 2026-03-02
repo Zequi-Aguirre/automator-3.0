@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import CampaignDAO from "../data/campaignDAO";
 import SourceDAO from "../data/sourceDAO";
-import { Campaign, CampaignCreateDTO, CampaignUpdateDTO, CampaignFilters } from "../types/campaignTypes";
+import { Campaign, CampaignCreateDTO, CampaignUpdateDTO, CampaignFilters, ExternalCampaignData } from "../types/campaignTypes";
 
 /**
  * CampaignService - Business logic for campaigns
@@ -237,6 +237,62 @@ export default class CampaignService {
             console.error("Error in getOrCreate campaign:", {
                 sourceId,
                 campaignName,
+                error: error instanceof Error ? error.message : "Unknown error"
+            });
+            throw error;  // Re-throw to preserve original error message
+        }
+    }
+
+    /**
+     * TICKET-047: Get or create campaign with external platform tracking
+     * Tries to match by external_campaign_id first, falls back to name matching
+     *
+     * @param sourceId - Source ID
+     * @param externalData - External campaign data from platform (Facebook, Google, etc.)
+     * @param fallbackName - Internal campaign name (used if no external ID match)
+     * @returns Existing or newly created campaign
+     */
+    async getOrCreateByExternal(
+        sourceId: string,
+        externalData: Partial<ExternalCampaignData>,
+        fallbackName: string
+    ): Promise<Campaign> {
+        try {
+            // Verify source exists first
+            const source = await this.sourceDAO.getById(sourceId);
+            if (!source) {
+                throw new Error(`Source not found: ${sourceId}`);
+            }
+
+            // Use DAO method for matching/creation
+            const campaign = await this.campaignDAO.getOrCreateByExternal(
+                sourceId,
+                externalData,
+                fallbackName
+            );
+
+            if (campaign.created === campaign.modified) {
+                console.info('Created new campaign with external tracking', {
+                    id: campaign.id,
+                    name: campaign.name,
+                    platform: campaign.platform,
+                    externalCampaignId: campaign.external_campaign_id,
+                    sourceId: sourceId
+                });
+            } else if (externalData.external_campaign_id) {
+                console.info('Matched existing campaign by external ID', {
+                    id: campaign.id,
+                    externalCampaignId: campaign.external_campaign_id
+                });
+            }
+
+            return campaign;
+
+        } catch (error) {
+            console.error("Error in getOrCreateByExternal campaign:", {
+                sourceId,
+                externalData,
+                fallbackName,
                 error: error instanceof Error ? error.message : "Unknown error"
             });
             throw error;  // Re-throw to preserve original error message
