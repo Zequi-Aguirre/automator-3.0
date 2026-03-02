@@ -36,6 +36,18 @@ class BuyerService {
         const res = await this.api.getApi().delete(`/api/buyers/${id}`);
         return res.data;
     }
+
+    async reorderPriority(
+        buyerId: string,
+        oldPriority: number,
+        newPriority: number
+    ): Promise<void> {
+        await this.api.getApi().put("/api/buyers/reorder-priority", {
+            buyerId,
+            oldPriority,
+            newPriority
+        });
+    }
 }
 
 const buyerService = new BuyerService(authProvider);

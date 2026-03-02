@@ -1,7 +1,34 @@
-# Current Sprint: Source API Authentication (Sprint 7)
+# Current Work: QA Session Follow-up
+
+**Latest Completed:** TICKET-QA-012 - Drag-and-Drop Buyer Priority Reordering
+**Date:** 2026-03-02
+**Status:** ✅ COMPLETE - PR #30 Ready for Review
+**Branch:** `feature/ticket-qa-012-drag-drop-priority`
+**Ticket:** TICKET-QA-012 (from QA_SESSION_2026-03-02.md)
+**PR:** #30
+
+---
+
+## TICKET-QA-012 Summary
+
+Implemented drag-and-drop interface for reordering buyer priorities with smart backend calculation.
+
+**Key Features:**
+- ✅ Drag-and-drop with @dnd-kit library
+- ✅ Drag handle (⋮⋮) next to priority in buyers table
+- ✅ Pagination-friendly (backend calculates shifts)
+- ✅ Two-pass UPDATE strategy to avoid UNIQUE constraint violations
+- ✅ Works in both drag-and-drop and manual edit scenarios
+- ✅ No more "priority already in use" errors
+
+**Files Changed:** 9 files, 619 insertions, 90 deletions
+
+---
+
+# Sprint 7: Source API Authentication ✅ COMPLETE
 
 **Sprint Date:** 2026-03-01 - 2026-03-02
-**Status:** ✅ COMPLETE - Ready for Merge
+**Status:** ✅ COMPLETE - Merged to develop
 **Branch:** `feature/ticket-046-source-api-auth`
 **Ticket:** TICKET-046
 **PR:** #29 (32 commits)

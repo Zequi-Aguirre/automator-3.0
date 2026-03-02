@@ -177,26 +177,42 @@ export default class BuyerService {
             }
         }
 
-        // Validation: priority unique if changed
+        // Smart priority reordering if priority changed
+        // TICKET-QA-012: Use same logic as drag-and-drop
         if (dto.priority !== undefined && dto.priority !== existing.priority) {
-            const existingBuyers = await this.buyerDAO.getByPriority();
-            if (existingBuyers.some(b => b.priority === dto.priority)) {
-                // Find first gap in priority sequence, or max + 1 if no gaps
-                const priorities = existingBuyers.map(b => b.priority).sort((a, b) => a - b);
-                let nextAvailable = 1;
-                for (const priority of priorities) {
-                    if (priority === nextAvailable) {
-                        nextAvailable++;
-                    } else if (priority > nextAvailable) {
-                        break; // Found a gap
-                    }
+            // Reorder priorities first (shifts other buyers as needed)
+            await this.reorderPriority(id, existing.priority, dto.priority);
+
+            // Remove priority from DTO since reorderPriority already handled it
+            const { priority, ...otherFields } = dto;
+
+            // Update other fields if any
+            if (Object.keys(otherFields).length > 0) {
+                try {
+                    return await this.buyerDAO.update(id, otherFields);
+                } catch (error) {
+                    console.error("Error updating buyer fields:", {
+                        id,
+                        otherFields,
+                        error: error instanceof Error ? error.message : "Unknown error"
+                    });
+                    throw new Error(
+                        `Failed to update buyer: ${
+                            error instanceof Error ? error.message : "Unknown error"
+                        }`
+                    );
                 }
-                throw new Error(
-                    `Priority ${dto.priority} is already in use. Next available priority: ${nextAvailable}`
-                );
+            } else {
+                // Only priority was changed, return updated buyer
+                const updated = await this.getById(id);
+                if (!updated) {
+                    throw new Error("Buyer not found after priority update");
+                }
+                return updated;
             }
         }
 
+        // No priority change, normal update
         try {
             return await this.buyerDAO.update(id, dto);
         } catch (error) {
@@ -265,6 +281,32 @@ export default class BuyerService {
             });
             throw new Error(
                 `Failed to fetch buyer auth config: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                }`
+            );
+        }
+    }
+
+    /**
+     * Reorder buyer priority (drag-and-drop support)
+     * TICKET-QA-012
+     */
+    async reorderPriority(
+        buyerId: string,
+        oldPriority: number,
+        newPriority: number
+    ): Promise<void> {
+        try {
+            await this.buyerDAO.reorderPriority(buyerId, oldPriority, newPriority);
+        } catch (error) {
+            console.error("Error reordering buyer priority:", {
+                buyerId,
+                oldPriority,
+                newPriority,
+                error: error instanceof Error ? error.message : "Unknown error"
+            });
+            throw new Error(
+                `Failed to reorder buyer priority: ${
                     error instanceof Error ? error.message : "Unknown error"
                 }`
             );

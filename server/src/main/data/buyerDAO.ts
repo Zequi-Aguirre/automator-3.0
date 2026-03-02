@@ -376,4 +376,88 @@ export default class BuyerDAO {
                 : null
         };
     }
+
+    /**
+     * Reorder buyer priority (drag-and-drop support)
+     * TICKET-QA-012: Backend calculates which buyers need to shift
+     *
+     * Uses negative temporary values to avoid UNIQUE constraint violations
+     * Two-pass approach:
+     * 1. Set all affected priorities to negative temp values (multiply by -1000)
+     * 2. Set all to their final positive values
+     *
+     * @param buyerId - ID of buyer being moved
+     * @param oldPriority - Current priority of buyer
+     * @param newPriority - Target priority for buyer
+     */
+    async reorderPriority(
+        buyerId: string,
+        oldPriority: number,
+        newPriority: number
+    ): Promise<void> {
+        if (oldPriority === newPriority) {
+            return; // No change needed
+        }
+
+        await this.db.tx(async t => {
+            if (oldPriority > newPriority) {
+                // Moving UP (e.g., 5 → 2)
+                // Moved buyer: 5 → 2
+                // Buyers at 2,3,4 → 3,4,5 (shift down)
+
+                // Step 1: Set all affected buyers to negative temp values
+                await t.none(`
+                    UPDATE buyers
+                    SET priority = priority * -1000, modified = NOW()
+                    WHERE deleted IS NULL
+                      AND (
+                          id = $1
+                          OR (priority >= $2 AND priority < $3)
+                      )
+                `, [buyerId, newPriority, oldPriority]);
+
+                // Step 2: Set to final positive values
+                await t.none(`
+                    UPDATE buyers
+                    SET
+                        priority = CASE
+                            WHEN id = $1 THEN $2
+                            WHEN priority = $3 * -1000 THEN priority / -1000 + 1
+                            ELSE priority / -1000 + 1
+                        END,
+                        modified = NOW()
+                    WHERE deleted IS NULL
+                      AND priority < 0
+                `, [buyerId, newPriority, oldPriority]);
+            } else {
+                // Moving DOWN (e.g., 2 → 5)
+                // Moved buyer: 2 → 5
+                // Buyers at 3,4,5 → 2,3,4 (shift up)
+
+                // Step 1: Set all affected buyers to negative temp values
+                await t.none(`
+                    UPDATE buyers
+                    SET priority = priority * -1000, modified = NOW()
+                    WHERE deleted IS NULL
+                      AND (
+                          id = $1
+                          OR (priority > $3 AND priority <= $2)
+                      )
+                `, [buyerId, newPriority, oldPriority]);
+
+                // Step 2: Set to final positive values
+                await t.none(`
+                    UPDATE buyers
+                    SET
+                        priority = CASE
+                            WHEN id = $1 THEN $2
+                            ELSE priority / -1000 - 1
+                        END,
+                        modified = NOW()
+                    WHERE deleted IS NULL
+                      AND priority < 0
+                `, [buyerId, newPriority]);
+            }
+        });
+    }
 }
