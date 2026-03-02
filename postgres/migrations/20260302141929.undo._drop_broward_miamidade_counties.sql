@@ -1,4 +1,0 @@
--- Undo Migration: Drop Broward and Miami-Dade counties
--- Ticket: TICKET-047
--- Date: 2026-03-02
--- Note: No action needed - these counties will be restored from CSV import

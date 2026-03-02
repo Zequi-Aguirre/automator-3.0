@@ -7,12 +7,12 @@
 
 -- Delete Broward County, Florida
 DELETE FROM counties
-WHERE name = 'Broward'
+WHERE name = 'BROWARD'
   AND state = 'FL';
 
 -- Delete Miami-Dade County, Florida
 DELETE FROM counties
-WHERE name = 'Miami-Dade'
+WHERE name = 'MIAMI-DADE'
   AND state = 'FL';
 
 -- Note: These counties will be re-imported from allCounties.csv
