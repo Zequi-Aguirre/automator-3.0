@@ -40,14 +40,14 @@ export default class BuyerDispatchService {
             throw new Error(`Cannot send lead to buyer: ${canSend.reason}`);
         }
 
-        // Get affiliate_id from campaign if available
-        let affiliateId: string | null = null;
+        // Get source_id from campaign if available
+        let sourceId: string | null = null;
         if (lead.campaign_id) {
             try {
                 const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                affiliateId = campaign.affiliate_id;
+                sourceId = campaign.source_id;
             } catch (error) {
-                // Campaign not found or error - continue without affiliate_id
+                // Campaign not found or error - continue without source_id
                 console.warn(`Could not fetch campaign ${lead.campaign_id}:`, error);
             }
         }
@@ -69,10 +69,11 @@ export default class BuyerDispatchService {
         );
 
         // Log the attempt to send_log
+        // Note: affiliate_id column is being repurposed for source_id (same semantic meaning)
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
             buyer_id: buyer.id,
-            affiliate_id: affiliateId,
+            affiliate_id: sourceId,  // TODO: Rename column to source_id in future migration
             campaign_id: lead.campaign_id,
             status: response.success ? "sent" : "failed"
         });
@@ -110,12 +111,13 @@ export default class BuyerDispatchService {
             return { allowed: false, reason: "Buyer requires validation, but lead is not validated" };
         }
 
-        // Rule 2: Buyer must not have blocked this lead's affiliate
+        // Rule 2: Buyer must not have blocked this lead's source
+        // Note: blocked_affiliate_ids column is being repurposed for source IDs
         if (lead.campaign_id && buyer.blocked_affiliate_ids.length > 0) {
             try {
                 const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                if (buyer.blocked_affiliate_ids.includes(campaign.affiliate_id)) {
-                    return { allowed: false, reason: "Buyer has blocked this affiliate" };
+                if (buyer.blocked_affiliate_ids.includes(campaign.source_id)) {
+                    return { allowed: false, reason: "Buyer has blocked this source" };
                 }
             } catch (error) {
                 // Campaign not found - continue with other validations
