@@ -18,7 +18,7 @@ export default class SendLogResource {
 
             const status = req.query.status ? String(req.query.status) : undefined;
             const investor_id = req.query.investor_id ? String(req.query.investor_id) : undefined;
-            const affiliate_id = req.query.affiliate_id ? String(req.query.affiliate_id) : undefined;
+            const source_id = req.query.source_id ? String(req.query.source_id) : undefined;
             const campaign_id = req.query.campaign_id ? String(req.query.campaign_id) : undefined;
             const county_id = req.query.county_id ? String(req.query.county_id) : undefined;
 
@@ -27,7 +27,7 @@ export default class SendLogResource {
                 limit,
                 status,
                 investor_id,
-                affiliate_id,
+                source_id,
                 campaign_id,
                 county_id,
             });

@@ -40,14 +40,14 @@ export default class BuyerDispatchService {
             throw new Error(`Cannot send lead to buyer: ${canSend.reason}`);
         }
 
-        // Get affiliate_id from campaign if available
-        let affiliateId: string | null = null;
+        // Get source_id from campaign if available
+        let sourceId: string | null = null;
         if (lead.campaign_id) {
             try {
                 const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                affiliateId = campaign.affiliate_id;
+                sourceId = campaign?.source_id || null;
             } catch (error) {
-                // Campaign not found or error - continue without affiliate_id
+                // Campaign not found or error - continue without source_id
                 console.warn(`Could not fetch campaign ${lead.campaign_id}:`, error);
             }
         }
@@ -72,7 +72,7 @@ export default class BuyerDispatchService {
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
             buyer_id: buyer.id,
-            affiliate_id: affiliateId,
+            source_id: sourceId,
             campaign_id: lead.campaign_id,
             status: response.success ? "sent" : "failed"
         });
@@ -110,12 +110,13 @@ export default class BuyerDispatchService {
             return { allowed: false, reason: "Buyer requires validation, but lead is not validated" };
         }
 
-        // Rule 2: Buyer must not have blocked this lead's affiliate
+        // Rule 2: Buyer must not have blocked this lead's source
+        // Note: blocked_affiliate_ids column is being repurposed for source IDs
         if (lead.campaign_id && buyer.blocked_affiliate_ids.length > 0) {
             try {
                 const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                if (buyer.blocked_affiliate_ids.includes(campaign.affiliate_id)) {
-                    return { allowed: false, reason: "Buyer has blocked this affiliate" };
+                if (campaign?.source_id && buyer.blocked_affiliate_ids.includes(campaign.source_id)) {
+                    return { allowed: false, reason: "Buyer has blocked this source" };
                 }
             } catch (error) {
                 // Campaign not found - continue with other validations
@@ -355,11 +356,9 @@ export default class BuyerDispatchService {
                 continue;
             }
 
-            // 1. Blacklist check (county only - investors removed)
-            if (county.blacklisted) {
-                console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County ${county.name} is blacklisted`);
-                continue;
-            }
+            // 1. County blacklist check removed - will be per-buyer in future
+            // TODO: Implement per-buyer county blacklists (buyers table should have blacklisted_county_ids)
+            // Global county blacklists no longer block sends
 
             // 2. Buyer-specific state blocking
             if (buyer.states_on_hold.includes(lead.state)) {

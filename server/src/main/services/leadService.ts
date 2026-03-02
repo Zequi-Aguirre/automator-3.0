@@ -3,6 +3,8 @@ import LeadDAO from "../data/leadDAO";
 import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
+import SourceService from "../services/sourceService.ts";
+import CampaignService from "../services/campaignService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
 import { County } from "../types/countyTypes.ts";
@@ -23,11 +25,41 @@ export default class LeadService {
         private readonly leadDAO: LeadDAO,
         private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
+        private readonly sourceService: SourceService,
+        private readonly campaignService: CampaignService,
         private readonly sendLogDAO: SendLogDAO,
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
         private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO
     ) {}
+
+    // CSV Import Source Management
+    private async ensureCsvSource(): Promise<{ sourceId: string; campaignId: string }> {
+        const CSV_SOURCE_NAME = "CSV_IMPORT";
+        const CSV_CAMPAIGN_NAME = "Default CSV Campaign";
+        const CSV_EMAIL = "csv@import.internal";
+
+        // Check if CSV_IMPORT source exists
+        const sources = await this.sourceService.getAll({ page: 1, limit: 100 });
+        let csvSource = sources.items.find(s => s.name === CSV_SOURCE_NAME);
+
+        // Create if doesn't exist
+        if (!csvSource) {
+            csvSource = await this.sourceService.create({
+                name: CSV_SOURCE_NAME,
+                email: CSV_EMAIL
+            });
+            console.info('Created CSV_IMPORT source', { id: csvSource.id });
+        }
+
+        // Get or create campaign
+        const campaign = await this.campaignService.getOrCreate(csvSource.id, CSV_CAMPAIGN_NAME);
+
+        return {
+            sourceId: campaign.source_id!,
+            campaignId: campaign.id
+        };
+    }
 
     // Lead Management Methods
     async getLeadById(leadId: string): Promise<Lead | null> {
@@ -145,6 +177,9 @@ export default class LeadService {
     async importLeads(csvContent: string) {
         const { leads } = parseCsvToLeads(csvContent);
 
+        // Get or create CSV_IMPORT source and campaign
+        const { sourceId, campaignId } = await this.ensureCsvSource();
+
         // Match leads to existing counties using fuzzy matching (no auto-create)
         const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
@@ -166,6 +201,8 @@ export default class LeadService {
             lead.county_id = county.id;
             lead.county = county.name; // Use standardized county name
             lead.investor_id = null;
+            lead.source_id = sourceId;
+            lead.campaign_id = campaignId;
 
             resolvedLeads.push(lead);
         }
@@ -250,9 +287,31 @@ export default class LeadService {
         };
     }
 
-    async importLeadsFromApi(payloads: ApiLeadPayload[]) {
+    /**
+     * Import leads from API with source and campaign tracking
+     * TICKET-046: Updated to accept source_id and campaign_id
+     */
+    async importLeadsFromApi(
+        payloads: ApiLeadPayload[],
+        source_id?: string,
+        campaign_id?: string
+    ) {
         const leads: parsedLeadFromCSV[] = payloads.map(p => {
-            const { first_name, last_name } = splitName(p.name || "");
+            // TICKET-046: Support both formats: first_name/last_name OR combined name
+            let first_name: string;
+            let last_name: string;
+
+            if (p.first_name || p.last_name) {
+                // Use provided first_name/last_name if available
+                first_name = p.first_name || "";
+                last_name = p.last_name || "";
+            } else {
+                // Fall back to splitting combined name field
+                const split = splitName(p.name || "");
+                first_name = split.first_name;
+                last_name = split.last_name;
+            }
+
             const phone = cleanPhone(p.phone || "");
             const email = (p.email || "").toLowerCase();
 
@@ -265,11 +324,13 @@ export default class LeadService {
                 address: p.address,
                 city: p.city,
                 state: cleanState(p.state || ""),
-                zipcode: p.zip_code || "",
+                zipcode: p.zipcode || p.zip_code || "",  // Support both zipcode and zip_code
                 county: p.county || "",
                 county_id: undefined,
                 private_notes: p.private_note || null,
                 investor_id: null,
+                source_id: source_id || null,  // TICKET-046: Associate with source
+                campaign_id: campaign_id || null,  // TICKET-046: Associate with campaign
             };
         });
 
@@ -367,44 +428,19 @@ export default class LeadService {
     }
 
     private getTrashReasonForImport(
-        lead: parsedLeadFromCSV,
-        deps: {
+        _lead: parsedLeadFromCSV,
+        _deps: {
             countiesById: Map<string, County>;
             countyLogsByCountyId: Map<string, any>;
             delaySameCountyMs: number;
         }
     ): LeadTrashReason | null {
 
-        const countyId = lead.county_id;
+        // NOTE: County blacklists and cooldowns are now per-buyer, not global
+        // They are checked during the SEND phase (buyerDispatchService), not during IMPORT
+        // All leads should be imported successfully regardless of county blacklist/whitelist status
 
-        // County is required
-        if (!countyId) {
-            return null;
-        }
-
-        const county = deps.countiesById.get(countyId);
-
-        // 1. Blacklists (absolute rules)
-        if (county && county.blacklisted) {
-            return "BLACKLISTED_COUNTY";
-        }
-
-        // 2. Whitelists: only affect cooldowns
-        const countyIsWhitelisted = !!(county && county.whitelisted);
-
-        // 3. County cooldown (unless whitelisted)
-        if (!countyIsWhitelisted) {
-            const countyLog = deps.countyLogsByCountyId.get(countyId);
-
-            if (countyLog && deps.delaySameCountyMs > 0) {
-                const last = new Date(countyLog.created).getTime();
-
-                if (Date.now() - last <= deps.delaySameCountyMs) {
-                    return "COUNTY_COOLDOWN";
-                }
-            }
-        }
-
+        // No trash reasons during import - all valid leads should be imported
         return null;
     }
 

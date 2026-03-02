@@ -419,11 +419,11 @@ export default class LeadDAO {
                         `
                           INSERT INTO leads (
                             first_name, last_name, email, phone, address, city, state, zipcode,
-                            county, county_id, private_notes
+                            county, county_id, private_notes, source_id, campaign_id
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
-                            $[county], $[county_id], $[private_notes]
+                            $[county], $[county_id], $[private_notes], $[source_id], $[campaign_id]
                           )
                           RETURNING *;
                         `,

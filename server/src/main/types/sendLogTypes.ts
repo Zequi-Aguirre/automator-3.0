@@ -2,7 +2,7 @@ export interface SendLog {
     id: string;
     lead_id: string;
     buyer_id: string;
-    affiliate_id: string | null;
+    source_id: string | null;  // TICKET-046: Renamed from affiliate_id
     campaign_id: string | null;
     investor_id: string | null;
     county_id: string | null;
@@ -25,7 +25,7 @@ export interface SendLog {
 export interface SendLogInsert {
     lead_id: string;
     buyer_id: string;
-    affiliate_id: string | null;
+    source_id: string | null;  // TICKET-046: Renamed from affiliate_id
     campaign_id: string | null;
     status: "sent" | "failed";
 }

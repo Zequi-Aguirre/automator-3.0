@@ -17,14 +17,14 @@ export default class SendLogDAO {
             INSERT INTO send_log (
                 lead_id,
                 buyer_id,
-                affiliate_id,
+                source_id,
                 campaign_id,
                 status
             )
             VALUES (
                 $[lead_id],
                 $[buyer_id],
-                $[affiliate_id],
+                $[source_id],
                 $[campaign_id],
                 $[status]
             )
@@ -38,16 +38,16 @@ export default class SendLogDAO {
         limit: number;
         status?: string;
         investor_id?: string;
-        affiliate_id?: string;
+        source_id?: string;  // TICKET-046: Renamed from affiliate_id
         campaign_id?: string;
-        county_id?: string; // <-- new
+        county_id?: string;
     }): Promise<{ logs: SendLog[]; count: number }> {
         const {
             page,
             limit,
             status,
             investor_id,
-            affiliate_id,
+            source_id,
             campaign_id,
             county_id,
         } = filters;
@@ -65,9 +65,9 @@ export default class SendLogDAO {
             where.push("sl.investor_id = $[investor_id]");
             params.investor_id = investor_id;
         }
-        if (affiliate_id !== undefined) {
-            where.push("sl.affiliate_id = $[affiliate_id]");
-            params.affiliate_id = affiliate_id;
+        if (source_id !== undefined) {
+            where.push("sl.source_id = $[source_id]");
+            params.source_id = source_id;
         }
         if (campaign_id !== undefined) {
             where.push("sl.campaign_id = $[campaign_id]");

@@ -103,5 +103,7 @@ export type parsedLeadFromCSV = {
     county: string;
     county_id?: string;
     private_notes?: string | null;
-    investor_id?: string | null;
+    investor_id?: string | null;  // Deprecated - kept for backward compatibility
+    source_id?: string | null;  // TICKET-046: Lead source (for API intake)
+    campaign_id?: string | null;  // TICKET-046: Campaign (for API intake)
 };
