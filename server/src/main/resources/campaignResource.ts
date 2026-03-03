@@ -89,9 +89,21 @@ export default class CampaignResource {
         });
 
         // POST /api/campaigns - Create new campaign
+        // TICKET-047: Updated to support external platform tracking
         this.router.post('/', async (req: Request, res: Response) => {
             try {
-                const { source_id, name, blacklisted, rating } = req.body;
+                const {
+                    source_id,
+                    name,
+                    blacklisted,
+                    rating,
+                    platform,
+                    external_campaign_id,
+                    external_campaign_name,
+                    external_form_id,
+                    external_adset_id,
+                    external_adset_name
+                } = req.body;
 
                 if (!source_id || source_id.trim().length === 0) {
                     return res.status(400).json({ error: 'Source ID is required' });
@@ -105,7 +117,14 @@ export default class CampaignResource {
                     source_id,
                     name,
                     blacklisted: blacklisted || false,
-                    rating: rating || 0
+                    rating: rating || 3,  // TICKET-047: Default to 3 instead of 0
+                    // TICKET-047: Optional external tracking fields
+                    platform,
+                    external_campaign_id,
+                    external_campaign_name,
+                    external_form_id,
+                    external_adset_id,
+                    external_adset_name
                 };
 
                 const campaign = await this.campaignService.create(createDTO);
