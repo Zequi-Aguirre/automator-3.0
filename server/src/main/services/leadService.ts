@@ -331,6 +331,11 @@ export default class LeadService {
                 investor_id: null,
                 source_id: source_id || null,  // TICKET-046: Associate with source
                 campaign_id: campaign_id || null,  // TICKET-046: Associate with campaign
+                // TICKET-047: External tracking fields
+                external_lead_id: p.external_lead_id || null,
+                external_ad_id: p.external_ad_id || null,
+                external_ad_name: p.external_ad_name || null,
+                raw_payload: p.raw_payload || null
             };
         });
 
