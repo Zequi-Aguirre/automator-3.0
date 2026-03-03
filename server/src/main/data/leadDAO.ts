@@ -415,6 +415,27 @@ export default class LeadDAO {
 
             for (const lead of leads) {
                 try {
+                    // TICKET-047: Ensure all fields exist (set to null if not provided)
+                    const params = {
+                        first_name: lead.first_name,
+                        last_name: lead.last_name,
+                        email: lead.email ?? null,
+                        phone: lead.phone ?? null,
+                        address: lead.address,
+                        city: lead.city,
+                        state: lead.state,
+                        zipcode: lead.zipcode ?? null,
+                        county: lead.county ?? null,
+                        county_id: lead.county_id ?? null,
+                        private_notes: lead.private_notes ?? null,
+                        source_id: lead.source_id,
+                        campaign_id: lead.campaign_id,
+                        external_lead_id: lead.external_lead_id ?? null,
+                        external_ad_id: lead.external_ad_id ?? null,
+                        external_ad_name: lead.external_ad_name ?? null,
+                        raw_payload: lead.raw_payload ?? null
+                    };
+
                     const postedLead: Lead = await t.one(
                         `
                           INSERT INTO leads (
@@ -429,7 +450,7 @@ export default class LeadDAO {
                           )
                           RETURNING *;
                         `,
-                        { ...lead }
+                        params
                     );
 
                     results.push({ success: true, lead: postedLead });
