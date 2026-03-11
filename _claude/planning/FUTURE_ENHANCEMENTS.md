@@ -1,9 +1,29 @@
 # Future Enhancements Backlog
 
-**Last Updated:** 2026-03-02
+**Last Updated:** 2026-03-06
 **Status:** Backlog / Post-Current Sprint
 
-These are UI/UX enhancements and feature requests identified during current sprint. NOT part of the original refactor tickets (#1-41). Prioritize for upcoming sprints.
+These are UI/UX enhancements and feature requests identified during development. NOT part of the original refactor tickets (#1-47). Some have been promoted to official tickets after brainstorming session (see below).
+
+---
+
+## 🎯 PROMOTED TO OFFICIAL TICKETS (2026-03-06 Brainstorming)
+
+The following enhancements have been promoted to official tickets after the March 6 brainstorming session. See `08_TICKETS.md` for full details:
+
+- **TICKET-048:** Standard Ping System (12 hrs) → Sprint 9
+- **TICKET-049:** Auction Ping System (16 hrs) → Sprint 10
+- **TICKET-050:** Lead Manager System (8 hrs) → Sprint 8 ⭐
+- **TICKET-051:** User Activity Tracking (6 hrs) → Sprint 8 ⭐
+- **TICKET-052:** Call Queue / Needs More Info (6 hrs) → Sprint 9
+- **TICKET-053:** Trash Reasons Master Table (4 hrs) → Sprint 8 ⭐
+- **TICKET-054:** Enhanced Disputes System (12 hrs) → Sprint 10
+- **TICKET-055:** Configurable Delays (4 hrs) → Sprint 9
+- **TICKET-056:** Enhanced Reporting Dashboard (16 hrs) → Sprint 10
+
+**Total:** 9 tickets, ~80 hours, 3 sprints
+
+For complete ticket details, acceptance criteria, and implementation plans, see `08_TICKETS.md` starting at TICKET-048.
 
 ---
 

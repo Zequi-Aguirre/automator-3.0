@@ -1364,15 +1364,1341 @@ The old "Send Now" button in the leads table sent leads to a mock vendor endpoin
 
 ---
 
-**Status**: 🟢 Sprint 1 COMPLETE | 🟢 Sprint 2 COMPLETE | 🟡 Sprint 3 IN PROGRESS (TICKET-019)
+## Sprint 8: Foundation Features (Post-Brainstorming) (Tickets #48-50)
 
-**Last Updated**: 2026-02-28
+### TICKET-048: Implement standard ping system for buyers
+**Type**: Full Stack Feature
+**Priority**: P1 (High)
+**Estimate**: 12 hours
+**Sprint**: 8 (Foundation)
+**Date Created**: 2026-03-06
 
-**Progress**: 18/41 tickets complete (44%) + 1 in progress
+**Background**:
+Some buyers require a "ping" (pre-qualification check) before accepting a lead. The buyer needs to validate the lead meets their criteria before committing to purchase.
+
+**Flow**:
+1. Lead ready to send to buyer
+2. If buyer has `requires_ping=true`, send ping request first
+3. Buyer webhook responds with acceptance/rejection (200-299 = accept, 400+ = reject)
+4. If accepted, send full lead payload immediately
+5. If rejected, skip to next buyer in priority queue
+
+**Database Changes**:
+```sql
+-- Migration: add_buyer_ping_flags.sql
+ALTER TABLE buyers
+ADD COLUMN requires_ping BOOLEAN DEFAULT false;
+
+CREATE INDEX idx_buyers_requires_ping ON buyers(requires_ping) WHERE requires_ping = true;
+```
+
+**Backend Changes**:
+1. Update BuyerType to include `requires_ping: boolean`
+2. Update BuyerDAO CRUD to handle new field
+3. Update BuyerWebhookAdapter:
+   - Add `sendPing(url, pingPayload, authConfig)` method
+   - Ping payload: minimal data (lead ID, county, state, basic info)
+   - Timeout: 5 seconds
+4. Update BuyerDispatchService:
+   - In `sendLeadToBuyer()`, check if buyer requires ping
+   - If yes, call `sendPing()` first
+   - Handle acceptance (200-299) → send full lead
+   - Handle rejection (400+) → log rejection, return without sending
+   - Handle timeout → treat as rejection
+5. Update send_log to record ping attempts:
+   - `action` field: 'ping' vs 'send'
+   - Store ping response separately
+
+**Frontend Changes**:
+1. Update BuyerEditDialog:
+   - Add "Requires Ping" checkbox
+   - Help text: "Buyer must approve lead before receiving full payload"
+2. Update buyer table to show ping status (icon/badge)
+3. Update send history in BuyerSendModal:
+   - Show ping attempts and responses
+   - Differentiate ping vs full send in history
+
+**Ping Payload Format**:
+```json
+{
+  "ping": true,
+  "lead_id": "uuid",
+  "county": "Miami-Dade",
+  "state": "FL",
+  "zipcode": "33010",
+  "estimated_value": 250000
+}
+```
+
+**Full Send Payload** (if ping accepted):
+```json
+{
+  "ping": false,
+  "lead_id": "uuid",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone": "555-1234",
+  "email": "john@example.com",
+  "address": "123 Main St",
+  "city": "Miami",
+  "county": "Miami-Dade",
+  "state": "FL",
+  "zipcode": "33010",
+  // ... all lead fields
+}
+```
+
+**Acceptance Criteria**:
+- [ ] Buyers table has `requires_ping` column
+- [ ] Admin UI shows/edits requires_ping setting
+- [ ] When buyer requires ping, ping is sent first
+- [ ] Ping acceptance (200-299) triggers full lead send
+- [ ] Ping rejection (400+) skips buyer and logs reason
+- [ ] Ping timeout (5s) treated as rejection
+- [ ] Send history shows ping attempts separately
+- [ ] Worker respects ping logic (doesn't skip pings)
+- [ ] Manual send UI respects ping logic
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_buyer_ping_flags.sql`
+- Backend: `server/src/main/types/buyerTypes.ts`, `server/src/main/data/buyerDAO.ts`, `server/src/main/adapters/buyerWebhookAdapter.ts`, `server/src/main/services/buyerDispatchService.ts`
+- Frontend: `client/src/components/admin/adminBuyersSection/BuyerEditDialog.tsx`, buyer table component, send history modal
+
+**Testing**:
+1. Create test buyer with requires_ping=true
+2. Mock webhook that accepts pings (returns 200)
+3. Send lead → verify ping sent first, then full payload
+4. Mock webhook that rejects pings (returns 400)
+5. Send lead → verify ping sent, full payload NOT sent
+6. Mock webhook with timeout → verify treated as rejection
+
+**Dependencies**:
+- None (self-contained feature)
+
+**Notes**:
+- Prerequisite for TICKET-049 (Auction Ping System)
+- Ping timeout: 5 seconds (configurable in future)
+- Ping response format: standard HTTP status codes
 
 ---
 
-## Ticket Summary
+### TICKET-049: Implement auction ping system for buyer price competition
+**Type**: Full Stack Feature
+**Priority**: P1 (High)
+**Estimate**: 16 hours
+**Sprint**: 10 (Advanced Features)
+**Date Created**: 2026-03-06
+**Dependencies**: TICKET-048 (Standard Ping System)
+
+**Background**:
+Multiple buyers can compete on price for the same lead. When a lead reaches buyers with `auction_ping=true`, the system pings all of them simultaneously, collects their bid prices, and sends the lead to the highest bidder.
+
+**Flow**:
+1. Lead reaches buyer #3 in priority queue
+2. Check if buyer #3 has `auction_ping=true`
+3. Look ahead in queue for other buyers with `auction_ping=true`
+4. Ping all auction buyers simultaneously (buyers #3, #4, #5)
+5. Collect responses with bid prices within timeout (5 seconds)
+6. Select highest bidder
+7. Send lead to winning buyer
+8. Log auction results for all participants
+
+**Database Changes**:
+```sql
+-- Migration: add_auction_ping_system.sql
+ALTER TABLE buyers
+ADD COLUMN auction_ping BOOLEAN DEFAULT false,
+ADD COLUMN minimum_bid DECIMAL(10,2); -- optional floor price
+
+CREATE INDEX idx_buyers_auction_ping ON buyers(auction_ping) WHERE auction_ping = true;
+
+CREATE TABLE auction_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES leads(id),
+  winning_buyer_id UUID REFERENCES buyers(id),
+  winning_bid DECIMAL(10,2),
+  participant_count INTEGER,
+  participants JSONB, -- [{buyer_id, bid, response_time_ms}, ...]
+  created TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_auction_results_lead_id ON auction_results(lead_id);
+CREATE INDEX idx_auction_results_created ON auction_results(created);
+```
+
+**Backend Changes**:
+1. Update BuyerType to include `auction_ping: boolean`, `minimum_bid?: number`
+2. Update BuyerDAO CRUD to handle new fields
+3. Create AuctionService:
+   - `identifyAuctionGroup(currentBuyerPriority, allBuyers)` - finds consecutive auction_ping buyers
+   - `conductAuction(leadId, auctionBuyers)` - pings all buyers simultaneously
+   - `selectWinner(responses)` - picks highest bidder
+   - `logAuctionResults(leadId, winnerBuyerId, responses)` - saves to auction_results table
+4. Update BuyerDispatchService:
+   - In `processBuyerQueue()`, check for auction_ping
+   - If found, call AuctionService.conductAuction()
+   - Send lead to winner
+   - Skip other auction participants
+5. Update BuyerWebhookAdapter:
+   - Auction ping payload includes `auction: true` flag
+   - Response must include `bid` field
+
+**Frontend Changes**:
+1. Update BuyerEditDialog:
+   - Add "Auction Ping" checkbox
+   - Add "Minimum Bid" number field (optional)
+   - Help text: "Compete with other buyers on price for leads"
+2. Create AuctionResultsView:
+   - Show auction history for admins
+   - Columns: Lead, Date, Winner, Winning Bid, Participants
+   - Click row → see all bids and response times
+3. Update lead history to show auction results:
+   - "Won Auction" badge for winner
+   - "Lost Auction" badge for participants
+   - Show bid amounts
+
+**Auction Ping Payload Format**:
+```json
+{
+  "ping": true,
+  "auction": true,
+  "lead_id": "uuid",
+  "county": "Miami-Dade",
+  "state": "FL",
+  "zipcode": "33010",
+  "estimated_value": 250000,
+  "minimum_bid": 50.00
+}
+```
+
+**Expected Response Format**:
+```json
+{
+  "accept": true,
+  "bid": 75.00
+}
+```
+
+**Acceptance Criteria**:
+- [ ] Buyers table has `auction_ping` and `minimum_bid` columns
+- [ ] Admin UI shows/edits auction settings
+- [ ] System identifies consecutive auction_ping buyers
+- [ ] All auction buyers pinged simultaneously (Promise.allSettled)
+- [ ] Highest bid wins (ties → first responder wins)
+- [ ] Bids below minimum_bid rejected
+- [ ] Winner receives full lead payload
+- [ ] Losers skipped (not sent full payload)
+- [ ] Auction results logged to database
+- [ ] Auction results visible in admin UI
+- [ ] Timeout handled gracefully (5s per buyer)
+- [ ] Partial failures handled (some buyers timeout, others respond)
+
+**Edge Cases**:
+1. **All buyers timeout** → Skip entire auction group, continue to next buyer
+2. **No valid bids** → Skip auction group
+3. **Single auction buyer** → Treat as standard ping (no auction)
+4. **Tie on price** → First responder wins
+5. **Buyer accepts but no bid field** → Reject response, treat as timeout
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_auction_ping_system.sql`
+- Backend: `server/src/main/types/buyerTypes.ts`, `server/src/main/data/buyerDAO.ts`, `server/src/main/services/auctionService.ts`, `server/src/main/services/buyerDispatchService.ts`, `server/src/main/adapters/buyerWebhookAdapter.ts`
+- Frontend: `client/src/components/admin/adminBuyersSection/BuyerEditDialog.tsx`, auction results view, lead history modal
+
+**Testing**:
+1. Create 3 test buyers with auction_ping=true (priorities 3,4,5)
+2. Mock all 3 buyers to respond with different bids ($50, $75, $60)
+3. Send lead → verify buyer #4 wins (highest bid)
+4. Verify auction_results record created
+5. Test timeout scenario (buyer #3 times out, #4 and #5 respond)
+6. Test all timeout scenario → lead continues to next non-auction buyer
+7. Test tie scenario → first responder wins
+
+**Performance Considerations**:
+- Use Promise.allSettled for parallel pings (non-blocking)
+- 5-second timeout per buyer (configurable)
+- Auction group limited to consecutive buyers (don't skip priorities)
+
+**Notes**:
+- Revenue optimization feature (maximize per-lead value)
+- More complex than standard ping (parallel execution, winner selection)
+- Requires extensive testing and monitoring
+- Consider adding auction metrics to dashboard
+
+---
+
+### TICKET-050: Implement lead manager system for campaign tracking
+**Type**: Full Stack Feature
+**Priority**: P0 (High - Foundation)
+**Estimate**: 8 hours
+**Sprint**: 8 (Foundation)
+**Date Created**: 2026-03-06
+
+**Background**:
+Currently, campaigns are linked only to sources. The Northstar system uses a dual-axis model where campaigns belong to both a SOURCE (e.g., Facebook, Google) and a MANAGER (e.g., John Smith, sales person). This enables tracking lead utilization and performance by both source AND manager.
+
+**Current Structure**:
+```
+Source (1:N) → Campaigns
+```
+
+**Desired Structure** (Mirror Northstar):
+```
+Source (1:N) → Campaigns
+Manager (1:N) → Campaigns
+Campaign (N:1) → Source
+Campaign (N:1) → Manager
+```
+
+**Example**:
+- **Source:** Facebook
+- **Manager:** John Smith (sales person managing Facebook campaigns)
+- **Campaign:** "Summer Leads 2026" (linked to Facebook source AND John as manager)
+
+**Use Cases**:
+1. Track which manager is responsible for each campaign
+2. Report on lead utilization by manager (manager performance)
+3. Manager compensation tied to their campaigns
+4. Sales team accountability
+
+**Database Changes**:
+```sql
+-- Migration: create_lead_managers_table.sql
+CREATE TABLE lead_managers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  active BOOLEAN DEFAULT true,
+  notes TEXT,
+  created TIMESTAMPTZ DEFAULT NOW(),
+  modified TIMESTAMPTZ DEFAULT NOW(),
+  deleted TIMESTAMPTZ
+);
+
+CREATE INDEX idx_lead_managers_active ON lead_managers(active) WHERE active = true AND deleted IS NULL;
+CREATE INDEX idx_lead_managers_name ON lead_managers(name) WHERE deleted IS NULL;
+
+ALTER TABLE campaigns
+ADD COLUMN lead_manager_id UUID REFERENCES lead_managers(id);
+
+CREATE INDEX idx_campaigns_lead_manager_id ON campaigns(lead_manager_id);
+
+-- Add trigger for modified timestamp
+CREATE TRIGGER update_lead_managers_modified
+  BEFORE UPDATE ON lead_managers
+  FOR EACH ROW
+  EXECUTE FUNCTION update_modified_column();
+```
+
+**Backend Changes**:
+1. Create leadManagerTypes.ts:
+   - LeadManager, LeadManagerCreateDTO, LeadManagerUpdateDTO, LeadManagerFilters
+2. Create leadManagerDAO.ts:
+   - Full CRUD operations
+   - getActive() - returns only active managers
+   - Soft-delete enforcement
+3. Create leadManagerService.ts:
+   - Business logic wrapper around DAO
+   - Validation (name required, email format)
+4. Create leadManagerResource.ts:
+   - GET /api/lead-managers (list all)
+   - GET /api/lead-managers/:id (get one)
+   - POST /api/lead-managers (create)
+   - PUT /api/lead-managers/:id (update)
+   - DELETE /api/lead-managers/:id (soft delete)
+5. Update CampaignType to include `lead_manager_id?: string`
+6. Update CampaignDAO:
+   - Include lead_manager_id in create/update
+   - Add join in getMany() to include manager name
+7. Update campaignService:
+   - Validate lead_manager_id exists before saving
+8. Register leadManagerResource in AutomatorServer.ts
+
+**Frontend Changes**:
+1. Create adminLeadManagersSection/:
+   - LeadManagersTable (MUI DataGrid)
+   - Columns: Name, Email, Phone, Active, # Campaigns, Actions
+   - Create/Edit/Delete actions
+2. Create AdminLeadManagersView.tsx (wrapper)
+3. Add route to AdminRoutes: `/a/lead-managers`
+4. Add "Lead Managers" to NavBar (between Sources and Campaigns)
+5. Update CampaignForm:
+   - Add "Lead Manager" dropdown (below Source dropdown)
+   - Fetch active managers for dropdown
+   - Make nullable (campaigns can exist without manager initially)
+6. Update CampaignsTable:
+   - Add "Manager" column showing manager name
+   - Filter by manager (optional enhancement)
+
+**Acceptance Criteria**:
+- [ ] lead_managers table created with all fields
+- [ ] campaigns.lead_manager_id column added (nullable FK)
+- [ ] Backend CRUD operations work for managers
+- [ ] Admin UI shows managers table
+- [ ] Can create/edit/delete managers via UI
+- [ ] Campaign form shows manager dropdown
+- [ ] Can assign manager to campaign (or leave unassigned)
+- [ ] Campaigns table displays manager name
+- [ ] Soft-delete works (deleted managers hidden but campaigns retain reference)
+
+**Migration Notes**:
+- Existing campaigns will have `lead_manager_id = NULL` (backward compatible)
+- Managers can be assigned gradually
+- No data loss or breaking changes
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_create_lead_managers_table.sql`
+- Backend: `server/src/main/types/leadManagerTypes.ts`, `server/src/main/data/leadManagerDAO.ts`, `server/src/main/services/leadManagerService.ts`, `server/src/main/resources/leadManagerResource.ts`, updates to campaign files
+- Frontend: `client/src/components/admin/adminLeadManagersSection/`, `client/src/views/adminViews/AdminLeadManagersView.tsx`, updates to campaign form and table
+
+**Testing**:
+1. Create 3 test managers via UI
+2. Assign managers to existing campaigns
+3. Create new campaign with manager selected
+4. Verify campaigns table shows manager names
+5. Delete manager → verify campaigns still work (manager name shows as deleted)
+6. Verify campaign can be created without manager (nullable FK)
+
+**Dependencies**:
+- None (self-contained feature)
+- Prerequisite for TICKET-056 (Enhanced Reporting by manager)
+
+**Notes**:
+- Mirrors Northstar implementation (validated pattern)
+- Enables dual-axis reporting (source + manager)
+- Foundation for manager performance tracking
+- Simple schema, low risk
+
+---
+
+## Sprint 8: User Features (Tickets #51-53)
+
+### TICKET-051: Implement user activity tracking for accountability
+**Type**: Full Stack Feature
+**Priority**: P1 (High)
+**Estimate**: 6 hours
+**Sprint**: 8 (Foundation)
+**Date Created**: 2026-03-06
+
+**Background**:
+VAs and managers need visibility into who is actually working (verifying leads, updating data). Currently, there's no tracking of which user performed which actions.
+
+**Goal**:
+Track key user actions for accountability and performance metrics.
+
+**Actions to Track**:
+1. Lead verification (who verified each lead)
+2. Lead updates (who made changes)
+3. Lead trashed (who trashed and why)
+4. Manual sends to buyers (who initiated)
+
+**Database Changes**:
+```sql
+-- Migration: add_user_activity_tracking.sql
+
+-- Add verified_by to leads table
+ALTER TABLE leads
+ADD COLUMN verified_by_user_id UUID REFERENCES users(id);
+
+CREATE INDEX idx_leads_verified_by ON leads(verified_by_user_id) WHERE verified_by_user_id IS NOT NULL;
+
+-- Create activity log table
+CREATE TABLE user_activity_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  lead_id UUID REFERENCES leads(id),
+  action TEXT NOT NULL, -- 'verified', 'updated', 'trashed', 'sent', 'enabled_worker'
+  action_details JSONB, -- additional context (e.g., what changed, which buyer)
+  created TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_activity_user_id ON user_activity_log(user_id);
+CREATE INDEX idx_user_activity_lead_id ON user_activity_log(lead_id);
+CREATE INDEX idx_user_activity_action ON user_activity_log(action);
+CREATE INDEX idx_user_activity_created ON user_activity_log(created);
+```
+
+**Backend Changes**:
+1. Create userActivityTypes.ts:
+   - UserActivity, ActivityAction enum, ActivityCreateDTO
+2. Create userActivityDAO.ts:
+   - logActivity(userId, leadId, action, details)
+   - getByUserId(userId, filters) - user's activity history
+   - getByLeadId(leadId) - lead's activity history
+   - getUserStats(userId, dateRange) - count by action type
+3. Update LeadService:
+   - In verifyLead(), set `verified_by_user_id` and log activity
+   - In updateLead(), log activity with changes
+   - In trashLead(), log activity
+   - In sendLeadToBuyer(), log activity
+   - In enableWorker(), log activity
+4. Create userActivityResource.ts:
+   - GET /api/user-activity/users/:userId (user's activity)
+   - GET /api/user-activity/leads/:leadId (lead's activity history)
+   - GET /api/user-activity/stats (dashboard stats)
+5. Get authenticated user from JWT token (req.user)
+6. Register userActivityResource in AutomatorServer.ts
+
+**Frontend Changes**:
+1. Create ActivityDashboard component:
+   - Table showing all users
+   - Columns: User, Leads Verified (Today/Week/Month), Leads Updated, Leads Sent
+   - Click user → drill down to activity details
+2. Create UserActivityModal:
+   - Shows detailed activity log for selected user
+   - Filter by date range and action type
+3. Add activity section to LeadDetailsModal:
+   - "Activity History" tab showing who did what and when
+4. Add route to AdminRoutes: `/a/activity` (admin only)
+5. Add "Activity" to NavBar (admin only)
+
+**Activity Log Format**:
+```json
+{
+  "user_id": "uuid",
+  "lead_id": "uuid",
+  "action": "verified",
+  "action_details": {
+    "previous_status": "unverified",
+    "new_status": "verified"
+  },
+  "created": "2026-03-06T10:30:00Z"
+}
+```
+
+**Acceptance Criteria**:
+- [ ] leads.verified_by_user_id column added
+- [ ] user_activity_log table created
+- [ ] Lead verification sets verified_by_user_id
+- [ ] All tracked actions logged to user_activity_log
+- [ ] Activity dashboard shows user stats
+- [ ] Can view user's activity history
+- [ ] Lead details shows activity history
+- [ ] Activity log includes authenticated user (from JWT)
+
+**Privacy/Security**:
+- Activity log visible to admins only
+- Users can see their own activity
+- No deletion of activity records (audit trail)
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_user_activity_tracking.sql`
+- Backend: `server/src/main/types/userActivityTypes.ts`, `server/src/main/data/userActivityDAO.ts`, `server/src/main/resources/userActivityResource.ts`, updates to leadService.ts
+- Frontend: Activity dashboard component, user activity modal, updates to lead details modal
+
+**Testing**:
+1. Verify a lead → check verified_by_user_id set
+2. Check user_activity_log for verification record
+3. Update lead → check activity log for update record
+4. View activity dashboard → verify stats are accurate
+5. Test date range filters
+6. Test drill-down to user activity details
+
+**Dependencies**:
+- User authentication (JWT token provides user ID)
+
+**Notes**:
+- Simple implementation (just tracking, no complex analytics)
+- Focus on accountability, not micromanagement
+- Activity log could grow large over time (consider archival strategy in future)
+
+---
+
+### TICKET-052: Implement call queue for leads needing phone follow-up
+**Type**: Full Stack Feature
+**Priority**: P1 (Medium)
+**Estimate**: 6 hours
+**Sprint**: 9 (Core Features)
+**Date Created**: 2026-03-06
+
+**Background**:
+During lead verification, VAs sometimes find issues that require phone follow-up (wrong phone number, missing information). These leads need to go into a separate call queue for another VA to contact the property owner and collect correct information.
+
+**Different from "Needs Review"**:
+- **Needs Review:** Import-time errors (bad county, invalid state) - pre-verification
+- **Call Queue:** Post-verification issues (wrong phone, missing info) - requires human intervention
+
+**Flow**:
+1. VA verifies lead, finds issue
+2. VA marks lead "Needs Call" with reason
+3. Lead appears in Call Queue view
+4. Another VA picks up lead from queue
+5. VA calls property owner, updates lead data
+6. VA marks "Call Complete"
+7. Lead returns to normal workflow (ready for buyer dispatch)
+
+**Database Changes**:
+```sql
+-- Migration: add_call_queue_fields.sql
+ALTER TABLE leads
+ADD COLUMN needs_call BOOLEAN DEFAULT false,
+ADD COLUMN call_reason TEXT,
+ADD COLUMN call_attempts INTEGER DEFAULT 0,
+ADD COLUMN last_call_attempt TIMESTAMPTZ;
+
+CREATE INDEX idx_leads_needs_call ON leads(needs_call) WHERE needs_call = true AND deleted IS NULL;
+```
+
+**Backend Changes**:
+1. Update LeadType to include:
+   - `needs_call: boolean`
+   - `call_reason?: string`
+   - `call_attempts: number`
+   - `last_call_attempt?: Date`
+2. Update leadDAO:
+   - Add getCallQueue(filters) - returns leads where needs_call=true
+   - Add markNeedsCall(leadId, reason)
+   - Add recordCallAttempt(leadId) - increments call_attempts
+   - Add markCallComplete(leadId) - sets needs_call=false
+3. Update leadService:
+   - Business logic for call queue operations
+   - Validation (reason required when marking needs call)
+4. Update leadResource:
+   - POST /api/leads/:id/mark-needs-call (body: {reason})
+   - POST /api/leads/:id/record-call-attempt
+   - POST /api/leads/:id/mark-call-complete
+   - GET /api/leads/call-queue (returns filtered list)
+
+**Frontend Changes**:
+1. Create CallQueueView:
+   - Table showing all leads with needs_call=true
+   - Columns: Name, County, State, Call Reason, Attempts, Last Attempt, Actions
+   - Sort by last_call_attempt (oldest first)
+   - Action buttons: "Record Attempt", "Mark Complete"
+2. Add route to AdminRoutes: `/a/call-queue`
+3. Add "Call Queue" to NavBar (between Leads and Buyers)
+4. Update LeadDetailsModal:
+   - Add "Mark Needs Call" button
+   - Modal with reason dropdown/textarea
+   - Show call history (attempts, reason)
+5. Call reason dropdown options:
+   - Wrong Phone Number
+   - Phone Disconnected
+   - Missing Information
+   - Needs Clarification
+   - Other (with text field)
+
+**Acceptance Criteria**:
+- [ ] Leads table has call queue fields
+- [ ] Can mark lead "Needs Call" with reason
+- [ ] Call queue view shows all leads needing calls
+- [ ] Can record call attempts (increments counter)
+- [ ] Can mark call complete (removes from queue)
+- [ ] Call history visible in lead details
+- [ ] Call queue sorted by oldest attempt first
+
+**Worker Behavior**:
+- Worker should skip leads with needs_call=true (not eligible for automated sends)
+- After call complete, lead returns to worker eligibility
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_add_call_queue_fields.sql`
+- Backend: `server/src/main/types/leadTypes.ts`, `server/src/main/data/leadDAO.ts`, `server/src/main/services/leadService.ts`, `server/src/main/resources/leadResource.ts`
+- Frontend: Call queue view, updates to lead details modal, navbar
+
+**Testing**:
+1. Mark lead "Needs Call" with reason
+2. Verify appears in call queue view
+3. Record call attempt → verify counter increments
+4. Mark call complete → verify removed from queue
+5. Verify worker skips leads with needs_call=true
+6. Test with multiple leads in queue
+
+**Dependencies**:
+- None (self-contained feature)
+
+**Notes**:
+- Simple boolean flag + queue view
+- Low complexity, high operational value
+- Improves verification workflow
+
+---
+
+### TICKET-053: Implement trash reasons master table for analytics
+**Type**: Full Stack Feature
+**Priority**: P1 (Medium)
+**Estimate**: 4 hours
+**Sprint**: 8 (Foundation)
+**Date Created**: 2026-03-06
+
+**Background**:
+Currently, leads can be trashed but there's no structured tracking of WHY they were trashed. A master table of trash reasons enables analytics on rejection patterns (e.g., "50% trashed due to mobile homes").
+
+**Common Trash Reasons**:
+- Mobile Home / Parking Lot
+- Owner Occupied (not investor property)
+- Apartment Rental
+- Duplicate Lead
+- Bad Data / Invalid Information
+- Does Not Meet Buyer Criteria
+- Other (with free-form text field)
+
+**Database Changes**:
+```sql
+-- Migration: create_trash_reasons_table.sql
+CREATE TABLE trash_reasons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reason_text TEXT NOT NULL,
+  active BOOLEAN DEFAULT true,
+  display_order INTEGER,
+  created TIMESTAMPTZ DEFAULT NOW(),
+  modified TIMESTAMPTZ DEFAULT NOW(),
+  deleted TIMESTAMPTZ
+);
+
+CREATE INDEX idx_trash_reasons_active ON trash_reasons(active) WHERE active = true AND deleted IS NULL;
+CREATE INDEX idx_trash_reasons_display_order ON trash_reasons(display_order);
+
+-- Seed initial reasons
+INSERT INTO trash_reasons (reason_text, display_order) VALUES
+  ('Mobile Home / Parking Lot', 1),
+  ('Owner Occupied', 2),
+  ('Apartment Rental', 3),
+  ('Duplicate Lead', 4),
+  ('Bad Data / Invalid', 5),
+  ('Does Not Meet Criteria', 6),
+  ('Other', 99);
+
+ALTER TABLE leads
+ADD COLUMN trash_reason_id UUID REFERENCES trash_reasons(id),
+ADD COLUMN trash_reason_notes TEXT; -- free-form for "Other"
+
+CREATE INDEX idx_leads_trash_reason_id ON leads(trash_reason_id) WHERE trash_reason_id IS NOT NULL;
+
+-- Trigger for modified timestamp
+CREATE TRIGGER update_trash_reasons_modified
+  BEFORE UPDATE ON trash_reasons
+  FOR EACH ROW
+  EXECUTE FUNCTION update_modified_column();
+```
+
+**Backend Changes**:
+1. Create trashReasonTypes.ts:
+   - TrashReason, TrashReasonCreateDTO, TrashReasonUpdateDTO
+2. Create trashReasonDAO.ts:
+   - Full CRUD operations
+   - getActive() - returns only active reasons sorted by display_order
+3. Create trashReasonService.ts:
+   - Business logic wrapper
+   - Validation (reason_text required)
+4. Create trashReasonResource.ts:
+   - GET /api/trash-reasons (list all active)
+   - GET /api/trash-reasons/:id (get one)
+   - POST /api/trash-reasons (create - admin only)
+   - PUT /api/trash-reasons/:id (update - admin only)
+   - DELETE /api/trash-reasons/:id (soft delete - admin only)
+5. Update LeadType to include:
+   - `trash_reason_id?: string`
+   - `trash_reason_notes?: string`
+6. Update leadDAO.trashLead() to accept trash_reason_id and notes
+7. Update leadService.trashLead() to accept and validate reason
+8. Register trashReasonResource in AutomatorServer.ts
+
+**Frontend Changes**:
+1. Create adminTrashReasonsSection/:
+   - TrashReasonsTable (MUI DataGrid)
+   - Columns: Reason, Active, Display Order, Actions
+   - Create/Edit/Delete actions
+   - Reorder functionality (drag-and-drop or up/down arrows)
+2. Create AdminTrashReasonsView.tsx (wrapper)
+3. Add route to AdminRoutes: `/a/trash-reasons` (admin only)
+4. Update lead trash action:
+   - Show dropdown with active reasons
+   - If "Other" selected, show text field for notes
+   - Reason required (cannot trash without selecting reason)
+5. Update lead details modal:
+   - Show trash reason in lead history
+   - Show trash_reason_notes if present
+6. Create trash reasons analytics view (optional):
+   - Chart showing breakdown by reason
+   - Date range filter
+
+**Trash Action UI Flow**:
+1. User clicks trash icon
+2. Modal opens with:
+   - Dropdown: "Reason for trashing" (required)
+   - If "Other" selected: Text field "Additional notes"
+   - Buttons: "Cancel", "Trash Lead"
+3. Submit → lead trashed with reason
+
+**Acceptance Criteria**:
+- [ ] trash_reasons table created with seed data
+- [ ] leads.trash_reason_id column added
+- [ ] Admin UI for managing trash reasons (CRUD)
+- [ ] Trash action shows reason dropdown (required)
+- [ ] "Other" option shows notes text field
+- [ ] Cannot trash lead without selecting reason
+- [ ] Lead details shows trash reason
+- [ ] Soft-delete works for reasons (deleted reasons hidden but leads retain reference)
+
+**Analytics Queries**:
+```sql
+-- Trash reasons breakdown
+SELECT tr.reason_text, COUNT(l.id) as count
+FROM leads l
+JOIN trash_reasons tr ON l.trash_reason_id = tr.id
+WHERE l.deleted IS NOT NULL
+GROUP BY tr.reason_text
+ORDER BY count DESC;
+
+-- Trash reasons by date range
+SELECT DATE(l.deleted) as date, tr.reason_text, COUNT(l.id)
+FROM leads l
+JOIN trash_reasons tr ON l.trash_reason_id = tr.id
+WHERE l.deleted >= '2026-01-01'
+GROUP BY DATE(l.deleted), tr.reason_text;
+```
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_create_trash_reasons_table.sql`
+- Backend: `server/src/main/types/trashReasonTypes.ts`, `server/src/main/data/trashReasonDAO.ts`, `server/src/main/services/trashReasonService.ts`, `server/src/main/resources/trashReasonResource.ts`, updates to lead trash logic
+- Frontend: `client/src/components/admin/adminTrashReasonsSection/`, trash action modal, lead details updates
+
+**Testing**:
+1. Create trash reason via admin UI
+2. Trash lead with reason selected
+3. Verify lead has trash_reason_id set
+4. Select "Other" → verify notes field appears and saves
+5. Delete trash reason → verify leads still show deleted reason text
+6. Verify cannot trash lead without selecting reason
+
+**Dependencies**:
+- None (self-contained feature)
+
+**Notes**:
+- Simple master table pattern (similar to counties, buyers)
+- Low complexity, high analytics value
+- Quick win for Sprint 8
+
+---
+
+## Sprint 10: Advanced Features (Tickets #54-56)
+
+### TICKET-054: Expand disputes system with reasons and resolution workflow
+**Type**: Full Stack Feature
+**Priority**: P1 (Medium)
+**Estimate**: 12 hours
+**Sprint**: 10 (Advanced Features)
+**Date Created**: 2026-03-06
+**Related**: Expands TICKET-042 (basic disputes)
+
+**Background**:
+TICKET-042 provided basic dispute tracking. This ticket expands it with structured reasons, resolution workflow, and comprehensive analytics.
+
+**Use Case**:
+1. VA checks buyer platform (Compass, Sellers) → sees lead was disputed
+2. VA logs dispute in system with structured reason
+3. Manager reviews dispute
+4. Manager marks dispute resolved with notes
+5. System tracks dispute trends and buyer dispute rates
+
+**Database Changes**:
+```sql
+-- Migration: expand_disputes_system.sql
+
+-- Create dispute reasons master table
+CREATE TABLE dispute_reasons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reason_text TEXT NOT NULL,
+  active BOOLEAN DEFAULT true,
+  display_order INTEGER,
+  created TIMESTAMPTZ DEFAULT NOW(),
+  modified TIMESTAMPTZ DEFAULT NOW(),
+  deleted TIMESTAMPTZ
+);
+
+CREATE INDEX idx_dispute_reasons_active ON dispute_reasons(active) WHERE active = true AND deleted IS NULL;
+
+-- Seed initial reasons
+INSERT INTO dispute_reasons (reason_text, display_order) VALUES
+  ('Wrong Lead (Does Not Match Ad)', 1),
+  ('Bad Data (Phone/Address Invalid)', 2),
+  ('Duplicate Lead', 3),
+  ('Not Qualified for Buyer', 4),
+  ('Buyer Remorse / Cancellation', 5),
+  ('Other', 99);
+
+-- Create disputes table
+CREATE TABLE disputes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES leads(id),
+  buyer_id UUID NOT NULL REFERENCES buyers(id),
+  dispute_reason_id UUID REFERENCES dispute_reasons(id),
+  dispute_details TEXT, -- free-form notes
+  created_by_user_id UUID REFERENCES users(id),
+  resolved BOOLEAN DEFAULT false,
+  resolved_at TIMESTAMPTZ,
+  resolved_by_user_id UUID REFERENCES users(id),
+  resolution_notes TEXT,
+  created TIMESTAMPTZ DEFAULT NOW(),
+  modified TIMESTAMPTZ DEFAULT NOW(),
+  deleted TIMESTAMPTZ
+);
+
+CREATE INDEX idx_disputes_lead_id ON disputes(lead_id);
+CREATE INDEX idx_disputes_buyer_id ON disputes(buyer_id);
+CREATE INDEX idx_disputes_resolved ON disputes(resolved);
+CREATE INDEX idx_disputes_created ON disputes(created);
+
+-- Triggers
+CREATE TRIGGER update_dispute_reasons_modified
+  BEFORE UPDATE ON dispute_reasons
+  FOR EACH ROW
+  EXECUTE FUNCTION update_modified_column();
+
+CREATE TRIGGER update_disputes_modified
+  BEFORE UPDATE ON disputes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_modified_column();
+```
+
+**Backend Changes**:
+1. Create disputeTypes.ts:
+   - Dispute, DisputeReason, DisputeCreateDTO, DisputeResolveDTO
+2. Create disputeReasonDAO.ts:
+   - Full CRUD operations
+   - getActive() - returns active reasons sorted by display_order
+3. Create disputeDAO.ts:
+   - create(disputeData)
+   - getById(id)
+   - getByLeadId(leadId) - all disputes for lead
+   - getByBuyerId(buyerId) - all disputes for buyer
+   - resolve(disputeId, userId, notes)
+   - getDisputeStats(filters) - analytics queries
+4. Create disputeService.ts:
+   - Business logic for creating and resolving disputes
+   - Validation (reason required, buyer must have received lead)
+5. Create disputeResource.ts:
+   - GET /api/disputes (list all, with filters)
+   - POST /api/disputes (create dispute)
+   - GET /api/disputes/:id (get one)
+   - PUT /api/disputes/:id/resolve (mark resolved)
+   - GET /api/disputes/stats (analytics)
+6. Create disputeReasonResource.ts:
+   - GET /api/dispute-reasons (list active)
+   - POST /api/dispute-reasons (create - admin)
+   - PUT /api/dispute-reasons/:id (update - admin)
+   - DELETE /api/dispute-reasons/:id (soft delete - admin)
+7. Register resources in AutomatorServer.ts
+
+**Frontend Changes**:
+1. Create adminDisputeReasonsSection/:
+   - Admin UI for managing dispute reasons (CRUD)
+   - Similar to trash reasons UI
+2. Update BuyerSendModal:
+   - Add "Dispute" button next to "Sold" status
+   - Opens dispute creation modal
+3. Create DisputeCreateModal:
+   - Pre-filled: Lead name, Buyer name (read-only)
+   - Dropdown: Dispute reason (required)
+   - If "Other": Text field for details
+   - Textarea: Additional notes
+   - Submit button
+4. Create DisputesView:
+   - Table showing all disputes
+   - Columns: Lead, Buyer, Reason, Created By, Status, Created Date, Actions
+   - Filter by: Buyer, Status (Open/Resolved), Date Range
+   - Click row → see dispute details
+   - Action: "Resolve" button (if unresolved)
+5. Create DisputeResolveModal:
+   - Shows dispute details
+   - Textarea: Resolution notes (required)
+   - Submit button → marks resolved
+6. Create DisputeAnalytics dashboard:
+   - Dispute rate per buyer (chart)
+   - Most common dispute reasons (pie chart)
+   - Dispute trends over time (line chart)
+   - Date range filter
+7. Update lead history:
+   - Show dispute badge if lead has disputes
+   - Click badge → see dispute details
+8. Add route to AdminRoutes: `/a/disputes`
+9. Add "Disputes" to NavBar (admin only)
+
+**Dispute Analytics Queries**:
+```sql
+-- Dispute rate per buyer
+SELECT
+  b.name,
+  COUNT(d.id) as total_disputes,
+  COUNT(DISTINCT sl.lead_id) as total_sends,
+  ROUND(COUNT(d.id)::NUMERIC / NULLIF(COUNT(DISTINCT sl.lead_id), 0) * 100, 2) as dispute_rate_pct
+FROM buyers b
+LEFT JOIN send_log sl ON b.id = sl.buyer_id AND sl.status = 'sent'
+LEFT JOIN disputes d ON b.id = d.buyer_id
+GROUP BY b.name
+ORDER BY dispute_rate_pct DESC;
+
+-- Most common dispute reasons
+SELECT dr.reason_text, COUNT(d.id) as count
+FROM disputes d
+JOIN dispute_reasons dr ON d.dispute_reason_id = dr.id
+GROUP BY dr.reason_text
+ORDER BY count DESC;
+```
+
+**Acceptance Criteria**:
+- [ ] dispute_reasons and disputes tables created
+- [ ] Admin UI for managing dispute reasons
+- [ ] Can create dispute from buyer send modal
+- [ ] Dispute creation requires reason selection
+- [ ] Disputes view shows all disputes with filters
+- [ ] Can resolve disputes with notes
+- [ ] Lead history shows dispute status
+- [ ] Dispute analytics dashboard shows key metrics
+- [ ] Can track dispute trends over time
+
+**Resolution Workflow**:
+1. VA creates dispute (status: unresolved)
+2. Manager reviews in disputes view
+3. Manager clicks "Resolve"
+4. Manager enters resolution notes
+5. Dispute marked resolved (resolved_at = NOW(), resolved_by_user_id = manager)
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_expand_disputes_system.sql`
+- Backend: dispute types, DAOs, services, resources (8 files)
+- Frontend: dispute reasons admin, dispute creation modal, disputes view, analytics dashboard (6+ components)
+
+**Testing**:
+1. Create dispute reason via admin UI
+2. Mark lead sold to buyer
+3. Create dispute with reason
+4. Verify dispute appears in disputes view
+5. Resolve dispute with notes
+6. Verify appears as resolved
+7. View analytics → verify charts show data
+8. Test multiple disputes for same lead/buyer
+
+**Dependencies**:
+- User authentication (tracks who created/resolved)
+- Send_log data (disputes link to sent leads)
+
+**Notes**:
+- Expands basic TICKET-042 with full workflow
+- High analytics value for quality control
+- Helps identify problem sources and buyers
+
+---
+
+### TICKET-055: Implement configurable delay before worker processing
+**Type**: Backend Feature
+**Priority**: P2 (Medium)
+**Estimate**: 4 hours
+**Sprint**: 9 (Core Features)
+**Date Created**: 2026-03-06
+
+**Background**:
+Currently, leads become eligible for worker processing immediately after verification. A configurable delay gives VAs time to manually send leads to top-tier buyers before automation kicks in.
+
+**Use Case**:
+1. Lead imported at 9:00 AM
+2. VA verifies lead at 9:30 AM
+3. VA manually sends to Compass, Sellers, Pickle (9:30-10:00 AM)
+4. **Delay prevents worker from processing until 12:00 PM (2.5 hours after verification)**
+5. At 12:00 PM, if lead not sold, worker starts sending to automated buyers
+
+**Natural Delay Already Exists**:
+- VAs must verify leads before enabling worker
+- This ticket adds explicit configurable delay on top of verification
+
+**Database Changes**:
+```sql
+-- Migration: create_system_settings_table.sql
+CREATE TABLE system_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  setting_key TEXT UNIQUE NOT NULL,
+  setting_value TEXT NOT NULL,
+  setting_type TEXT NOT NULL, -- 'integer', 'boolean', 'text', 'json'
+  description TEXT,
+  created TIMESTAMPTZ DEFAULT NOW(),
+  modified TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_system_settings_key ON system_settings(setting_key);
+
+-- Insert default delay setting
+INSERT INTO system_settings (setting_key, setting_value, setting_type, description)
+VALUES ('worker_delay_hours', '2', 'integer', 'Hours to wait after lead verification before worker can process lead');
+
+-- Trigger
+CREATE TRIGGER update_system_settings_modified
+  BEFORE UPDATE ON system_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION update_modified_column();
+```
+
+**Backend Changes**:
+1. Create systemSettingsTypes.ts:
+   - SystemSetting, SettingType enum, SettingUpdateDTO
+2. Create systemSettingsDAO.ts:
+   - getByKey(key) - returns setting value
+   - update(key, value) - updates setting
+   - getAll() - returns all settings
+3. Create systemSettingsService.ts:
+   - getSetting(key) - with type casting
+   - updateSetting(key, value) - with validation
+4. Create systemSettingsResource.ts:
+   - GET /api/system-settings (list all - admin only)
+   - PUT /api/system-settings/:key (update - admin only)
+5. Update WorkerService:
+   - In processAllBuyers(), check delay before processing each lead
+   - Calculate: `lead.verified_at + delay_hours`
+   - Only process if `NOW() >= lead.verified_at + INTERVAL 'X hours'`
+   - Log skipped leads (not eligible yet)
+6. Update BuyerDispatchService:
+   - Add getEligibleLeadsForBuyer() - filters by delay
+   - Helper: isLeadEligibleForWorker(lead) - checks delay
+7. Register systemSettingsResource in AutomatorServer.ts
+
+**Worker Logic Change**:
+```typescript
+const delaySetting = await this.settingsService.getSetting('worker_delay_hours');
+const delayHours = parseInt(delaySetting.setting_value, 10);
+
+for (const lead of leads) {
+  const eligibleAt = new Date(lead.verified_at);
+  eligibleAt.setHours(eligibleAt.getHours() + delayHours);
+
+  if (new Date() < eligibleAt) {
+    logger.debug(`Lead ${lead.id} not eligible until ${eligibleAt}`);
+    continue; // Skip this lead
+  }
+
+  // Process lead...
+}
+```
+
+**Frontend Changes**:
+1. Create SystemSettingsView (admin only):
+   - Table showing all settings
+   - Columns: Setting, Value, Type, Description, Actions
+   - Edit action opens modal
+2. Create SettingEditModal:
+   - Field type based on setting_type (number input for integer, checkbox for boolean)
+   - Validation based on type
+3. Add route to AdminRoutes: `/a/settings` (admin only)
+4. Add "Settings" to NavBar dropdown (admin only)
+5. Update lead details modal:
+   - Show "Worker Eligible At" timestamp
+   - Calculate: verified_at + delay_hours
+   - Display as countdown if not eligible yet ("Eligible in 1h 23m")
+
+**Acceptance Criteria**:
+- [ ] system_settings table created with worker_delay_hours default
+- [ ] Worker respects delay (doesn't process leads until delay expires)
+- [ ] Admin can update delay setting via UI
+- [ ] Lead details shows "Worker Eligible At" timestamp
+- [ ] Delay applies to all worker buyers consistently
+- [ ] Setting value validated (must be >= 0)
+
+**Edge Cases**:
+- **Delay = 0:** Worker processes immediately after verification
+- **Lead not verified:** Worker never processes (worker_enabled must be true)
+- **Lead verified but worker_enabled=false:** Delay doesn't matter, won't be processed
+
+**Testing**:
+1. Set delay to 0.1 hours (6 minutes)
+2. Verify lead at 10:00 AM
+3. Check worker logs at 10:05 AM → should skip lead
+4. Check worker logs at 10:07 AM → should process lead
+5. Update delay to 2 hours via settings UI
+6. Verify new delay applied to subsequent leads
+
+**Files**:
+- Migration: `postgres/migrations/YYYYMMDD_create_system_settings_table.sql`
+- Backend: `server/src/main/types/systemSettingsTypes.ts`, `server/src/main/data/systemSettingsDAO.ts`, `server/src/main/services/systemSettingsService.ts`, `server/src/main/resources/systemSettingsResource.ts`, updates to worker logic
+- Frontend: System settings view, setting edit modal, lead details updates
+
+**Dependencies**:
+- None (self-contained feature)
+
+**Notes**:
+- Optional enhancement (natural delay already exists)
+- Simple implementation (just time comparison)
+- Low risk, low complexity
+
+---
+
+### TICKET-056: Implement enhanced reporting dashboard with charts
+**Type**: Full Stack Feature
+**Priority**: P1 (High)
+**Estimate**: 16 hours
+**Sprint**: 10 (Advanced Features)
+**Date Created**: 2026-03-06
+**Dependencies**: TICKET-050 (Lead Manager System)
+
+**Background**:
+Current system has basic lead tables but no comprehensive analytics. Need dashboard with charts showing lead utilization by source, manager, campaign, and buyer performance.
+
+**Report Types**:
+
+#### 1. Lead Utilization by Source
+- Total leads received per source
+- % verified
+- % sent to buyers
+- % sold
+- Average time to sale
+- Revenue per source (if tracking)
+
+#### 2. Lead Utilization by Manager
+- Total leads under manager's campaigns
+- Manager performance metrics
+- Conversion rates
+- Manager compensation data
+
+#### 3. Lead Utilization by Campaign
+- Individual campaign performance
+- ROI per campaign
+- Best/worst performing campaigns
+- Lead volume trends
+
+#### 4. Buyer Performance
+- Total leads sent per buyer
+- Acceptance rate
+- Dispute rate
+- Average response time
+- Revenue per buyer
+
+**Database Changes**:
+No new tables needed. All queries use existing data:
+- leads (with source_id, campaign_id)
+- campaigns (with source_id, lead_manager_id)
+- send_log (with buyer_id, status)
+- disputes (for dispute rates)
+- lead_buyer_outcomes (for sold status)
+
+**Backend Changes**:
+1. Create reportingTypes.ts:
+   - SourceReport, ManagerReport, CampaignReport, BuyerReport
+   - ReportFilters (date ranges, status filters)
+2. Create reportingService.ts:
+   - getSourceUtilization(filters) - aggregates leads by source
+   - getManagerUtilization(filters) - aggregates leads by manager
+   - getCampaignUtilization(filters) - aggregates leads by campaign
+   - getBuyerPerformance(filters) - buyer metrics
+   - getLeadFunnel() - conversion funnel data
+3. Create reportingResource.ts:
+   - GET /api/reports/sources (source utilization)
+   - GET /api/reports/managers (manager performance)
+   - GET /api/reports/campaigns (campaign performance)
+   - GET /api/reports/buyers (buyer performance)
+   - GET /api/reports/funnel (conversion funnel)
+   - All endpoints support date range and filters
+4. Register reportingResource in AutomatorServer.ts
+
+**Example SQL Query (Source Utilization)**:
+```sql
+SELECT
+  s.name as source_name,
+  COUNT(l.id) as total_leads,
+  COUNT(l.id) FILTER (WHERE l.verified = true) as verified_count,
+  COUNT(DISTINCT sl.lead_id) as sent_count,
+  COUNT(DISTINCT lbo.lead_id) as sold_count,
+  ROUND(COUNT(l.id) FILTER (WHERE l.verified = true)::NUMERIC / NULLIF(COUNT(l.id), 0) * 100, 2) as verified_pct,
+  ROUND(COUNT(DISTINCT sl.lead_id)::NUMERIC / NULLIF(COUNT(l.id), 0) * 100, 2) as sent_pct,
+  ROUND(COUNT(DISTINCT lbo.lead_id)::NUMERIC / NULLIF(COUNT(l.id), 0) * 100, 2) as sold_pct
+FROM sources s
+LEFT JOIN campaigns c ON s.id = c.source_id
+LEFT JOIN leads l ON c.id = l.campaign_id AND l.deleted IS NULL
+LEFT JOIN send_log sl ON l.id = sl.lead_id AND sl.status = 'sent'
+LEFT JOIN lead_buyer_outcomes lbo ON l.id = lbo.lead_id
+WHERE s.deleted IS NULL
+  AND l.created >= $1 -- date range filter
+  AND l.created <= $2
+GROUP BY s.id, s.name
+ORDER BY total_leads DESC;
+```
+
+**Frontend Changes**:
+1. Create ReportingDashboard/:
+   - Dashboard layout with tabs:
+     - Overview (summary metrics)
+     - Sources
+     - Managers
+     - Campaigns
+     - Buyers
+2. Create OverviewTab:
+   - Key metrics cards (total leads, verified %, sent %, sold %)
+   - Conversion funnel chart (leads → verified → sent → sold)
+   - Recent activity table
+3. Create SourcesTab:
+   - Table: Source name, Total Leads, Verified %, Sent %, Sold %
+   - Bar chart: Lead volume by source
+   - Line chart: Lead trends over time per source
+4. Create ManagersTab:
+   - Table: Manager name, Total Leads, Performance Metrics
+   - Bar chart: Lead volume by manager
+   - Manager comparison chart
+5. Create CampaignsTab:
+   - Table: Campaign name, Source, Manager, Total Leads, ROI
+   - Filter by source/manager
+   - Drill-down to campaign details
+6. Create BuyersTab:
+   - Table: Buyer name, Total Sent, Acceptance Rate, Dispute Rate
+   - Bar chart: Send volume by buyer
+   - Line chart: Buyer performance over time
+7. Add date range picker (applies to all tabs)
+8. Add export to CSV button (per tab)
+9. Add route to AdminRoutes: `/a/reports` (admin only)
+10. Add "Reports" to NavBar (between Leads and Buyers)
+
+**Charts Library**:
+Use Recharts or Chart.js for visualizations:
+- Bar charts for volume comparisons
+- Line charts for trends over time
+- Pie charts for breakdowns
+- Funnel chart for conversion flow
+
+**Acceptance Criteria**:
+- [ ] Reporting endpoints return correct aggregated data
+- [ ] Dashboard shows all tabs (Overview, Sources, Managers, Campaigns, Buyers)
+- [ ] Date range filter works across all tabs
+- [ ] Charts render correctly with real data
+- [ ] Can drill down from summary to details
+- [ ] Export to CSV works for each report
+- [ ] Mobile responsive (charts scale properly)
+
+**Performance Considerations**:
+- Complex aggregation queries → consider materialized views or caching
+- Date range limits (max 1 year?)
+- Pagination for large result sets
+
+**Files**:
+- Backend: `server/src/main/types/reportingTypes.ts`, `server/src/main/services/reportingService.ts`, `server/src/main/resources/reportingResource.ts`
+- Frontend: `client/src/components/reporting/` (dashboard, tabs, charts), `client/src/views/reportingViews/ReportingView.tsx`
+
+**Testing**:
+1. Create test data (multiple sources, managers, campaigns, buyers)
+2. Generate leads across different campaigns
+3. Verify leads, send to buyers, mark some sold
+4. View reports → verify numbers are accurate
+5. Test date range filters
+6. Test export to CSV
+7. Test drill-down navigation
+
+**Dependencies**:
+- TICKET-050 (Lead Manager System) - manager reports require lead_managers table
+
+**Notes**:
+- High business value (data-driven decisions)
+- Complex implementation (multiple queries, charts)
+- Phase 3 feature (after foundation in place)
+
+---
+
+**Status**: 🟢 Sprint 1-7 COMPLETE | 🟡 Sprint 8+ NEW (Brainstorming Features)
+
+**Last Updated**: 2026-03-06
+
+**Progress**: 47/56 tickets (Original 41 + QA fixes + Sprint 7 + New 9)
+- Completed: 41 core tickets + TICKET-046, TICKET-047
+- New: TICKET-048 through TICKET-056 (9 tickets)
+
+---
+
+## Ticket Summary (Updated)
 
 | Sprint | Tickets | Total Hours | Risk Level |
 |--------|---------|-------------|------------|
@@ -1388,3 +2714,44 @@ The old "Send Now" button in the leads table sent leads to a mock vendor endpoin
 **Developer Days**: ~14-15 days (assuming 8-hour days)
 **Calendar Time**: ~10 weeks (including testing, stabilization, buffer)
 **Hackathon Mode**: ~3 days (with 2 people working intensively)
+
+---
+
+### New Features (Post-Brainstorming Session 2026-03-06)
+
+| Sprint | Tickets | Total Hours | Risk Level | Status |
+|--------|---------|-------------|------------|--------|
+| **Sprint 8 (Foundation)** | #48, 50, 51, 53 | 26 hours | Low | 🔲 PLANNED |
+| **Sprint 9 (Core Features)** | #52, 55 | 10 hours | Low | 🔲 PLANNED |
+| **Sprint 10 (Advanced)** | #49, 54, 56 | 44 hours | Medium | 🔲 PLANNED |
+| **NEW TOTAL** | **9** | **80 hours** | - | **0 Complete** |
+
+**New Features Timeline** (Sprints 8-10):
+- Developer Days: ~10-11 days (8-hour days)
+- Calendar Time: 10-12 weeks (with testing, buffer)
+- Estimated Completion: May-June 2026
+- Status: 🔲 Awaiting user review and approval
+
+**New Features by Priority**:
+- **P0 Foundation:** TICKET-050 (8 hrs) - Lead Manager System
+- **P1 High:** TICKET-048, 049, 051, 052, 053, 054, 056 (68 hrs)
+- **P2 Medium:** TICKET-055 (4 hrs) - Configurable Delays
+
+**Recommended Sprint Order**:
+1. **Sprint 8:** Foundation features (TICKET-050, 051, 053) - 18 hours - Quick wins
+2. **Sprint 9:** Core enhancements (TICKET-048, 052, 055) - 22 hours - Medium complexity
+3. **Sprint 10:** Advanced features (TICKET-049, 054, 056) - 44 hours - Complex implementations
+
+**Dependencies**:
+- TICKET-050 → TICKET-056 (manager system needed for reporting)
+- TICKET-048 → TICKET-049 (standard ping needed before auction)
+
+---
+
+### Grand Total (All Tickets)
+
+| Category | Tickets | Hours | Completed |
+|----------|---------|-------|-----------|
+| **Original Refactor** | 47 | ~150 hrs | 38 tickets (81%) |
+| **New Features** | 9 | 80 hrs | 0 tickets (0%) |
+| **GRAND TOTAL** | **56** | **~230 hrs** | **38 tickets (68%)** |
