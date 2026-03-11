@@ -8,7 +8,6 @@ export class EnvConfig {
     public readonly jwtSecret: string;
     public readonly serverUrl: string;
     public readonly leadIntakeApiKey: string;
-    public readonly buyerAuthEncryptionKey: string;
 
     constructor() {
         this.dbConfig = new DBConfig();
@@ -16,7 +15,6 @@ export class EnvConfig {
         this.jwtSecret = process.env.JWT_SECRET!;
         this.serverUrl = process.env.VITE_SERVER_URL!;
         this.leadIntakeApiKey = process.env.LEAD_INTAKE_API_KEY!;
-        this.buyerAuthEncryptionKey = process.env.BUYER_AUTH_ENCRYPTION_KEY!;
     }
 }
 
