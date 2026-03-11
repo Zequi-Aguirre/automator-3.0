@@ -135,7 +135,7 @@ export type ApiLeadPayload = {
     state?: string;
     zip_code?: string;
     county?: string;
-    private_note?: string;
+    private_notes?: string;
     sell_timeline?: string;
     repairs_needed?: string;
     sell_motivation?: string;
