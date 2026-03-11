@@ -114,7 +114,7 @@ export default class LeadIntakeResource {
                                 external_lead_id: metadata?.external_lead_id,
                                 external_ad_id: metadata?.external_ad_id,
                                 external_ad_name: metadata?.external_ad_name,
-                                private_notes: lead.private_note
+                                private_note: lead.private_note
                             },
                             campaignKey,
                             campaignData: campaign || {},
