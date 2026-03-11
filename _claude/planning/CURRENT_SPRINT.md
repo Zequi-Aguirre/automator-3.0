@@ -1,12 +1,180 @@
-# Current Work: External Campaign Tracking
+# Current Work: Sprint 8 Planning (Post-Brainstorming)
 
-**Latest Completed:** TICKET-047 - External Campaign Tracking & ZIP Code County Lookup
-**Date:** 2026-03-03
-**Status:** ✅ COMPLETE - PR #32 Ready for Review
-**Branch:** `feature/ticket-047-external-campaign-tracking`
-**PR:** #32 (24 commits)
+**Latest:** Brainstorming Session & Documentation
+**Date:** 2026-03-06
+**Status:** 📋 PLANNING - Awaiting User Review
+**Documentation:** `_claude/session/2026-03-06_brainstorming_session.md`
 
 ---
+
+## Sprint 8 Planning - Post-Brainstorming Session
+
+**Session Date:** 2026-03-06
+**Session Type:** Strategic Planning & Feature Roadmap
+**Status:** 📋 Documentation Complete - Ready for User Review
+
+### What Happened
+
+Comprehensive brainstorming session about where the platform is and where it's going. User requested the most thorough analysis possible. Session resulted in:
+
+1. ✅ Created comprehensive session document (`2026-03-06_brainstorming_session.md`)
+2. ✅ Created 9 new tickets (TICKET-048 through TICKET-056)
+3. ✅ Updated `08_TICKETS.md` with detailed ticket specs
+4. ✅ Updated `FUTURE_ENHANCEMENTS.md` with cross-references
+5. ✅ Updated `CURRENT_SPRINT.md` (this file) with sprint plan
+6. 🔲 **AWAITING USER REVIEW** before implementation starts
+
+### New Features Identified (9 Tickets, ~80 Hours)
+
+#### High Priority Features:
+1. **TICKET-048: Standard Ping System** (12 hrs)
+   - Buyers can require ping before accepting lead
+   - Pre-qualification check via webhook
+   - Accept/reject flow with timeout handling
+
+2. **TICKET-049: Auction Ping System** (16 hrs)
+   - Multiple buyers compete on price
+   - Simultaneous pings to auction group
+   - Highest bidder wins lead
+
+3. **TICKET-050: Lead Manager System** (8 hrs) ⭐ Foundation
+   - Mirrors Northstar implementation
+   - Campaign belongs to both source AND manager
+   - Enables dual-axis reporting
+
+4. **TICKET-051: User Activity Tracking** (6 hrs) ⭐ Foundation
+   - Track who verified each lead
+   - Activity dashboard showing user stats
+   - Accountability metrics for VAs
+
+5. **TICKET-052: Call Queue / Needs More Info** (6 hrs)
+   - Separate queue for leads needing phone follow-up
+   - Different from "needs review" (import errors)
+   - Track call attempts and completion
+
+6. **TICKET-053: Trash Reasons** (4 hrs) ⭐ Foundation
+   - Master table of trash reasons
+   - Dropdown in trash action
+   - Analytics on rejection patterns
+
+7. **TICKET-054: Enhanced Disputes** (12 hrs)
+   - Expands TICKET-042 with reasons and workflow
+   - Dispute resolution process
+   - Analytics on dispute rates per buyer
+
+8. **TICKET-055: Configurable Delays** (4 hrs)
+   - Global delay before worker processes leads
+   - Gives VAs time for manual sends first
+   - Simple settings table implementation
+
+9. **TICKET-056: Enhanced Reporting** (16 hrs)
+   - Dashboard with charts and analytics
+   - Utilization by source, manager, campaign
+   - Buyer performance metrics
+   - Depends on TICKET-050
+
+### Recommended Sprint Order
+
+**Sprint 8: Foundation (2-3 weeks, 18 hours)**
+- TICKET-050: Lead Manager System (8 hrs) - Prerequisite for reporting
+- TICKET-051: User Activity Tracking (6 hrs) - Quick win
+- TICKET-053: Trash Reasons (4 hrs) - Simple analytics
+
+**Sprint 9: Core Features (2-3 weeks, 22 hours)**
+- TICKET-048: Standard Ping System (12 hrs) - Prerequisite for auction
+- TICKET-052: Call Queue (6 hrs) - Workflow improvement
+- TICKET-055: Configurable Delays (4 hrs) - Optional enhancement
+
+**Sprint 10: Advanced Features (3-4 weeks, 44 hours)**
+- TICKET-049: Auction Ping System (16 hrs) - Complex, depends on #48
+- TICKET-054: Enhanced Disputes (12 hrs) - Workflow + analytics
+- TICKET-056: Enhanced Reporting (16 hrs) - Depends on #50
+
+**Total Estimated Time:** 10-12 weeks with testing and buffer
+
+### Key Context from Brainstorming
+
+**Scale:** ~200 leads/day (no heavy scaling needed)
+
+**Ping System Types:**
+- `requires_ping`: Standard pre-qualification
+- `auction_ping`: Price competition among buyers
+
+**Source/Manager/Campaign:**
+- Mirror Northstar structure (validated pattern)
+- Campaign N:1 Source, Campaign N:1 Manager
+- Enables reporting by both axes
+
+**User Tracking:**
+- Focus on actions (verified, updated), not time tracking
+- Accountability without micromanagement
+
+**Call Queue vs Needs Review:**
+- Needs Review: Import-time errors (bad county)
+- Call Queue: Post-verification issues (wrong phone)
+
+**Delays:**
+- Natural delay exists (verification workflow)
+- Explicit delay is optional enhancement
+
+**Disputes:**
+- Don't change sold status
+- Additional metadata for analytics
+- Track buyer dispute rates
+
+### Next Steps (In Order)
+
+1. 🔲 **USER REVIEWS SESSION DOCUMENT**
+   - Read `_claude/session/2026-03-06_brainstorming_session.md`
+   - Review all 9 ticket descriptions in `08_TICKETS.md`
+   - Answer clarification questions (listed in session doc)
+
+2. 🔲 **USER APPROVES DIRECTION**
+   - Confirm features match vision
+   - Approve implementation order
+   - Provide answers to open questions
+
+3. 🔲 **START SPRINT 8**
+   - Create feature branch
+   - Begin with TICKET-050 (Lead Manager System)
+   - Daily progress updates
+
+### Questions for User (From Session Doc)
+
+See `_claude/session/2026-03-06_brainstorming_session.md` → Section "Questions for User" for full list. Key questions:
+
+**Ping System:**
+- Ping endpoint: separate or use webhook_url with param?
+- Timeout for ping responses? (suggest 5s)
+- Auction: wait for all or first X responses?
+
+**Lead Manager System:**
+- Can campaign exist without manager? (nullable FK?)
+- Do managers have login access or just tracked?
+
+**User Activity:**
+- Track all updates or only specific actions?
+- Activity log visible to all users or admin-only?
+
+**Call Queue:**
+- Who has access? (all users vs specific role)
+- Track call attempts and outcomes?
+
+**Other:**
+- See session document for complete question list
+
+### Success Criteria
+
+Before starting implementation:
+- [ ] User has read session document
+- [ ] User has reviewed all 9 tickets
+- [ ] User has answered clarification questions
+- [ ] User has explicitly approved to proceed
+- [ ] Implementation order confirmed
+
+---
+
+## Previous: TICKET-047 - External Campaign Tracking (Sprint 7)
 
 ## TICKET-047: External Campaign Tracking Summary
 
