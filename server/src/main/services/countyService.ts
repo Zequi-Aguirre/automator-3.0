@@ -89,6 +89,16 @@ export default class CountyService {
     }
 
     /**
+     * TICKET-047: Lookup county by zip code
+     * Uses zip_codes array for deterministic lookup (no fuzzy matching needed)
+     * @param zipCode - 5-digit zip code
+     * @returns County if found, null otherwise
+     */
+    async getByZipCode(zipCode: string): Promise<County | null> {
+        return await this.countyDAO.getByZipCode(zipCode);
+    }
+
+    /**
      * Match leads to existing counties using fuzzy matching
      * Uses singleton to avoid repeated DB queries
      * Does NOT auto-create counties - returns map of matched counties only
@@ -176,7 +186,8 @@ export default class CountyService {
                     name,
                     state,
                     population: row.population ? Number(row.population) : null,
-                    timezone: row.timezone || null
+                    timezone: row.timezone || null,
+                    zip_codes: row.zip_codes || null  // TICKET-047: Include ZIP codes
                 });
 
                 existingMap.set(key, created);
@@ -197,6 +208,16 @@ export default class CountyService {
     async updateCountyMeta(
         id: string,
         updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted">>
+    ): Promise<County> {
+        return await this.countyDAO.updateCounty(id, updates);
+    }
+
+    /**
+     * TICKET-047: Update county including zip_codes
+     */
+    async updateCounty(
+        id: string,
+        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted" | "zip_codes">>
     ): Promise<County> {
         return await this.countyDAO.updateCounty(id, updates);
     }

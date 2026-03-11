@@ -18,6 +18,11 @@ export type Lead = {
     investor_id: string | null;
     campaign_id: string | null;
     worker_enabled: boolean;
+    // TICKET-047: External platform tracking
+    external_lead_id: string | null;  // Platform's lead ID (e.g., Facebook leadgenId)
+    external_ad_id: string | null;  // Platform's ad ID
+    external_ad_name: string | null;  // Platform's ad name
+    raw_payload: Record<string, any> | null;  // Complete original platform payload
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -73,19 +78,69 @@ export type FlatLead = {
     'buyer_lead.status': string | null;
 };
 
+/**
+ * ExternalLeadMetadata - External platform tracking metadata
+ * TICKET-047: Stores platform-specific lead tracking data
+ */
+export type ExternalLeadMetadata = {
+    external_lead_id?: string;  // Platform's lead ID (e.g., Facebook leadgenId)
+    external_ad_id?: string;  // Platform's ad ID
+    external_ad_name?: string;  // Platform's ad name
+    page_id?: string;  // Facebook page ID
+    inbox_url?: string;  // Facebook inbox URL
+    date_created?: string;  // Platform's creation timestamp
+    is_organic?: boolean;  // Organic vs paid
+    [key: string]: any;  // Allow additional platform-specific fields
+};
+
+/**
+ * ApiLeadPayload - Lead data from API intake
+ * TICKET-047: Updated to support new structured format with external tracking
+ *
+ * Supports two formats:
+ * 1. NEW (preferred): Structured with lead/campaign/metadata/raw_payload
+ * 2. LEGACY: Flat structure with campaign_name (backwards compatible)
+ */
 export type ApiLeadPayload = {
-    name: string;
-    email: string;
-    phone: string;
-    address: string;
-    city: string;
-    state: string;
-    zip_code: string;
-    county: string;
+    // NEW FORMAT: Structured lead data
+    lead?: {
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone: string;
+        address: string;
+        city: string;
+        state: string;
+        zip: string;
+        county?: string;  // Optional - can be looked up by zip
+    };
+    campaign?: {
+        platform: string;  // 'fb', 'google', 'tiktok', etc.
+        external_campaign_id: string;
+        external_campaign_name?: string;
+        external_form_id?: string;
+        external_adset_id?: string;
+        external_adset_name?: string;
+    };
+    metadata?: ExternalLeadMetadata;
+    raw_payload?: Record<string, any>;
+
+    // LEGACY FORMAT: Flat structure (backwards compatible)
+    campaign_name?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    county?: string;
     private_note?: string;
     sell_timeline?: string;
     repairs_needed?: string;
     sell_motivation?: string;
+
+    // Allow additional fields
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 };
@@ -106,4 +161,9 @@ export type parsedLeadFromCSV = {
     investor_id?: string | null;  // Deprecated - kept for backward compatibility
     source_id?: string | null;  // TICKET-046: Lead source (for API intake)
     campaign_id?: string | null;  // TICKET-046: Campaign (for API intake)
+    // TICKET-047: External platform tracking
+    external_lead_id?: string | null;
+    external_ad_id?: string | null;
+    external_ad_name?: string | null;
+    raw_payload?: Record<string, any> | null;
 };

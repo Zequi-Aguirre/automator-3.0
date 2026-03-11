@@ -124,17 +124,59 @@ export default class CampaignDAO {
     }
 
     /**
+     * TICKET-047: Get campaign by external campaign ID within a source
+     * Used for matching campaigns from external platforms (Facebook, Google, etc.)
+     */
+    async getByExternalId(sourceId: string, externalCampaignId: string, platform: string): Promise<Campaign | null> {
+        const query = `
+            SELECT *
+            FROM campaigns
+            WHERE source_id = $[sourceId]
+                AND external_campaign_id = $[externalCampaignId]
+                AND platform = $[platform]
+                AND deleted IS NULL
+            LIMIT 1;
+        `;
+
+        return await this.db.oneOrNone<Campaign>(query, { sourceId, externalCampaignId, platform });
+    }
+
+    /**
      * Create new campaign
-     * Updated from insertCampaign to use source_id
+     * TICKET-047: Updated to support external platform tracking
      */
     async create(data: CampaignCreateDTO): Promise<Campaign> {
         const query = `
-            INSERT INTO campaigns (source_id, name, blacklisted, rating)
-            VALUES ($[source_id], $[name], COALESCE($[blacklisted], false), COALESCE($[rating], 0))
+            INSERT INTO campaigns (
+                source_id, name, blacklisted, rating,
+                platform, external_campaign_id, external_campaign_name,
+                external_form_id, external_adset_id, external_adset_name
+            )
+            VALUES (
+                $[source_id], $[name],
+                COALESCE($[blacklisted], false),
+                COALESCE($[rating], 3),
+                $[platform], $[external_campaign_id], $[external_campaign_name],
+                $[external_form_id], $[external_adset_id], $[external_adset_name]
+            )
             RETURNING *;
         `;
 
-        return await this.db.one<Campaign>(query, data);
+        // Ensure all fields exist (set to null if not provided)
+        const params = {
+            source_id: data.source_id,
+            name: data.name,
+            blacklisted: data.blacklisted,
+            rating: data.rating,
+            platform: data.platform ?? null,
+            external_campaign_id: data.external_campaign_id ?? null,
+            external_campaign_name: data.external_campaign_name ?? null,
+            external_form_id: data.external_form_id ?? null,
+            external_adset_id: data.external_adset_id ?? null,
+            external_adset_name: data.external_adset_name ?? null
+        };
+
+        return await this.db.one<Campaign>(query, params);
     }
 
     /**
@@ -248,6 +290,62 @@ export default class CampaignDAO {
             name,
             blacklisted: false,
             rating: 3  // Default rating (CHECK constraint requires 1-5)
+        });
+    }
+
+    /**
+     * TICKET-047: Get or create campaign with external platform tracking
+     * Tries to match by external_campaign_id first, falls back to name matching
+     *
+     * @param sourceId - Source ID
+     * @param campaignData - External campaign data from platform
+     * @param name - Internal campaign name (fallback if no external_campaign_id)
+     * @returns Existing or newly created campaign
+     */
+    async getOrCreateByExternal(
+        sourceId: string,
+        campaignData: {
+            platform?: string;
+            external_campaign_id?: string;
+            external_campaign_name?: string;
+            external_form_id?: string;
+            external_adset_id?: string;
+            external_adset_name?: string;
+        },
+        name: string
+    ): Promise<Campaign> {
+        // If external_campaign_id provided, try to match by that
+        if (campaignData.external_campaign_id && campaignData.platform) {
+            const existingByExternal = await this.getByExternalId(
+                sourceId,
+                campaignData.external_campaign_id,
+                campaignData.platform
+            );
+
+            if (existingByExternal) {
+                return existingByExternal;
+            }
+        }
+
+        // Fall back to name-based matching
+        const existingByName = await this.getByName(sourceId, name);
+
+        if (existingByName) {
+            return existingByName;
+        }
+
+        // Create new campaign with all external data
+        return await this.create({
+            source_id: sourceId,
+            name,
+            blacklisted: false,
+            rating: 3,
+            platform: campaignData.platform,
+            external_campaign_id: campaignData.external_campaign_id,
+            external_campaign_name: campaignData.external_campaign_name,
+            external_form_id: campaignData.external_form_id,
+            external_adset_id: campaignData.external_adset_id,
+            external_adset_name: campaignData.external_adset_name
         });
     }
 }

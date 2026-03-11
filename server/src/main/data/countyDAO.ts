@@ -17,14 +17,16 @@ export default class CountyDAO {
         state: string;
         population?: number | null;
         timezone?: string | null;
+        zip_codes?: string[] | null; // TICKET-047: ZIP codes array
     }): Promise<County> {
         const query = `
-            INSERT INTO counties (name, state, population, timezone)
+            INSERT INTO counties (name, state, population, timezone, zip_codes)
             VALUES (
                        INITCAP(LOWER($[name])),
                        $[state],
                        $[population],
-                       $[timezone]
+                       $[timezone],
+                       $[zip_codes]
                    )
                 RETURNING *;
         `;
@@ -109,7 +111,7 @@ export default class CountyDAO {
 
     async updateCounty(
         id: string,
-        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted">>
+        updates: Partial<Pick<County, "name" | "state" | "population" | "timezone" | "blacklisted" | "whitelisted" | "zip_codes">>
     ): Promise<County> {
         const fields: string[] = [];
 
@@ -137,6 +139,11 @@ export default class CountyDAO {
             fields.push("whitelisted = $[whitelisted]");
         }
 
+        // TICKET-047: Support zip_codes updates
+        if (updates.zip_codes !== undefined) {
+            fields.push("zip_codes = $[zip_codes]");
+        }
+
         if (fields.length === 0) {
             throw new Error("No valid county fields provided for update");
         }
@@ -162,5 +169,25 @@ export default class CountyDAO {
             WHERE id IN ($[ids:csv]) AND deleted IS NULL;
         `;
         return this.db.any<County>(query, { ids });
+    }
+
+    /**
+     * TICKET-047: Lookup county by zip code
+     * Uses the zip_codes array for deterministic county lookup
+     *
+     * @param zipCode - 5-digit zip code
+     * @returns County if found, null otherwise
+     */
+    async getByZipCode(zipCode: string): Promise<County | null> {
+        const query = `
+            SELECT *
+            FROM counties
+            WHERE deleted IS NULL
+                AND zip_codes IS NOT NULL
+                AND $[zipCode] = ANY(zip_codes)
+            LIMIT 1;
+        `;
+
+        return await this.db.oneOrNone<County>(query, { zipCode });
     }
 }

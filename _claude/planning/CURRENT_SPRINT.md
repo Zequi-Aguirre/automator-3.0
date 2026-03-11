@@ -1,27 +1,126 @@
-# Current Work: QA Session Follow-up
+# Current Work: External Campaign Tracking
 
-**Latest Completed:** TICKET-QA-012 - Drag-and-Drop Buyer Priority Reordering
-**Date:** 2026-03-02
-**Status:** ✅ COMPLETE - PR #30 Ready for Review
-**Branch:** `feature/ticket-qa-012-drag-drop-priority`
-**Ticket:** TICKET-QA-012 (from QA_SESSION_2026-03-02.md)
-**PR:** #30
+**Latest Completed:** TICKET-047 - External Campaign Tracking & ZIP Code County Lookup
+**Date:** 2026-03-03
+**Status:** ✅ COMPLETE - PR #32 Ready for Review
+**Branch:** `feature/ticket-047-external-campaign-tracking`
+**PR:** #32 (24 commits)
 
 ---
 
-## TICKET-QA-012 Summary
+## TICKET-047: External Campaign Tracking Summary
+
+Facebook Lead Ads integration with external platform metadata tracking and deterministic county lookup by ZIP code.
+
+### Implementation ✅ Complete
+
+**Effort:** ~8 hours (development + comprehensive curl testing)
+
+**Core Features:**
+- ✅ External platform tracking (Facebook, Google, TikTok, etc.)
+- ✅ ZIP code → county lookup (40,000+ ZIPs across 3,064 counties)
+- ✅ JSONB raw payload storage for audit trail
+- ✅ Structured payload format with backwards compatibility
+- ✅ County details page with ZIP code management UI
+- ✅ Duplicate prevention via unique constraints
+
+**Database Changes:**
+- Added external tracking columns to `campaigns` table (platform, external_campaign_id, external_campaign_name, external_form_id, external_adset_id, external_adset_name)
+- Added external tracking columns to `leads` table (external_lead_id, external_ad_id, external_ad_name, raw_payload JSONB)
+- Added `zip_codes TEXT[]` to `counties` table
+- Unique constraints on (source_id, external_campaign_id, platform) and (source_id, external_lead_id)
+- GIN indexes for JSONB and array searching
+
+**API Changes:**
+- Lead intake endpoint supports new structured format: `{lead, campaign, metadata, raw_payload}`
+- County lookup by ZIP (deterministic, no fuzzy matching needed)
+- Campaign auto-creation with external tracking
+- Legacy flat format still supported (backwards compatible)
+
+**Files Changed:** 40+ files
+- Backend: 15 files (migrations, DAOs, services, resources, types)
+- Frontend: 5 files (types, services, views, components)
+- Scripts: 4 files (ZIP population, cleaning)
+- Data: allCounties.csv updated with 40,000+ ZIP codes
+
+**Testing:** Comprehensive curl-based API testing (22 tests across 6 phases)
+- ✅ Authentication & session management
+- ✅ Sources API (list, details, token refresh)
+- ✅ Campaigns API (CRUD with external tracking)
+- ✅ Counties API (ZIP codes, details page)
+- ✅ Lead Intake API (structured format, county lookup, duplicates, legacy format)
+- ✅ Database verification
+
+**Bugs Found & Fixed During Testing (5):**
+1. CampaignDAO.create - Missing default null values for optional external fields
+2. CampaignResource POST - Not extracting external fields from request body
+3. LeadDAO.createLeads - Missing default null values for optional external fields
+4. LeadService.importLeadsFromApi - Not passing external fields through to DAO
+5. Campaign default rating - Changed from 0 to 3
+
+**Key Decisions:**
+1. **ZIP Codes Storage:** TEXT[] array in PostgreSQL (fast lookups with GIN index)
+2. **Raw Payload:** JSONB column for complete webhook payload storage
+3. **Duplicate Prevention:** Unique constraints on external IDs (per source)
+4. **County Lookup:** ZIP code array lookup (no fuzzy matching needed)
+5. **Backwards Compatibility:** Support both structured and legacy flat formats
+
+**Test Results:**
+- Created 3 test campaigns (with and without external tracking)
+- Created 3 test leads with full external metadata
+- Verified county assignments via ZIP lookup (33010 → Miami-Dade, 33301 → Broward)
+- Verified raw_payload JSONB storage
+- Verified duplicate external_lead_id rejection
+
+---
+
+## Previous: TICKET-QA-001 & QA-002 - Navbar Cleanup (Quick Wins)
+**Date:** 2026-03-02
+**Status:** ✅ MERGED - PR #31
+**Branch:** `feature/qa-001-002-navbar-cleanup`
+**PR:** #31 (2 commits)
+
+---
+
+## TICKET-QA-001 & QA-002 Summary
+
+Two navbar cleanup tasks completed in separate commits.
+
+### TICKET-QA-002: Remove Affiliates from Navbar ⚡
+**Effort:** ~30 minutes
+
+- ✅ Removed "Affiliates" from navbar array
+- ✅ Removed affiliate routes from AdminRoutes
+- ✅ Removed affiliate view imports
+- ✅ Database table kept for historical data
+
+### TICKET-QA-001: Nest Campaigns in Sources
+**Effort:** ~2-3 hours
+
+- ✅ Removed "Campaigns" from navbar
+- ✅ Added Campaign icon button (📋) to each source row
+- ✅ Button navigates to `/a/campaigns?source_id=xxx`
+- ✅ Campaigns route kept accessible (not in navbar)
+- ✅ Achieves "nesting" from UX perspective
+
+**Files Changed:** 3 files, 22 insertions, 18 deletions
+
+---
+
+## Previous: TICKET-QA-012 - Drag-and-Drop Priority ✅ MERGED
+
+**Date:** 2026-03-02
+**Status:** ✅ MERGED to develop (PR #30)
 
 Implemented drag-and-drop interface for reordering buyer priorities with smart backend calculation.
 
 **Key Features:**
 - ✅ Drag-and-drop with @dnd-kit library
-- ✅ Drag handle (⋮⋮) next to priority in buyers table
 - ✅ Pagination-friendly (backend calculates shifts)
 - ✅ Two-pass UPDATE strategy to avoid UNIQUE constraint violations
 - ✅ Works in both drag-and-drop and manual edit scenarios
-- ✅ No more "priority already in use" errors
 
-**Files Changed:** 9 files, 619 insertions, 90 deletions
+**Files Changed:** 8 files, 634 insertions, 92 deletions
 
 ---
 

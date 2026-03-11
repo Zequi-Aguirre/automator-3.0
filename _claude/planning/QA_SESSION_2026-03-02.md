@@ -11,38 +11,51 @@
 
 ### Navigation & Structure
 
-#### TICKET-QA-001: Remove Campaigns from Navbar - Nest in Sources
+#### TICKET-QA-001: Remove Campaigns from Navbar - Nest in Sources ✅
 **Priority:** High
 **Effort:** 2-3 hours
+**Status:** Complete
+**PR:** #31 (commit 2)
+**Branch:** feature/qa-001-002-navbar-cleanup
 
 **Current:** Campaigns has its own navbar item
 **Desired:** Campaigns should be nested inside Source details page
 
 **Implementation:**
-- Remove "Campaigns" from navbar
-- Add Campaigns section to Source details view (expandable table or tab)
-- Show campaign count badge on each source row
-- Click source → see source details + campaigns list
-- Can create/edit campaigns from within source view
+- [x] Remove "Campaigns" from navbar
+- [x] Add Campaign button to each source row
+- [x] Button navigates to campaigns page filtered by source
+- [x] Campaigns route kept accessible (not removed)
+- [ ] Campaign count badge (future enhancement)
+- [ ] Full source details view with embedded campaigns table (future enhancement)
+
+**Actual Implementation:**
+- Added Campaign icon button (📋) to Sources table actions
+- Navigates to `/a/campaigns?source_id=xxx`
+- Campaigns page auto-filters by source
+- Simpler than full details view, achieves main goal
 
 **Files:**
 - `client/src/components/navBar/NavBar.tsx`
-- `client/src/components/admin/adminSourcesSection/SourceDetailsView.tsx` (new)
-- `client/src/context/routes/AdminRoutes.tsx`
+- `client/src/components/admin/adminSourcesSection/AdminSourcesSection.tsx`
 
 ---
 
-#### TICKET-QA-002: Remove Affiliates from Navbar
+#### TICKET-QA-002: Remove Affiliates from Navbar ✅
 **Priority:** High
 **Effort:** 30 minutes
+**Status:** Complete
+**PR:** #31 (commit 1)
+**Branch:** feature/qa-001-002-navbar-cleanup
 
 **Current:** Affiliates still in navbar (deprecated)
 **Desired:** No affiliates UI - replaced by Sources
 
 **Implementation:**
-- Remove "Affiliates" menu item from navbar
-- Remove affiliate route if it exists
-- Affiliates table in database remains for historical data
+- [x] Remove "Affiliates" menu item from navbar
+- [x] Remove affiliate routes from AdminRoutes
+- [x] Remove affiliate view imports
+- [x] Affiliates table in database remains for historical data
 
 **Files:**
 - `client/src/components/navBar/NavBar.tsx`
@@ -633,14 +646,14 @@ npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
 ## 📊 QA Session Summary
 
 **Total New Tickets:** 12
-**Completed:** 1 ticket (QA-012)
-**High Priority:** 6 tickets
+**Completed:** 3 tickets (QA-001, QA-002, QA-012) ✅
+**High Priority:** 6 tickets (2 complete)
 **Medium Priority:** 4 tickets (1 complete)
 **Future/TBD:** 2 tickets
 
-**Immediate Action Items:**
-1. TICKET-QA-001: Remove Campaigns from navbar ✅ Quick win
-2. TICKET-QA-002: Remove Affiliates from navbar ✅ Quick win
+**Completed Quick Wins:** ✅
+1. TICKET-QA-001: Remove Campaigns from navbar ✅ Complete (PR #31)
+2. TICKET-QA-002: Remove Affiliates from navbar ✅ Complete (PR #31)
 3. TICKET-QA-003: County-Buyer filtering 🔴 Complex, high value
 4. TICKET-QA-005: Needs Review status 🔴 Complex, high value
 5. TICKET-QA-008: Buyer active/inactive 🔴 Important for ops

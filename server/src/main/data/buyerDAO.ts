@@ -3,44 +3,13 @@ import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
 import { Buyer, BuyerCreateDTO, BuyerUpdateDTO, BuyerTimingUpdate, BuyerFilters, BuyerAuthConfig } from "../types/buyerTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import crypto from 'crypto';
-import { EnvConfig } from "../config/envConfig";
 
 @injectable()
 export default class BuyerDAO {
     private readonly db: IDatabase<IClient>;
-    private readonly encryptionKey: Buffer;
-    private readonly algorithm = 'aes-256-cbc';
 
-    constructor(db: DBContainer, envConfig: EnvConfig) {
+    constructor(db: DBContainer) {
         this.db = db.database();
-        // Convert hex key to buffer for crypto operations
-        this.encryptionKey = Buffer.from(envConfig.buyerAuthEncryptionKey, 'hex');
-    }
-
-    /**
-     * Encrypt auth token using AES-256-CBC
-     */
-    private encryptToken(token: string): string {
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv(this.algorithm, this.encryptionKey, iv);
-        let encrypted = cipher.update(token, 'utf8', 'hex');
-        encrypted += cipher.final('hex');
-        // Return IV + encrypted data (IV needed for decryption)
-        return iv.toString('hex') + ':' + encrypted;
-    }
-
-    /**
-     * Decrypt auth token
-     */
-    private decryptToken(encryptedToken: string): string {
-        const parts = encryptedToken.split(':');
-        const iv = Buffer.from(parts[0], 'hex');
-        const encrypted = parts[1];
-        const decipher = crypto.createDecipheriv(this.algorithm, this.encryptionKey, iv);
-        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        return decrypted;
     }
 
     /**
@@ -164,10 +133,7 @@ export default class BuyerDAO {
      * Create new buyer
      */
     async create(dto: BuyerCreateDTO): Promise<Buyer> {
-        // Encrypt auth token if provided
-        const authTokenEncrypted = dto.auth_token
-            ? this.encryptToken(dto.auth_token)
-            : null;
+        const authTokenEncrypted = dto.auth_token ?? null;
 
         const query = `
             INSERT INTO buyers (
@@ -245,9 +211,8 @@ export default class BuyerDAO {
             throw new Error("Buyer not found");
         }
 
-        // Encrypt auth token if provided
         const authTokenEncrypted = dto.auth_token !== undefined
-            ? (dto.auth_token ? this.encryptToken(dto.auth_token) : null)
+            ? (dto.auth_token ?? null)
             : existing.auth_token_encrypted;
 
         const query = `
@@ -371,9 +336,7 @@ export default class BuyerDAO {
         return {
             auth_header_name: buyer.auth_header_name,
             auth_header_prefix: buyer.auth_header_prefix,
-            auth_token_decrypted: buyer.auth_token_encrypted
-                ? this.decryptToken(buyer.auth_token_encrypted)
-                : null
+            auth_token_decrypted: buyer.auth_token_encrypted ?? null
         };
     }
 

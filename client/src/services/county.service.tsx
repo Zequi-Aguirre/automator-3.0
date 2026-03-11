@@ -9,6 +9,11 @@ class CountyService {
         return res.data;
     }
 
+    async getById(id: string): Promise<County> {
+        const res = await this.api.getApi().get(`/api/counties/admin/${id}`);
+        return res.data;
+    }
+
     async getMany(filters: {
         page: number;
         limit: number;
@@ -27,6 +32,14 @@ class CountyService {
         const res = await this.api.getApi().patch(
             `/api/counties/admin/blacklist/${id}`,
             { blacklisted: value }
+        );
+        return res.data;
+    }
+
+    async update(id: string, updates: Partial<County>): Promise<County> {
+        const res = await this.api.getApi().patch(
+            `/api/counties/admin/${id}`,
+            updates
         );
         return res.data;
     }

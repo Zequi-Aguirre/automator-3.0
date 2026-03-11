@@ -33,6 +33,43 @@ export default class CountyResource {
             res.status(200).send(result);
         });
 
+        // TICKET-047: Get county by ID
+        this.router.get("/admin/:countyId", async (req: Request, res: Response) => {
+            try {
+                const { countyId } = req.params;
+                const county = await this.countyService.getById(countyId);
+
+                if (!county) {
+                    return res.status(404).send({ message: "County not found" });
+                }
+
+                res.status(200).send(county);
+            } catch (error) {
+                console.error("Error fetching county:", error);
+                res.status(500).send({
+                    message: "Failed to fetch county",
+                    error: error instanceof Error ? error.message : "Unknown error"
+                });
+            }
+        });
+
+        // TICKET-047: Update county (including zip_codes)
+        this.router.patch("/admin/:countyId", async (req: Request, res: Response) => {
+            try {
+                const { countyId } = req.params;
+                const updates = req.body;
+
+                const updated = await this.countyService.updateCounty(countyId, updates);
+                res.status(200).send(updated);
+            } catch (error) {
+                console.error("Error updating county:", error);
+                res.status(500).send({
+                    message: "Failed to update county",
+                    error: error instanceof Error ? error.message : "Unknown error"
+                });
+            }
+        });
+
         this.router.patch("/admin/blacklist/:countyId", async (req: Request, res: Response) => {
             const { countyId } = req.params;
             const { blacklisted } = req.body;

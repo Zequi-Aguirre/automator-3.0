@@ -5,6 +5,7 @@ export type ParsedCountyRow = {
     state: string;
     population: number | null;
     timezone: string | null;
+    zip_codes: string[] | null; // TICKET-047: ZIP codes for county lookup
 };
 
 export function parseCsvToCounties(csv: string): ParsedCountyRow[] {
@@ -25,6 +26,7 @@ export function parseCsvToCounties(csv: string): ParsedCountyRow[] {
         const state = clean(raw.state || raw.State);
         const populationStr = clean(raw.population || raw.Population);
         const timezone = clean(raw.timezone || raw.Timezone);
+        const zipCodesStr = clean(raw.zip_codes || raw.Zip_Codes || raw['zip codes']);
 
         // Must have these two
         if (!name || !state) {
@@ -37,11 +39,17 @@ export function parseCsvToCounties(csv: string): ParsedCountyRow[] {
                 ? Number(populationStr)
                 : null;
 
+        // Parse ZIP codes (pipe-separated in CSV)
+        const zip_codes = zipCodesStr
+            ? zipCodesStr.split('|').map(z => z.trim()).filter(z => z.length > 0)
+            : null;
+
         rows.push({
             name,
             state,
             population,
-            timezone: timezone || null
+            timezone: timezone || null,
+            zip_codes
         });
     }
 

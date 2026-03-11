@@ -6,4 +6,5 @@ export type County = {
     timezone: string;
     blacklisted: boolean;
     whitelisted: boolean;
+    zip_codes: string[] | null; // TICKET-047: ZIP codes for county lookup
 }
