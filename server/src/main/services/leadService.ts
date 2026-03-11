@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import LeadDAO from "../data/leadDAO";
-import { ApiLeadPayload, Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
-import { parseCsvToLeads, splitName, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
+import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
+import { parseCsvToLeads, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
 import CountyService from "../services/countyService.ts";
 import SourceService from "../services/sourceService.ts";
 import CampaignService from "../services/campaignService.ts";
@@ -292,58 +292,36 @@ export default class LeadService {
      * TICKET-046: Updated to accept source_id and campaign_id
      */
     async importLeadsFromApi(
-        payloads: ApiLeadPayload[],
+        payloads: parsedLeadFromCSV[],
         source_id?: string,
         campaign_id?: string
     ) {
-        const leads: parsedLeadFromCSV[] = payloads.map(p => {
-            // TICKET-046: Support both formats: first_name/last_name OR combined name
-            let first_name: string;
-            let last_name: string;
-
-            if (p.first_name || p.last_name) {
-                // Use provided first_name/last_name if available
-                first_name = p.first_name || "";
-                last_name = p.last_name || "";
-            } else {
-                // Fall back to splitting combined name field
-                const split = splitName(p.name || "");
-                first_name = split.first_name;
-                last_name = split.last_name;
-            }
-
-            const phone = cleanPhone(p.phone || "");
-            const email = (p.email || "").toLowerCase();
-
-            return {
-                name: `${first_name} ${last_name}`.trim(),
-                first_name,
-                last_name,
-                phone,
-                email,
-                address: p.address || "",
-                city: p.city || "",
-                state: cleanState(p.state || ""),
-                zipcode: p.zipcode || p.zip_code || "",  // Support both zipcode and zip_code
-                county: p.county || "",
-                county_id: undefined,
-                private_notes: p.private_notes || null,
-                investor_id: null,
-                source_id: source_id || null,  // TICKET-046: Associate with source
-                campaign_id: campaign_id || null,  // TICKET-046: Associate with campaign
-                // TICKET-047: External tracking fields
-                external_lead_id: p.external_lead_id || null,
-                external_ad_id: p.external_ad_id || null,
-                external_ad_name: p.external_ad_name || null,
-                raw_payload: p.raw_payload || null
-            };
-        });
+        const leads: parsedLeadFromCSV[] = payloads.map(p => ({
+            name: `${p.first_name} ${p.last_name}`.trim(),
+            first_name: p.first_name,
+            last_name: p.last_name,
+            phone: cleanPhone(p.phone || ""),
+            email: (p.email || "").toLowerCase(),
+            address: p.address || "",
+            city: p.city || "",
+            state: cleanState(p.state || ""),
+            zipcode: p.zipcode || "",
+            county: p.county || "",
+            county_id: undefined,
+            private_notes: p.private_notes || null,
+            investor_id: null,
+            source_id: source_id || null,
+            campaign_id: campaign_id || null,
+            external_lead_id: p.external_lead_id || null,
+            external_ad_id: p.external_ad_id || null,
+            external_ad_name: p.external_ad_name || null,
+            raw_payload: p.raw_payload || null
+        }));
 
         // Match leads to existing counties using fuzzy matching (no auto-create)
         const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
         const resolvedLeads: parsedLeadFromCSV[] = [];
-        const resolvedPayloads: ApiLeadPayload[] = [];
         const errors: string[] = [];
 
         for (let i = 0; i < leads.length; i++) {
@@ -359,7 +337,6 @@ export default class LeadService {
             lead.county_id = county.id;
             lead.county = county.name; // Use standardized county name
             resolvedLeads.push(lead);
-            resolvedPayloads.push(payloads[i]);
         }
 
         if (resolvedLeads.length === 0) {
@@ -376,13 +353,12 @@ export default class LeadService {
         for (let i = 0; i < insertResults.length; i++) {
             const result = insertResults[i];
             if (result.success && result.lead) {
-                const originalPayload = resolvedPayloads[i];
                 try {
                     await this.leadFormInputDAO.create({
                         lead_id: result.lead.id,
-                        form_sell_fast: originalPayload.sell_timeline || null,
-                        form_repairs: originalPayload.repairs_needed || null,
-                        form_goal: originalPayload.sell_motivation || null,
+                        form_sell_fast: null,
+                        form_repairs: null,
+                        form_goal: null,
                     });
                 } catch (e) {
                     errors.push(

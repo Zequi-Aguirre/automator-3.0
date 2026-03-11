@@ -95,28 +95,23 @@ export type ExternalLeadMetadata = {
 
 /**
  * ApiLeadPayload - Lead data from API intake
- * TICKET-047: Updated to support new structured format with external tracking
- *
- * Supports two formats:
- * 1. NEW (preferred): Structured with lead/campaign/metadata/raw_payload
- * 2. LEGACY: Flat structure with campaign_name (backwards compatible)
  */
 export type ApiLeadPayload = {
-    // NEW FORMAT: Structured lead data
-    lead?: {
+    lead: {
         first_name: string;
         last_name: string;
-        email: string;
-        phone: string;
+        email?: string;
+        phone?: string;
         address: string;
         city: string;
         state: string;
         zip: string;
-        county?: string;  // Optional - can be looked up by zip
+        county?: string;  // Optional - looked up by zip if not provided
+        private_notes?: string;
     };
     campaign?: {
-        platform: string;  // 'fb', 'google', 'tiktok', etc.
-        external_campaign_id: string;
+        platform?: string;  // 'fb', 'google', 'tiktok', etc.
+        external_campaign_id?: string;
         external_campaign_name?: string;
         external_form_id?: string;
         external_adset_id?: string;
@@ -124,25 +119,6 @@ export type ApiLeadPayload = {
     };
     metadata?: ExternalLeadMetadata;
     raw_payload?: Record<string, any>;
-
-    // LEGACY FORMAT: Flat structure (backwards compatible)
-    campaign_name?: string;
-    name?: string;
-    email?: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    zip_code?: string;
-    county?: string;
-    private_notes?: string;
-    sell_timeline?: string;
-    repairs_needed?: string;
-    sell_motivation?: string;
-
-    // Allow additional fields
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
 };
 
 export type parsedLeadFromCSV = {
