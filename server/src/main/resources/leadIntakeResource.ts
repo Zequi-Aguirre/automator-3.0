@@ -113,7 +113,8 @@ export default class LeadIntakeResource {
                                 county_id: countyId,
                                 external_lead_id: metadata?.external_lead_id,
                                 external_ad_id: metadata?.external_ad_id,
-                                external_ad_name: metadata?.external_ad_name
+                                external_ad_name: metadata?.external_ad_name,
+                                private_notes: lead.private_note
                             },
                             campaignKey,
                             campaignData: campaign || {},
