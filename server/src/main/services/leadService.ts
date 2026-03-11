@@ -37,7 +37,6 @@ export default class LeadService {
     private async ensureCsvSource(): Promise<{ sourceId: string; campaignId: string }> {
         const CSV_SOURCE_NAME = "CSV_IMPORT";
         const CSV_CAMPAIGN_NAME = "Default CSV Campaign";
-        const CSV_EMAIL = "csv@import.internal";
 
         // Check if CSV_IMPORT source exists
         const sources = await this.sourceService.getAll({ page: 1, limit: 100 });
@@ -45,10 +44,7 @@ export default class LeadService {
 
         // Create if doesn't exist
         if (!csvSource) {
-            csvSource = await this.sourceService.create({
-                name: CSV_SOURCE_NAME,
-                email: CSV_EMAIL
-            });
+            csvSource = await this.sourceService.create({ name: CSV_SOURCE_NAME });
             console.info('Created CSV_IMPORT source', { id: csvSource.id });
         }
 

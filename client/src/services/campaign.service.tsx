@@ -1,23 +1,20 @@
 import { authProvider, AxiosProvider } from "../config/axiosProvider";
 import { Campaign, CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
-import { Affiliate } from "../types/affiliateTypes.ts";
+import { Source } from "../types/sourceTypes";
+import { LeadManager } from "../types/leadManagerTypes";
 
 class CampaignService {
     constructor(private readonly api: AxiosProvider) {}
+
     async getMany(filters: {
         page: number,
         limit: number
-    }): Promise<{ campaigns: Campaign[]; count: number; affiliates: Affiliate[] }> {
+    }): Promise<{ campaigns: Campaign[]; count: number; sources: Source[]; managers: LeadManager[] }> {
         const response = await this.api.getApi().get(
             '/api/campaigns/admin/get-many',
             { params: filters }
         );
         return response.data;
-    }
-
-    async getByAffiliateId(affiliateId: string): Promise<{ campaigns: Campaign[] }> {
-        const res = await this.api.getApi().get(`/api/campaigns/admin/get-by-affiliate/${affiliateId}`);
-        return res.data;
     }
 
     async getBySource(sourceId: string): Promise<{ campaigns: Campaign[] }> {

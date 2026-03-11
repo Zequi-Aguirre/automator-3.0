@@ -61,7 +61,7 @@ const AdminSourceDetailsView = () => {
 
     // Edit source dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [editFormData, setEditFormData] = useState({ name: '', email: '' });
+    const [editFormData, setEditFormData] = useState({ name: '' });
 
     const [snack, setSnack] = useState({
         open: false,
@@ -146,10 +146,7 @@ const AdminSourceDetailsView = () => {
 
     const handleOpenEditDialog = () => {
         if (source) {
-            setEditFormData({
-                name: source.name,
-                email: source.email
-            });
+            setEditFormData({ name: source.name });
             setEditDialogOpen(true);
         }
     };
@@ -280,10 +277,6 @@ const AdminSourceDetailsView = () => {
                 {/* Source Info */}
                 <Paper sx={{ p: 3, mb: 3 }}>
                     <Stack spacing={2}>
-                        <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Email</Typography>
-                            <Typography variant="body1">{source.email}</Typography>
-                        </Box>
                         <Box>
                             <Typography variant="subtitle2" color="text.secondary">Created</Typography>
                             <Typography variant="body1">
@@ -487,14 +480,6 @@ const AdminSourceDetailsView = () => {
                             label="Name"
                             value={editFormData.name}
                             onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                            required
-                            fullWidth
-                        />
-                        <TextField
-                            label="Email"
-                            type="email"
-                            value={editFormData.email}
-                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                             required
                             fullWidth
                         />

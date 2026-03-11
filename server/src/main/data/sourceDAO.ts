@@ -83,7 +83,7 @@ export default class SourceDAO {
         }
 
         if (search) {
-            whereClauses.push(`(name ILIKE '%' || $/search/ || '%' OR email ILIKE '%' || $/search/ || '%')`);
+            whereClauses.push(`name ILIKE '%' || $/search/ || '%'`);
         }
 
         const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
@@ -119,8 +119,8 @@ export default class SourceDAO {
      */
     async create(data: SourceCreateDTO & { token: string }): Promise<Source> {
         const query = `
-            INSERT INTO sources (name, email, token)
-            VALUES ($[name], $[email], $[token])
+            INSERT INTO sources (name, token)
+            VALUES ($[name], $[token])
             RETURNING *;
         `;
 
@@ -142,7 +142,6 @@ export default class SourceDAO {
             UPDATE sources
             SET
                 name = $[name],
-                email = $[email],
                 token = $[token],
                 modified = NOW()
             WHERE id = $[id]
@@ -154,7 +153,6 @@ export default class SourceDAO {
         const updateData = {
             id,
             name: 'name' in data ? data.name : existing.name,
-            email: 'email' in data ? data.email : existing.email,
             token: 'token' in data ? data.token : existing.token
         };
 
