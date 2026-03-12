@@ -45,11 +45,6 @@ export class Authenticator {
                 return res.status(401)
             }
 
-            // TODO nice to have check if the used is in watchlist and record activity or something
-            if (req.path.includes("admin") && (user!.role !== 'admin' && user!.role !== 'superadmin')) {
-                console.warn("Non-admin attempted to hit admin API");
-                return res.sendStatus(403)
-            } 
             req.user = user!;
             next();
         } catch (error) {

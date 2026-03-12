@@ -619,57 +619,50 @@ JobResource
 ## 🧩 userResource.ts
 
 ### **Purpose**
-The `UserResource` defines endpoints for retrieving authenticated user data.  
-It acts as a simple interface to fetch profile details of the current session user.
+The `UserResource` manages user identity, role management, and permission assignment. Updated in TICKET-054 to support the full roles + permissions system.
 
 ---
 
 ### **Routes Overview**
-| HTTP Method | Endpoint | Description | Underlying Service Method |
-|--------------|-----------|-------------|-----------------------------|
-| `GET` | `/info` | Retrieves user information for the authenticated account. | `userService.getUserById()` |
+| HTTP Method | Endpoint | Permission Required | Description |
+|--------------|-----------|---------------------|-------------|
+| `GET` | `/info` | (authenticated) | Returns current user with their permissions array |
+| `GET` | `/admin/users` | `users.manage` | Lists all non-deleted users with their permissions |
+| `PATCH` | `/admin/users/:id/role` | `users.manage` | Updates a user's role; resets permissions to role defaults; logs `UserAction.ROLE_CHANGED` |
+| `PUT` | `/admin/users/:id/permissions` | `users.manage` | Fully replaces a user's permissions (superadmin only in practice); logs `UserAction.PERMISSIONS_CHANGED` |
+| `GET` | `/admin/permissions` | `users.manage` | Returns all available permissions grouped by entity (for the UI checkbox dialog) |
 
 ---
 
 ### **Authentication & Security**
-✅ Secured globally through `Authenticator.authenticateFunc()` middleware.  
-✅ Requires valid session or API key (middleware populates `req.user`).  
-⚙️ Should include null-check on `req.user` to prevent runtime errors.
+✅ All routes secured globally through `Authenticator.authenticateFunc()`.
+✅ Admin routes gated with `requirePermission(UserPermission.MANAGE)`.
+✅ `updateUserRole` prevents touching superadmin rows.
+✅ `setUserPermissions` is restricted to superadmin callers only (checked in service).
 
 ---
 
 ### **Architectural Behavior**
-- Minimal single-route controller for authenticated user data.  
-- Uses dependency injection for `UserService`.  
-- Async/await structure with direct response output.  
-- Relies on global error handling middleware.  
-- No structured logging or guard clauses.  
-
----
-
-### **Improvement Opportunities**
-- Add `try/catch` error handling for safer operation.  
-- Add null-check for `req.user` to handle failed authentication cases.  
-- Implement structured logging for traceability.  
-- Optionally add endpoints for profile update or user listing (admin use).  
-- Plan for role-based permission checks in future expansion.  
+- Injects both `UserService` and `ActivityService` (for audit logging).
+- Role change automatically resets the user's permissions to the new role's defaults.
+- Permission updates are a full replace (delete + insert in a transaction).
+- `GET /info` and login response both include `permissions: string[]` in the user payload.
 
 ---
 
 ### **Cross-Layer Interactions**
 ```
 UserResource
- ├─ UserService (business logic)
- ├─ Authenticator (middleware populating req.user)
- └─ Express Router (HTTP interface)
+ ├─ UserService (role/permission business logic)
+ ├─ ActivityService (audit logging)
+ ├─ requirePermission middleware
+ └─ Express Router
 ```
 
 ---
 
 ### **Verdict**
-✅ **Lightweight and effective controller** for user information retrieval.  
-⚙️ Should include error handling, null safety, and logging for robustness.  
-🧱 Foundational piece in the authentication and access control system.
+✅ Full user management controller with role + permission CRUD and activity auditing.
 
 ---
 

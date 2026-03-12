@@ -2,7 +2,7 @@ import { Box, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/ma
 import {
     ActivityLog, ActivityAction, ACTION_LABELS,
     LeadAction, VerificationAction, WorkerAction, SourceAction,
-    BuyerAction, CampaignAction, LeadManagerAction, CountyAction, AuthAction
+    BuyerAction, CampaignAction, LeadManagerAction, CountyAction, AuthAction, UserAction
 } from "../../../types/activityTypes";
 import { DateTime } from "luxon";
 
@@ -47,6 +47,10 @@ const actionColor = (action: ActivityAction): "default" | "success" | "error" | 
         case VerificationAction.STARTED:
             return 'primary';
 
+        case UserAction.ROLE_CHANGED:
+        case UserAction.PERMISSIONS_CHANGED:
+            return 'warning';
+
         default:
             return 'default';
     }
@@ -85,6 +89,10 @@ const formatDetails = (log: ActivityLog): string | null => {
             return d.name ?? null;
         case CampaignAction.MANAGER_ASSIGNED:
             return d.lead_manager_id ? `manager: ${d.lead_manager_id}` : null;
+        case UserAction.ROLE_CHANGED:
+            return d.new_role ? `→ ${d.new_role}` : null;
+        case UserAction.PERMISSIONS_CHANGED:
+            return d.permissions ? `${(d.permissions as string[]).length} permissions set` : null;
         default:
             return null;
     }

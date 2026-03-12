@@ -4,6 +4,8 @@ import SettingsService from "../services/settingsService";
 import ActivityService from "../services/activityService";
 import { WorkerAction } from "../types/activityTypes";
 import { Worker } from "../worker/Worker";
+import { requirePermission } from '../middleware/requirePermission';
+import { WorkerPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class WorkerResource {
@@ -28,6 +30,7 @@ export default class WorkerResource {
         // Start worker (enable in DB, then initialize cron)
         this.router.patch(
             "/admin/start",
+            requirePermission(WorkerPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
@@ -61,6 +64,7 @@ export default class WorkerResource {
         // Stop worker (disable in DB, stop cron)
         this.router.patch(
             "/admin/stop",
+            requirePermission(WorkerPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();

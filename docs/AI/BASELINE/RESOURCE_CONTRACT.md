@@ -22,5 +22,7 @@ Resources are `@injectable()` classes that own an Express Router.
 - 500: unexpected
 
 ## Auth usage
-- Auth middleware is applied at route mount-time in AutomatorServer (preferred)
-- Per-route admin gating should be explicit (avoid substring path checks)
+- Auth middleware is applied at route mount-time in AutomatorServer (all routes authenticated by default)
+- Per-route authorization uses `requirePermission(permission)` middleware — never check `req.user.role` directly
+- Example: `this.router.patch('/verify/:id', requirePermission(LeadPermission.VERIFY), handler)`
+- 403 is returned automatically by `requirePermission` if the user lacks the permission

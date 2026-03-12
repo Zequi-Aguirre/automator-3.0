@@ -1,6 +1,8 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import LeadService from '../services/leadService';
+import { requirePermission } from '../middleware/requirePermission';
+import { LeadPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class LeadResource {
@@ -86,7 +88,7 @@ export default class LeadResource {
         });
 
         // Verify lead
-        this.router.patch("/verify/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/verify/:leadId", requirePermission(LeadPermission.VERIFY), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const result = await this.leadService.verifyLead(leadId, req.user?.id);
@@ -97,7 +99,7 @@ export default class LeadResource {
         });
 
         // Unverify lead
-        this.router.patch("/unverify/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/unverify/:leadId", requirePermission(LeadPermission.VERIFY), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const result = await this.leadService.unverifyLead(leadId, req.user?.id);
@@ -108,7 +110,7 @@ export default class LeadResource {
         });
 
         // Trash lead with oldDatabase support
-        this.router.patch("/trash/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/trash/:leadId", requirePermission(LeadPermission.TRASH), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const notes = req.body?.notes ?? null;
@@ -128,7 +130,7 @@ export default class LeadResource {
         // ========================================
 
         // Send lead to specific buyer (manual send)
-        this.router.post("/:leadId/send-to-buyer", async (req: Request, res: Response) => {
+        this.router.post("/:leadId/send-to-buyer", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
                 const { buyer_id } = req.body;
@@ -175,7 +177,7 @@ export default class LeadResource {
         });
 
         // Enable worker for lead
-        this.router.post("/:leadId/enable-worker", async (req: Request, res: Response) => {
+        this.router.post("/:leadId/enable-worker", requirePermission(LeadPermission.QUEUE), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
                 const lead = await this.leadService.enableWorker(leadId, req.user?.id);

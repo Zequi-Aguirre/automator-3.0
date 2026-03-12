@@ -98,8 +98,15 @@
 - `email` varchar NOT NULL
 - `encrypted_password` varchar NOT NULL
 - `name` varchar NOT NULL
-- `role` varchar DEFAULT 'user'
+- `role` varchar DEFAULT 'user' — values: `'user'`, `'admin'`, `'superadmin'`
 - `created`, `modified`, `deleted` timestamptz DEFAULT now()
+
+### **user_permissions**
+- `user_id` uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
+- `permission` varchar NOT NULL
+- PRIMARY KEY (`user_id`, `permission`)
+- Stores individual permissions per user (seeded from role defaults on user creation)
+- All permissions checked at runtime via `requirePermission()` middleware — no role inference
 
 ### **vendor_receives**
 - `id` uuid PRIMARY KEY DEFAULT gen_random_uuid()

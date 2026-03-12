@@ -1,4 +1,4 @@
-import { User } from "../types/userTypes";
+import { User, Permission } from "../types/userTypes";
 import { authProvider, AxiosProvider } from "../config/axiosProvider.ts";
 
 class UserService {
@@ -23,6 +23,25 @@ class UserService {
     signOut = (): { message: string } => {
         this.api.removeToken(); // Remove the token from localStorage
         return { message: 'success' };
+    }
+
+    getAllUsers = async (): Promise<User[]> => {
+        const res = await this.api.getApi().get('/api/users/admin/users');
+        return res.data;
+    }
+
+    updateRole = async (userId: string, role: 'user' | 'admin'): Promise<User> => {
+        const res = await this.api.getApi().patch(`/api/users/admin/users/${userId}/role`, { role });
+        return res.data;
+    }
+
+    setPermissions = async (userId: string, permissions: Permission[]): Promise<void> => {
+        await this.api.getApi().put(`/api/users/admin/users/${userId}/permissions`, { permissions });
+    }
+
+    getAvailablePermissions = async (): Promise<Record<string, string[]>> => {
+        const res = await this.api.getApi().get('/api/users/admin/permissions');
+        return res.data;
     }
 }
 

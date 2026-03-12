@@ -2,6 +2,8 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import LeadService from '../services/leadService';
 import multer from 'multer';
+import { requirePermission } from '../middleware/requirePermission';
+import { LeadPermission } from '../types/permissionTypes';
 
 const upload = multer(); // memory storage by default
 
@@ -16,7 +18,7 @@ export default class LeadOpenResource {
 
     private initializeRoutes() {
         // CSV import route
-        this.router.post("/import", upload.single('file'), async (req: Request, res: Response) => {
+        this.router.post("/import", requirePermission(LeadPermission.IMPORT), upload.single('file'), async (req: Request, res: Response) => {
             try {
                 if (!req.file) {
                     return res.status(400).send({ message: "No file uploaded" });

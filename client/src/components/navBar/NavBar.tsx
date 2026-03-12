@@ -17,6 +17,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useContext, useEffect, useMemo, useState } from "react";
 import userService from "../../services/user.service.tsx";
 import DataContext from "../../context/DataContext.tsx";
+import { usePermissions } from "../../hooks/usePermissions";
+import { Permission } from "../../types/userTypes";
 
 const adminPages = [
     "Leads",
@@ -34,6 +36,7 @@ const userPages = ["Leads"];
 
 export default function NavBar() {
     const { setSession, setRole, role, setLoggedInUser } = useContext(DataContext);
+    const { can } = usePermissions();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -44,8 +47,11 @@ export default function NavBar() {
     const [drawerOpen, setDrawerOpen] = useState(false);
 
     const pages = useMemo(() => {
-        return isAdmin ? adminPages : userPages;
-    }, [isAdmin]);
+        if (!isAdmin) return userPages;
+        const base = [...adminPages];
+        if (can(Permission.USERS_MANAGE)) base.push("Users");
+        return base;
+    }, [isAdmin, can]);
 
     const handleNavItemClick = (page: string) => {
         switch (page) {
@@ -79,6 +85,9 @@ export default function NavBar() {
                 break;
             case "Worker Jobs":
                 navigate("/a/worker-jobs");
+                break;
+            case "Users":
+                navigate("/a/users");
                 break;
             case "Logout":
                 userService.signOut();
@@ -130,6 +139,9 @@ export default function NavBar() {
                 break;
             case path.includes("/worker-jobs"):
                 setCurrentPage("Worker Jobs");
+                break;
+            case path.includes("/users"):
+                setCurrentPage("Users");
                 break;
             default:
                 setCurrentPage("");

@@ -1,6 +1,8 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import ActivityService from '../services/activityService';
+import { requirePermission } from '../middleware/requirePermission';
+import { ActivityPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class ActivityResource {
@@ -12,7 +14,7 @@ export default class ActivityResource {
     }
 
     private initializeRoutes() {
-        this.router.get('/recent', async (_req: Request, res: Response) => {
+        this.router.get('/recent', requirePermission(ActivityPermission.VIEW), async (_req: Request, res: Response) => {
             try {
                 const logs = await this.activityService.getRecent();
                 return res.status(200).send({ logs });
@@ -21,7 +23,7 @@ export default class ActivityResource {
             }
         });
 
-        this.router.get('/stats', async (req: Request, res: Response) => {
+        this.router.get('/stats', requirePermission(ActivityPermission.VIEW), async (req: Request, res: Response) => {
             try {
                 const days = req.query.days ? Number(req.query.days) : undefined;
                 const stats = await this.activityService.getUserStats(days);
@@ -31,7 +33,7 @@ export default class ActivityResource {
             }
         });
 
-        this.router.get('/lead/:leadId', async (req: Request, res: Response) => {
+        this.router.get('/lead/:leadId', requirePermission(ActivityPermission.VIEW), async (req: Request, res: Response) => {
             try {
                 const logs = await this.activityService.getByLead(req.params.leadId);
                 return res.status(200).send({ logs });
@@ -40,7 +42,7 @@ export default class ActivityResource {
             }
         });
 
-        this.router.get('/user/:userId', async (req: Request, res: Response) => {
+        this.router.get('/user/:userId', requirePermission(ActivityPermission.VIEW), async (req: Request, res: Response) => {
             try {
                 const logs = await this.activityService.getByUser(req.params.userId);
                 return res.status(200).send({ logs });
