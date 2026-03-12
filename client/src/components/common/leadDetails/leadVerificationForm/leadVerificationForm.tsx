@@ -48,11 +48,12 @@ import {
 interface Props {
     lead: Lead;
     refreshLead: () => Promise<void> | void;
+    refreshActivity?: () => void;
     canEdit?: boolean;
     canVerify?: boolean;
 }
 
-const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = true }: Props) => {
+const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = true, canVerify = true }: Props) => {
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
@@ -72,7 +73,6 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
         setLoading(true);
         try {
             const response = await leadFormInputService.getByLeadId(lead.id);
-
             if (response) {
                 setExists(true);
                 setForm(response);
@@ -99,36 +99,25 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     }, [fetchForm]);
 
     const handleStart = () => {
-        if (isLocked) {
-            return;
-        }
-
+        if (isLocked) return;
         const fullAddress = `${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`;
-        const encoded = encodeURIComponent(fullAddress);
-        window.open(`https://www.google.com/search?q=${encoded}`, "_blank");
-
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(fullAddress)}`, "_blank");
         setAskListedModalOpen(true);
     };
 
     const handleListedYes = () => {
-        if (isLocked) {
-            return;
-        }
+        if (isLocked) return;
         setAskListedModalOpen(false);
         setConfirmTrashModalOpen(true);
     };
 
     const handleListedNo = async () => {
-        if (isLocked || saving || exists) {
-            return;
-        }
-
+        if (isLocked || saving || exists) return;
         setAskListedModalOpen(false);
         setSaving(true);
         setError(null);
         setVerifyError(null);
         setVerifySuccess(null);
-
         try {
             const emptyPayload: LeadFormInput = {
                 lead_id: lead.id,
@@ -146,12 +135,12 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
                 form_bedrooms: "",
                 form_bathrooms: ""
             };
-
             const data = await leadFormInputService.create(emptyPayload);
             setExists(true);
             setForm(data);
             setDirty(false);
             setError(null);
+            refreshActivity?.();
         } catch {
             setError("Failed to start verification");
         } finally {
@@ -164,7 +153,6 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
         setError(null);
         setVerifyError(null);
         setVerifySuccess(null);
-
         try {
             await leadsService.trashLead(lead.id, 'property_was_listed');
             navigate("/a/leads");
@@ -174,10 +162,7 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     };
 
     const handleChange = (field: keyof LeadFormInput, value: unknown) => {
-        if (!form || !canEdit || isLocked) {
-            return;
-        }
-
+        if (!form || !canEdit || isLocked) return;
         setForm({ ...form, [field]: value });
         setDirty(true);
         setVerifyError(null);
@@ -185,9 +170,7 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     };
 
     const handleCancel = () => {
-        if (isLocked) {
-            return;
-        }
+        if (isLocked) return;
         fetchForm();
         setDirty(false);
         setVerifyError(null);
@@ -195,16 +178,14 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     };
 
     const handleSave = async () => {
-        if (!form || isLocked) {
-            return;
-        }
-
+        if (!form || isLocked) return;
         setSaving(true);
         setError(null);
         try {
             const updated = await leadFormInputService.update(lead.id, form);
             setForm(updated);
             setDirty(false);
+            refreshActivity?.();
         } catch {
             setError("Failed to save changes");
         } finally {
@@ -213,27 +194,19 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     };
 
     const handleVerify = async () => {
-        if (!form || isLocked) {
-            return;
-        }
-
-        const missing = REQUIRED_FIELDS.filter((field) => {
-            return form[field] == null || form[field] === "";
-        });
-
+        if (!form || isLocked) return;
+        const missing = REQUIRED_FIELDS.filter((field) => form[field] == null || form[field] === "");
         if (missing.length > 0) {
             setVerifyError("Missing required fields: " + missing.join(", "));
             setVerifySuccess(null);
             return;
         }
-
         try {
             setError(null);
             setVerifyError(null);
-
             await leadsService.verifyLead(lead.id);
             await refreshLead();
-
+            refreshActivity?.();
             setVerifySuccess("Verification passed. Lead is locked and in the queue.");
             setDirty(false);
         } catch {
@@ -243,21 +216,14 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     };
 
     const handleUnverify = async () => {
-        if (!form || !isVerified || isSent) {
-            return;
-        }
-
+        if (!form || !isVerified || isSent) return;
         try {
             setError(null);
             setVerifyError(null);
-
             await leadsService.unverifyLead(lead.id);
-
-            if (typeof refreshLead === "function") {
-                await Promise.resolve(refreshLead());
-            }
-
-            setVerifySuccess("Lead has been unverifed and removed from the queue.");
+            await Promise.resolve(refreshLead());
+            refreshActivity?.();
+            setVerifySuccess("Lead has been unverified and removed from the queue.");
             setDirty(false);
         } catch {
             setVerifyError("Failed to unverify lead");
@@ -265,56 +231,45 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
     };
 
     const isFilled = (field: keyof LeadFormInput): boolean => {
-        if (!form) {
-            return false;
-        }
-
+        if (!form) return false;
         const val = form[field];
-
-        if (val == null) {
-            return false;
-        }
-
-        // Multiselect stores "\n" separated string in your schema
+        if (val == null) return false;
         return val.trim() !== "";
     };
 
-    const isRequired = (field: keyof LeadFormInput): boolean => {
-        return REQUIRED_FIELDS.includes(field as keyof LeadFormInput);
-    };
+    const isRequired = (field: keyof LeadFormInput): boolean =>
+        REQUIRED_FIELDS.includes(field as keyof LeadFormInput);
 
-    const RequiredHeader = ({ field }: { field: keyof LeadFormInput }) => {
-        const required = isRequired(field);
+    // ── Compact row component ────────────────────────────────────────────────
+    const FormRow = ({ label, field, children }: {
+        label: string;
+        field: keyof LeadFormInput;
+        children: React.ReactNode;
+    }) => {
+        const req = isRequired(field);
         const filled = isFilled(field);
-
-        if (!required) {
-            return null;
-        }
-
-        const color = filled ? "success.main" : "error.main";
-
+        const dotColor = req ? (filled ? '#2e7d32' : '#d32f2f') : 'transparent';
         return (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                <Box
-                    sx={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        backgroundColor: color,
-                        flexShrink: 0
-                    }}
-                />
-                <Typography sx={{ color, fontWeight: 800, fontSize: "0.95rem", letterSpacing: 0.5 }}>
-                    REQUIRED
-                </Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ minHeight: 38 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    {children}
+                </Box>
+                <Box sx={{ width: 52, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {req && (
+                        <>
+                            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
+                            <Typography variant="caption" sx={{ color: dotColor, fontWeight: 700, fontSize: '0.6rem', lineHeight: 1 }}>
+                                REQ
+                            </Typography>
+                        </>
+                    )}
+                </Box>
             </Stack>
         );
     };
 
     const isVerifiable = form
-        ? REQUIRED_FIELDS.every((field) => {
-            return form[field] && form[field] !== "";
-        })
+        ? REQUIRED_FIELDS.every((field) => form[field] && form[field] !== "")
         : false;
 
     if (loading) {
@@ -327,10 +282,10 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
 
     return (
         <>
-            <Card sx={{ mt: 4 }}>
-                <CardHeader title="Lead Verification" />
+            <Card sx={{ mt: 2 }}>
+                <CardHeader title="Lead Verification" titleTypographyProps={{ variant: 'subtitle1', fontWeight: 700 }} />
                 <Divider />
-                <CardContent>
+                <CardContent sx={{ pt: 1.5 }}>
                     {!exists && (
                         <Box sx={{ textAlign: "center", py: 3 }}>
                             <Button
@@ -344,263 +299,202 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
                     )}
 
                     {exists && form && (
-                        <Stack spacing={3}>
+                        <Stack spacing={1.5}>
 
-                            {/* LISTED FIRST (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_listed" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Listed?"
-                                    value={form.form_listed ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_listed", e.target.value);
-                                    }}
-                                >
-                                    {LISTED_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
+                            {/* ── 2-column compact grid ─────────────────── */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+
+                                {/* Listed */}
+                                <FormRow label="Listed?" field="form_listed">
+                                    <TextField
+                                        select size="small" fullWidth label="Listed?"
+                                        value={form.form_listed ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_listed", e.target.value); }}
+                                    >
+                                        {LISTED_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Type of house */}
+                                <FormRow label="Type of house" field="form_multifamily">
+                                    <TextField
+                                        select size="small" fullWidth label="Type of house"
+                                        value={form.form_multifamily ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_multifamily", e.target.value); }}
+                                    >
+                                        {TYPE_OF_HOUSE_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Occupied */}
+                                <FormRow label="Occupied" field="form_occupied">
+                                    <TextField
+                                        select size="small" fullWidth label="Occupied"
+                                        value={form.form_occupied ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_occupied", e.target.value); }}
+                                    >
+                                        {OCCUPIED_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* How fast */}
+                                <FormRow label="How fast" field="form_sell_fast">
+                                    <TextField
+                                        select size="small" fullWidth label="How fast to sell"
+                                        value={form.form_sell_fast ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_sell_fast", e.target.value); }}
+                                    >
+                                        {SELL_FAST_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Owner */}
+                                <FormRow label="Owner" field="form_owner">
+                                    <TextField
+                                        select size="small" fullWidth label="Owner"
+                                        value={form.form_owner ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_owner", e.target.value); }}
+                                    >
+                                        {OWNER_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Owned years */}
+                                <FormRow label="Owned years" field="form_owned_years">
+                                    <TextField
+                                        select size="small" fullWidth label="Owned years"
+                                        value={form.form_owned_years ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_owned_years", e.target.value); }}
+                                    >
+                                        {OWNED_YEARS_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Bedrooms */}
+                                <FormRow label="Bedrooms" field="form_bedrooms">
+                                    <TextField
+                                        select size="small" fullWidth label="Bedrooms"
+                                        value={form.form_bedrooms ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_bedrooms", e.target.value); }}
+                                    >
+                                        {BEDROOM_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Bathrooms */}
+                                <FormRow label="Bathrooms" field="form_bathrooms">
+                                    <TextField
+                                        select size="small" fullWidth label="Bathrooms"
+                                        value={form.form_bathrooms ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_bathrooms", e.target.value); }}
+                                    >
+                                        {BATHROOM_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                {/* Repairs — multiselect, full width */}
+                                <Box sx={{ gridColumn: 'span 2' }}>
+                                    <FormRow label="Repairs needed" field="form_repairs">
+                                        <Select
+                                            multiple size="small" fullWidth displayEmpty
+                                            disabled={!canEdit || isLocked}
+                                            value={form.form_repairs ? form.form_repairs.split("\n") : []}
+                                            onChange={(e) => {
+                                                handleChange("form_repairs", (e.target.value as string[]).join("\n"));
+                                            }}
+                                            renderValue={(selected) =>
+                                                !selected || selected.length === 0
+                                                    ? <Typography variant="body2" color="text.disabled">Repairs needed</Typography>
+                                                    : <Typography variant="body2">{(selected).join(", ")}</Typography>
+                                            }
+                                        >
+                                            {REPAIRS_OPTIONS.map((opt) => (
+                                                <MenuItem key={opt} value={opt}>
+                                                    <Checkbox checked={form.form_repairs?.includes(opt) ?? false} />
+                                                    <ListItemText primary={opt} />
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormRow>
+                                </Box>
+
+                                {/* Goal — multiselect, full width */}
+                                <Box sx={{ gridColumn: 'span 2' }}>
+                                    <FormRow label="Goal" field="form_goal">
+                                        <Select
+                                            multiple size="small" fullWidth displayEmpty
+                                            disabled={!canEdit || isLocked}
+                                            value={form.form_goal ? form.form_goal.split("\n") : []}
+                                            onChange={(e) => {
+                                                handleChange("form_goal", (e.target.value as string[]).join("\n"));
+                                            }}
+                                            renderValue={(selected) =>
+                                                !selected || selected.length === 0
+                                                    ? <Typography variant="body2" color="text.disabled">Goal</Typography>
+                                                    : <Typography variant="body2">{(selected).join(", ")}</Typography>
+                                            }
+                                        >
+                                            {GOAL_OPTIONS.map((opt) => (
+                                                <MenuItem key={opt} value={opt}>
+                                                    <Checkbox checked={form.form_goal?.includes(opt) ?? false} />
+                                                    <ListItemText primary={opt} />
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormRow>
+                                </Box>
+
                             </Box>
 
-                            {/* REQUIRED BLOCK */}
+                            {/* ── Optional fields ───────────────────────── */}
+                            <Divider><Typography variant="caption" color="text.disabled">Optional</Typography></Divider>
 
-                            {/* TYPE OF HOUSE (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_multifamily" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Type of house"
-                                    value={form.form_multifamily ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_multifamily", e.target.value);
-                                    }}
-                                >
-                                    {TYPE_OF_HOUSE_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+
+                                <FormRow label="Square footage" field="form_square">
+                                    <TextField
+                                        select size="small" fullWidth label="Square footage"
+                                        value={form.form_square ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_square", e.target.value); }}
+                                    >
+                                        {SQUARE_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                <FormRow label="Year built" field="form_year">
+                                    <TextField
+                                        select size="small" fullWidth label="Year built range"
+                                        value={form.form_year ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_year", e.target.value); }}
+                                    >
+                                        {YEAR_RANGE_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
+                                <FormRow label="Garage" field="form_garage">
+                                    <TextField
+                                        select size="small" fullWidth label="Garage"
+                                        value={form.form_garage ?? ""}
+                                        disabled={!canEdit || isLocked}
+                                        onChange={(e) => { handleChange("form_garage", e.target.value); }}
+                                    >
+                                        {GARAGE_OPTIONS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                                    </TextField>
+                                </FormRow>
+
                             </Box>
 
-                            {/* REPAIRS MULTISELECT (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_repairs" />
-                                <Select
-                                    multiple
-                                    fullWidth
-                                    displayEmpty
-                                    disabled={!canEdit || isLocked}
-                                    value={form.form_repairs ? form.form_repairs.split("\n") : []}
-                                    onChange={(e) => {
-                                        const val = (e.target.value as string[]).join("\n");
-                                        handleChange("form_repairs", val);
-                                    }}
-                                    renderValue={(selected) =>
-                                        !selected || selected.length === 0
-                                            ? "Repairs needed"
-                                            : (selected).join(", ")
-                                    }
-                                >
-                                    {REPAIRS_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>
-                                            <Checkbox checked={form.form_repairs?.includes(opt) ?? false} />
-                                            <ListItemText primary={opt} />
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </Box>
-
-                            {/* OCCUPIED (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_occupied" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Occupied"
-                                    value={form.form_occupied ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_occupied", e.target.value);
-                                    }}
-                                >
-                                    {OCCUPIED_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
-                            </Box>
-
-                            {/* SELL FAST (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_sell_fast" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="How fast"
-                                    value={form.form_sell_fast ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_sell_fast", e.target.value);
-                                    }}
-                                >
-                                    {SELL_FAST_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
-                            </Box>
-
-                            {/* GOAL MULTISELECT (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_goal" />
-                                <Select
-                                    multiple
-                                    fullWidth
-                                    displayEmpty
-                                    disabled={!canEdit || isLocked}
-                                    value={form.form_goal ? form.form_goal.split("\n") : []}
-                                    onChange={(e) => {
-                                        const val = (e.target.value as string[]).join("\n");
-                                        handleChange("form_goal", val);
-                                    }}
-                                    renderValue={(selected) =>
-                                        !selected || selected.length === 0
-                                            ? "Goal"
-                                            : (selected).join(", ")
-                                    }
-                                >
-                                    {GOAL_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>
-                                            <Checkbox checked={form.form_goal?.includes(opt) ?? false} />
-                                            <ListItemText primary={opt} />
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </Box>
-
-                            {/* OWNER (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_owner" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Owner"
-                                    value={form.form_owner ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_owner", e.target.value);
-                                    }}
-                                >
-                                    {OWNER_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
-                            </Box>
-
-                            {/* OWNED YEARS (Required) */}
-                            <Box>
-                                <RequiredHeader field="form_owned_years" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Owned years"
-                                    value={form.form_owned_years ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_owned_years", e.target.value);
-                                    }}
-                                >
-                                    {OWNED_YEARS_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
-                            </Box>
-
-                            <Box>
-                                <RequiredHeader field="form_bedrooms" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Bedrooms"
-                                    value={form.form_bedrooms ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_bedrooms", e.target.value);
-                                    }}
-                                >
-                                    {BEDROOM_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
-                            </Box>
-
-                            <Box>
-                                <RequiredHeader field="form_bathrooms" />
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Bathrooms"
-                                    value={form.form_bathrooms ?? ""}
-                                    disabled={!canEdit || isLocked}
-                                    onChange={(e) => {
-                                        handleChange("form_bathrooms", e.target.value);
-                                    }}
-                                >
-                                    {BATHROOM_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                    ))}
-                                </TextField>
-                            </Box>
-
-                            {/* OPTIONAL FIELDS */}
-
-                            <TextField
-                                select
-                                fullWidth
-                                label="Square footage"
-                                value={form.form_square ?? ""}
-                                disabled={!canEdit || isLocked}
-                                onChange={(e) => {
-                                    handleChange("form_square", e.target.value);
-                                }}
-                            >
-                                {SQUARE_OPTIONS.map((opt) => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            <TextField
-                                select
-                                fullWidth
-                                label="Year built range"
-                                value={form.form_year ?? ""}
-                                disabled={!canEdit || isLocked}
-                                onChange={(e) => {
-                                    handleChange("form_year", e.target.value);
-                                }}
-                            >
-                                {YEAR_RANGE_OPTIONS.map((opt) => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
-                            <TextField
-                                select
-                                fullWidth
-                                label="Garage"
-                                value={form.form_garage ?? ""}
-                                disabled={!canEdit || isLocked}
-                                onChange={(e) => {
-                                    handleChange("form_garage", e.target.value);
-                                }}
-                            >
-                                {GARAGE_OPTIONS.map((opt) => (
-                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                                ))}
-                            </TextField>
-
+                            {/* ── Alerts & actions ──────────────────────── */}
                             {error && <Alert severity="error">{error}</Alert>}
                             {verifyError && <Alert severity="error">{verifyError}</Alert>}
                             {verifySuccess && <Alert severity="success">{verifySuccess}</Alert>}
@@ -609,28 +503,19 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
                                 <Stack direction="row" spacing={2}>
                                     {canEdit && (
                                         <>
-                                            <Button
-                                                variant="contained"
-                                                disabled={!dirty || saving}
-                                                onClick={handleSave}
-                                            >
+                                            <Button variant="contained" disabled={!dirty || saving} onClick={() => { void handleSave(); }}>
                                                 Save
                                             </Button>
-                                            <Button
-                                                variant="outlined"
-                                                disabled={!dirty}
-                                                onClick={handleCancel}
-                                            >
+                                            <Button variant="outlined" disabled={!dirty} onClick={handleCancel}>
                                                 Cancel
                                             </Button>
                                         </>
                                     )}
                                     {canVerify && (
                                         <Button
-                                            variant="contained"
-                                            color="success"
+                                            variant="contained" color="success"
                                             disabled={dirty || !isVerifiable}
-                                            onClick={handleVerify}
+                                            onClick={() => { void handleVerify(); }}
                                         >
                                             Verify
                                         </Button>
@@ -640,11 +525,7 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
 
                             {isVerified && !isSent && canVerify && (
                                 <Stack direction="row" spacing={2}>
-                                    <Button
-                                        variant="contained"
-                                        color="warning"
-                                        onClick={handleUnverify}
-                                    >
+                                    <Button variant="contained" color="warning" onClick={() => { void handleUnverify(); }}>
                                         Unverify
                                     </Button>
                                 </Stack>
@@ -654,12 +535,8 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
                 </CardContent>
             </Card>
 
-            <Dialog
-                open={askListedModalOpen}
-                onClose={() => {
-                    setAskListedModalOpen(false);
-                }}
-            >
+            {/* ── Is listed? dialog ───────────────────────────────────────── */}
+            <Dialog open={askListedModalOpen} onClose={() => { setAskListedModalOpen(false); }}>
                 <DialogTitle>Is the property listed?</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
@@ -667,24 +544,13 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleListedYes}>
-                        Yes it's listed
-                    </Button>
-                    <Button
-                        onClick={handleListedNo}
-                        disabled={saving}
-                    >
-                        No it's not listed
-                    </Button>
+                    <Button onClick={handleListedYes}>Yes it's listed</Button>
+                    <Button onClick={() => { void handleListedNo(); }} disabled={saving}>No it's not listed</Button>
                 </DialogActions>
             </Dialog>
 
-            <Dialog
-                open={confirmTrashModalOpen}
-                onClose={() => {
-                    setConfirmTrashModalOpen(false);
-                }}
-            >
+            {/* ── Confirm trash dialog ────────────────────────────────────── */}
+            <Dialog open={confirmTrashModalOpen} onClose={() => { setConfirmTrashModalOpen(false); }}>
                 <DialogTitle>Confirm Trash</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
@@ -692,20 +558,8 @@ const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = t
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button
-                        onClick={() => {
-                            setConfirmTrashModalOpen(false);
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleConfirmTrash}
-                        color="error"
-                        variant="contained"
-                    >
-                        Move to Trash
-                    </Button>
+                    <Button onClick={() => { setConfirmTrashModalOpen(false); }}>Cancel</Button>
+                    <Button onClick={() => { void handleConfirmTrash(); }} color="error" variant="contained">Move to Trash</Button>
                 </DialogActions>
             </Dialog>
         </>

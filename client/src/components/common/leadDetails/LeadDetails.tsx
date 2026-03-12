@@ -164,6 +164,7 @@ const LeadDetails = () => {
             if (!id) return;
             await leadsService.untrashLead(id);
             await fetchLead();
+            void fetchActivity();
             showNotification('Lead restored from trash', 'success');
         } catch {
             showNotification('Failed to restore lead', 'error');
@@ -196,6 +197,7 @@ const LeadDetails = () => {
             await leadsService.updateLead(id, { ...lead, ...editedContact });
             setEditMode(false);
             await fetchLead();
+            void fetchActivity();
             showNotification('Lead updated', 'success');
         } catch {
             showNotification('Failed to update lead', 'error');
@@ -224,7 +226,7 @@ const LeadDetails = () => {
         const color = colorForUrgency(urgency);
         return (
             <Typography variant="body2" sx={{ color, fontWeight: urgency === 'expired' ? 700 : 600, textTransform: 'uppercase' }}>
-                Expires in: {label}
+                {urgency === 'expired' ? 'Expired' : `Expires in: ${label}`}
             </Typography>
         );
     };
@@ -275,7 +277,7 @@ const LeadDetails = () => {
             <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
                 {/* ── LEFT: Lead info + Activity (fixed, no scroll) ── */}
-                <Box sx={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider', overflow: 'hidden' }}>
+                <Box sx={{ width: 600, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider', overflow: 'hidden' }}>
 
                     {/* Lead Info card */}
                     <Card square elevation={0} sx={{ flexShrink: 0 }}>
@@ -384,6 +386,12 @@ const LeadDetails = () => {
                                         InputProps={{ readOnly: !editMode }}
                                     />
                                 </Stack>
+                                <TextField
+                                    fullWidth size="small" label="County"
+                                    value={lead.county ?? '—'}
+                                    disabled
+                                    InputProps={{ readOnly: true }}
+                                />
                             </Stack>
                         </CardContent>
                     </Card>
@@ -402,26 +410,23 @@ const LeadDetails = () => {
 
                 {/* ── RIGHT: Verification form (scrollable) ── */}
                 <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-                    {isTrashed
-                        ? (
-                            <Alert severity="warning" sx={{ mt: 2 }}>
-                                This lead has been trashed and cannot be verified or edited.
-                                {canUntrash && (
-                                    <Button size="small" color="warning" onClick={() => { void handleUntrashLead(); }} sx={{ ml: 2 }}>
-                                        Restore
-                                    </Button>
-                                )}
-                            </Alert>
-                        )
-                        : (
-                            <LeadVerificationForm
-                                lead={lead}
-                                refreshLead={fetchLead}
-                                canEdit={canEdit && !isLocked}
-                                canVerify={canVerify}
-                            />
-                        )
-                    }
+                    {isTrashed && (
+                        <Alert severity="warning" sx={{ mb: 1 }}>
+                            This lead has been trashed and cannot be verified or edited.
+                            {canUntrash && (
+                                <Button size="small" color="warning" onClick={() => { void handleUntrashLead(); }} sx={{ ml: 2 }}>
+                                    Restore
+                                </Button>
+                            )}
+                        </Alert>
+                    )}
+                    <LeadVerificationForm
+                        lead={lead}
+                        refreshLead={fetchLead}
+                        refreshActivity={fetchActivity}
+                        canEdit={canEdit && !isLocked}
+                        canVerify={canVerify}
+                    />
                 </Box>
             </Box>
 

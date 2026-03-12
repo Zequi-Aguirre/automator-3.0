@@ -60,6 +60,7 @@ class LeadService {
         imported: number;
         rejected?: number;
         errors?: string[];
+        rejectedLeads?: Array<Record<string, string>>;
     }> {
         const response = await this.api.getApi().post(
             '/api/leads-open/import',

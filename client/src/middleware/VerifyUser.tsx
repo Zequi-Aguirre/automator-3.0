@@ -1,6 +1,7 @@
 import { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DataContext from "../context/DataContext.tsx";
+import userService from "../services/user.service.tsx";
 
 type Props = {
     children: React.ReactNode;
@@ -10,7 +11,6 @@ const VerifyUser = ({ children }: Props) => {
     const {
         session,
         setSession,
-        role,
         setRole,
         setLoggedInUser,
         allowLogin,
@@ -19,22 +19,21 @@ const VerifyUser = ({ children }: Props) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Not logged in? go to login
         if (!session) {
             navigate("/login");
+            return;
         }
-
-        // Logged in: for "user" routes we generally allow any authenticated role.
-        // If you want to restrict to specific roles, add checks here.
-    }, [
-        session,
-        role,
-        allowLogin,
-        navigate,
-        setSession,
-        setLoggedInUser,
-        setRole,
-    ]);
+        // Refresh user info (including permissions) on every page load
+        void userService.getUserInfo().then((user) => {
+            setLoggedInUser(user);
+            setRole(user.role);
+        }).catch(() => {
+            // If the session is invalid, sign out
+            setSession(null);
+            setLoggedInUser(null);
+            navigate("/login");
+        });
+    }, [session, allowLogin, navigate, setSession, setLoggedInUser, setRole]);
 
     return <>{children}</>;
 };

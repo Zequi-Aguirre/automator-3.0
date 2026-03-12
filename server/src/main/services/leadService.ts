@@ -192,7 +192,9 @@ export default class LeadService {
         // Match leads to existing counties using fuzzy matching (no auto-create)
         const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
+        type RejectedLead = parsedLeadFromCSV & { rejection_reason: string };
         const resolvedLeads: parsedLeadFromCSV[] = [];
+        const rejectedLeads: RejectedLead[] = [];
         const errors: string[] = [];
         let rejectedCount = 0;
 
@@ -203,7 +205,9 @@ export default class LeadService {
             // County is required - reject leads with no county match
             if (!county) {
                 rejectedCount++;
-                errors.push(`Lead rejected: Unknown county "${lead.county}, ${lead.state}" (no match found)`);
+                const reason = `Unknown county: ${lead.county}, ${lead.state}`;
+                errors.push(`Lead rejected: ${reason} (no match found)`);
+                rejectedLeads.push({ ...lead, rejection_reason: reason });
                 continue;
             }
 
@@ -221,7 +225,8 @@ export default class LeadService {
                 imported: 0,
                 rejected: rejectedCount,
                 trashed: 0,
-                errors: errors.length > 0 ? errors : ["No valid leads to import after county matching"]
+                errors: errors.length > 0 ? errors : ["No valid leads to import after county matching"],
+                rejectedLeads
             };
         }
 
@@ -282,11 +287,13 @@ export default class LeadService {
         const successCount = insertResults.filter(r => r.success).length;
         const failedInsertCount = insertResults.length - successCount;
 
-        errors.push(
-            ...insertResults
-                .filter(r => !r.success)
-                .map(r => r.error || "Unknown error")
-        );
+        insertResults.forEach((r, i) => {
+            if (!r.success) {
+                const reason = r.error ?? 'Insert failed';
+                errors.push(reason);
+                rejectedLeads.push({ ...survivors[i], rejection_reason: reason });
+            }
+        });
 
         if (successCount > 0) {
             await this.activityService.log({
@@ -300,7 +307,8 @@ export default class LeadService {
             imported: successCount,
             rejected: rejectedCount + trashedCount + failedInsertCount,
             trashed: trashedCount,
-            errors
+            errors,
+            rejectedLeads
         };
     }
 

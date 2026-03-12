@@ -234,7 +234,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                             : <Typography variant="body2">—</Typography>
                         }
                         <Typography variant="caption" sx={{ color: expiryColor, fontWeight: urgency === "expired" ? 700 : 400 }}>
-                            Expires {expiryLabel}
+                            {urgency === "expired" ? "Expired" : `Expires in ${expiryLabel}`}
                         </Typography>
                     </Box>
                 );
@@ -243,7 +243,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         {
             field: "status_actions",
             headerName: "Status",
-            flex: 1.1,
+            width: 120,
             sortable: false,
             filterable: false,
             renderCell: (params: GridRenderCellParams) => {
@@ -294,7 +294,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         {
             field: "actions",
             headerName: "",
-            width: 120,
+            width: 150,
             sortable: false,
             filterable: false,
             renderCell: (params: GridRenderCellParams) => {
