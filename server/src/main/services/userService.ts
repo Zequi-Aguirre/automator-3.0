@@ -26,7 +26,7 @@ export default class UserService {
 
         const user = await this.userDAO.getUserByEmail(email);
         const token = this.authUtils.generateToken({ id: user!.id, role: user!.role });
-        return { access_token: token, user: user! };
+        return { access_token: token, user: { ...user!, permissions: getEffectivePermissions(user!.role as UserRole) } };
     }
 
     async getUserById(userId: string): Promise<UserWithPermissions | null> {

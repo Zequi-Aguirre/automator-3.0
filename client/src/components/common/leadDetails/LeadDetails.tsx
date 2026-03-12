@@ -37,12 +37,15 @@ import {
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
 import workingsService from "../../../services/settings.service.tsx";
 import DataContext from "../../../context/DataContext.tsx";
+import { usePermissions } from '../../../hooks/usePermissions';
+import { Permission } from '../../../types/userTypes';
 
 const LeadDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { role } = useContext(DataContext)
     const isAdmin = role.includes('admin')
+    const { can } = usePermissions();
     const [lead, setLead] = useState<Lead | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -283,17 +286,19 @@ const LeadDetails = () => {
             <Stack direction="column" spacing={1} alignItems="flex-end">
                 {renderExpiresBanner()}
                 <Stack direction="row" spacing={1}>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        sx={{ mr: 1 }}
-                        onClick={() => {
-                            setConfirmDialogOpen(true);
-                        }}
-                        disabled={lead.sent}
-                    >
-                        Trash
-                    </Button>
+                    {can(Permission.LEADS_TRASH) && (
+                        <Button
+                            variant="contained"
+                            color="error"
+                            sx={{ mr: 1 }}
+                            onClick={() => {
+                                setConfirmDialogOpen(true);
+                            }}
+                            disabled={lead.sent}
+                        >
+                            Trash
+                        </Button>
+                    )}
                     <Button
                         startIcon={<Edit />}
                         variant="contained"
@@ -437,7 +442,7 @@ const LeadDetails = () => {
                 </Stack>
             </Box>
 
-            {!editMode && lead && (
+            {!editMode && lead && can(Permission.LEADS_VERIFY) && (
                 <LeadVerificationForm
                     lead={lead}
                     refreshLead={fetchLead}
