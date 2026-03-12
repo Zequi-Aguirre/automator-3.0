@@ -65,11 +65,9 @@ export default function ActivityFeed({ logs, loading }: Props) {
                                 </Typography>
                             )}
                             <Box sx={{ flexGrow: 1 }} />
-                            {log.user_name && (
-                                <Typography variant="caption" color="text.secondary">
-                                    {log.user_name}
-                                </Typography>
-                            )}
+                            <Typography variant="caption" color="text.secondary">
+                                {log.user_name ?? (log.action_details?.source === 'worker' ? 'Worker' : 'System')}
+                            </Typography>
                             <Typography variant="caption" color="text.disabled">
                                 {ts}
                             </Typography>
