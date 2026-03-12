@@ -3,6 +3,8 @@ import { injectable } from "tsyringe";
 import SettingsService from "../services/settingsService.ts";
 import ActivityService from "../services/activityService";
 import { WorkerAction } from "../types/activityTypes";
+import { requirePermission } from '../middleware/requirePermission';
+import { Permission } from '../types/permissionTypes';
 
 @injectable()
 export default class SettingsResource {
@@ -24,7 +26,7 @@ export default class SettingsResource {
         });
 
         // Update settings
-        this.router.patch("/admin/update", async (req: Request, res: Response) => {
+        this.router.patch("/admin/update", requirePermission(Permission.SETTINGS_MANAGE), async (req: Request, res: Response) => {
             const updatedSettings = await this.settingsService.updateSettings(req.body);
             await this.activityService.log({
                 user_id: req.user?.id,

@@ -46,6 +46,17 @@ export default class UserDAO {
         return await this.db.oneOrNone<User>(query, params);
     }
 
+    async getAll(): Promise<User[]> {
+        return this.db.manyOrNone(`SELECT id, name, email, role FROM users WHERE deleted IS NULL ORDER BY name`);
+    }
+
+    async updateRole(userId: string, role: string): Promise<User | null> {
+        return this.db.oneOrNone(
+            `UPDATE users SET role = $[role], modified = NOW() WHERE id = $[userId] AND role != 'superadmin' RETURNING id, name, email, role`,
+            { userId, role }
+        );
+    }
+
     async getPasswordByEmail(email: string): Promise<{ encrypted_password: string } | null> {
         const query = `
             SELECT 

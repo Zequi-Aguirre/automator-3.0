@@ -4,6 +4,8 @@ import SourceService from "../services/sourceService";
 import ActivityService from "../services/activityService";
 import { SourceAction, EntityType } from "../types/activityTypes";
 import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
+import { requirePermission } from '../middleware/requirePermission';
+import { Permission } from '../types/permissionTypes';
 
 /**
  * SourceResource - Admin API endpoints for source management
@@ -77,7 +79,7 @@ export default class SourceResource {
         });
 
         // POST /api/sources - Create new source (returns token once)
-        this.router.post('/', async (req: Request, res: Response) => {
+        this.router.post('/', requirePermission(Permission.SOURCES_MANAGE), async (req: Request, res: Response) => {
             try {
                 const { name } = req.body;
 
@@ -117,7 +119,7 @@ export default class SourceResource {
         });
 
         // PUT /api/sources/:id - Update source name
-        this.router.put('/:id', async (req: Request, res: Response) => {
+        this.router.put('/:id', requirePermission(Permission.SOURCES_MANAGE), async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
                 const { name } = req.body;
@@ -151,7 +153,7 @@ export default class SourceResource {
         });
 
         // POST /api/sources/:id/refresh-token - Refresh API token
-        this.router.post('/:id/refresh-token', async (req: Request, res: Response) => {
+        this.router.post('/:id/refresh-token', requirePermission(Permission.SOURCES_MANAGE), async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
                 const source = await this.sourceService.refreshToken(id);
@@ -181,7 +183,7 @@ export default class SourceResource {
         });
 
         // DELETE /api/sources/:id - Soft delete source
-        this.router.delete('/:id', async (req: Request, res: Response) => {
+        this.router.delete('/:id', requirePermission(Permission.SOURCES_MANAGE), async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
                 await this.sourceService.trash(id);
