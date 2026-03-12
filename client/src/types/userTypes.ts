@@ -13,6 +13,7 @@ export enum Permission {
     WORKER_TOGGLE = 'worker.toggle',
     SETTINGS_MANAGE = 'settings.manage',
     USERS_MANAGE = 'users.manage',
+    ACTIVITY_VIEW = 'activity.view',
 }
 
 export type User = {
