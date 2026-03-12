@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import SourceService from "../services/sourceService";
+import ActivityService from "../services/activityService";
 import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
 
 /**
@@ -16,7 +17,10 @@ import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceR
 export default class SourceResource {
     private readonly router: Router;
 
-    constructor(private readonly sourceService: SourceService) {
+    constructor(
+        private readonly sourceService: SourceService,
+        private readonly activityService: ActivityService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -92,6 +96,14 @@ export default class SourceResource {
                     deleted: source.deleted,
                     token: source.token  // Only time token is returned
                 };
+
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'source',
+                    entity_id: source.id,
+                    action: 'source_created',
+                    action_details: { name: source.name }
+                });
 
                 res.status(201).json(response);
             } catch (error) {

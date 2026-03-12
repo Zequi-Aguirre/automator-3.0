@@ -58,7 +58,7 @@ export default class LeadResource {
             try {
                 const leadId = req.params.leadId;
                 const leadData = req.body;
-                const lead = await this.leadService.updateLead(leadId, leadData);
+                const lead = await this.leadService.updateLead(leadId, leadData, req.user?.id);
                 return res.status(200).send(lead);
             } catch (error) {
                 console.error('Error updating lead:', error);
@@ -89,7 +89,7 @@ export default class LeadResource {
         this.router.patch("/verify/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const result = await this.leadService.verifyLead(leadId);
+                const result = await this.leadService.verifyLead(leadId, req.user?.id);
                 return res.status(200).send(result);
             } catch (error) {
                 return res.status(400).send({ message: error instanceof Error ? error.message : "Verification failed" });
@@ -100,7 +100,7 @@ export default class LeadResource {
         this.router.patch("/unverify/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const result = await this.leadService.unverifyLead(leadId);
+                const result = await this.leadService.unverifyLead(leadId, req.user?.id);
                 return res.status(200).send(result);
             } catch (error) {
                 return res.status(400).send({ message: error instanceof Error ? error.message : "Unverify failed" });
@@ -111,7 +111,7 @@ export default class LeadResource {
         this.router.patch("/trash/:leadId", async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const response = await this.leadService.trashLead(leadId);
+                const response = await this.leadService.trashLead(leadId, "MANUAL_USER_DELETE", req.user?.id);
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error trashing lead:', error);
@@ -136,7 +136,7 @@ export default class LeadResource {
                     return res.status(400).send({ message: 'buyer_id is required' });
                 }
 
-                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id);
+                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id, req.user?.id);
                 return res.status(200).send(sendLog);
             } catch (error) {
                 console.error('Error sending lead to buyer:', error);
@@ -177,7 +177,7 @@ export default class LeadResource {
         this.router.post("/:leadId/enable-worker", async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const lead = await this.leadService.enableWorker(leadId);
+                const lead = await this.leadService.enableWorker(leadId, req.user?.id);
                 return res.status(200).send(lead);
             } catch (error) {
                 console.error('Error enabling worker:', error);

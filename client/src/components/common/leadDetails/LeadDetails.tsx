@@ -21,6 +21,9 @@ import {
     Alert,
     Snackbar
 } from '@mui/material';
+import ActivityFeed from '../activityFeed/ActivityFeed';
+import activityService from '../../../services/activity.service';
+import { ActivityLog } from '../../../types/activityTypes';
 import { ArrowBack, Edit, Save, Cancel } from '@mui/icons-material';
 import leadsService from '../../../services/lead.service';
 import { Lead } from '../../../types/leadTypes';
@@ -64,6 +67,8 @@ const LeadDetails = () => {
 
     const [now, setNow] = useState(DateTime.utc());
     const [leadExpireHours, setLeadExpireHours] = useState(18); // default to 18 hours
+    const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+    const [activityLoading, setActivityLoading] = useState(false);
 
     useEffect(() => {
         // Fetch worker settings to get expire_after_hours
@@ -92,6 +97,19 @@ const LeadDetails = () => {
             severity
         });
     };
+
+    const fetchActivity = useCallback(async () => {
+        if (!id) return;
+        setActivityLoading(true);
+        try {
+            const logs = await activityService.getByLead(id);
+            setActivityLogs(logs);
+        } catch (err) {
+            console.error('Failed to load activity:', err);
+        } finally {
+            setActivityLoading(false);
+        }
+    }, [id]);
 
     const fetchLead = useCallback(async () => {
         try {
@@ -122,7 +140,8 @@ const LeadDetails = () => {
 
     useEffect(() => {
         fetchLead();
-    }, [fetchLead]);
+        fetchActivity();
+    }, [fetchLead, fetchActivity]);
 
     const handleEditClick = () => {
         if (!lead) return;
@@ -424,6 +443,16 @@ const LeadDetails = () => {
                     refreshLead={fetchLead}
                 />)
             }
+
+            <Box sx={{ mt: 3, mb: 4 }}>
+                <Card>
+                    <CardHeader title="Activity" titleTypographyProps={{ variant: 'h6' }} />
+                    <Divider />
+                    <CardContent sx={{ p: 0 }}>
+                        <ActivityFeed logs={activityLogs} loading={activityLoading} />
+                    </CardContent>
+                </Card>
+            </Box>
 
             <Dialog
                 open={confirmDialogOpen}

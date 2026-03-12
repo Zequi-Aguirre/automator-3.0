@@ -11,6 +11,7 @@ import { County } from "../types/countyTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
 import BuyerDispatchService from "./buyerDispatchService.ts";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
+import ActivityService from "./activityService.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
@@ -30,7 +31,8 @@ export default class LeadService {
         private readonly sendLogDAO: SendLogDAO,
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
-        private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO
+        private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO,
+        private readonly activityService: ActivityService
     ) {}
 
     // CSV Import Source Management
@@ -75,11 +77,13 @@ export default class LeadService {
         }
     }
 
-    async updateLead(leadId: string, leadData: Partial<Lead>): Promise<Lead> {
-        return await this.leadDAO.updateLead(leadId, leadData);
+    async updateLead(leadId: string, leadData: Partial<Lead>, userId?: string | null): Promise<Lead> {
+        const updated = await this.leadDAO.updateLead(leadId, leadData);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_updated' });
+        return updated;
     }
 
-    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE"): Promise<Lead> {
+    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null): Promise<Lead> {
         try {
             const lead = await this.leadDAO.getById(leadId);
             if (!lead) {
@@ -91,7 +95,9 @@ export default class LeadService {
                 throw new Error("Lead already sent");
             }
 
-            return await this.leadDAO.trashLeadWithReason(leadId, reason);
+            const trashed = await this.leadDAO.trashLeadWithReason(leadId, reason);
+            await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_trashed', action_details: { reason } });
+            return trashed;
 
         } catch (error) {
             console.error("Error during lead trash process:", error);
@@ -112,7 +118,7 @@ export default class LeadService {
         }
     }
 
-    async verifyLead(leadId: string): Promise<Lead> {
+    async verifyLead(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
             throw new Error("Lead not found");
@@ -152,10 +158,12 @@ export default class LeadService {
             throw new Error(`Missing required fields: ${missing.join(", ")}`);
         }
 
-        return await this.leadDAO.verifyLead(leadId);
+        const verified = await this.leadDAO.verifyLead(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_verified' });
+        return verified;
     }
 
-    async unverifyLead(leadId: string): Promise<Lead> {
+    async unverifyLead(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
             throw new Error("Lead not found");
@@ -167,7 +175,9 @@ export default class LeadService {
             throw new Error("Lead is not verified");
         }
 
-        return await this.leadDAO.unverifyLead(leadId);
+        const unverified = await this.leadDAO.unverifyLead(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_unverified' });
+        return unverified;
     }
 
     async importLeads(csvContent: string) {
@@ -274,6 +284,12 @@ export default class LeadService {
                 .filter(r => !r.success)
                 .map(r => r.error || "Unknown error")
         );
+
+        for (const result of insertResults) {
+            if (result.success && result.lead) {
+                await this.activityService.log({ lead_id: result.lead.id, action: 'lead_imported' });
+            }
+        }
 
         return {
             imported: successCount,
@@ -396,6 +412,12 @@ export default class LeadService {
                 .map(r => r.error || "Unknown insert error")
         );
 
+        for (const result of insertResults) {
+            if (result.success && result.lead) {
+                await this.activityService.log({ lead_id: result.lead.id, action: 'lead_imported' });
+            }
+        }
+
         return {
             imported: successCount,
             failed: payloads.length - successCount,
@@ -428,7 +450,7 @@ export default class LeadService {
      * Send lead to specific buyer (manual send)
      * Delegates to BuyerDispatchService for validation and dispatch
      */
-    async sendLeadToBuyer(leadId: string, buyerId: string) {
+    async sendLeadToBuyer(leadId: string, buyerId: string, userId?: string | null) {
         // Get lead and buyer
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
@@ -441,7 +463,14 @@ export default class LeadService {
         }
 
         // Delegate to BuyerDispatchService
-        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+        const result = await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+        await this.activityService.log({
+            user_id: userId,
+            lead_id: leadId,
+            action: 'lead_sent',
+            action_details: { buyer_id: buyerId, buyer_name: buyer.name }
+        });
+        return result;
     }
 
     /**
@@ -483,8 +512,10 @@ export default class LeadService {
      * Enable worker processing for a lead
      * Sets worker_enabled=true so worker can process this lead
      */
-    async enableWorker(leadId: string): Promise<Lead> {
-        return await this.leadDAO.enableWorker(leadId);
+    async enableWorker(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.enableWorker(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'worker_enabled' });
+        return lead;
     }
 
     /**

@@ -1,13 +1,17 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import BuyerService from "../services/buyerService";
+import ActivityService from "../services/activityService";
 import { BuyerCreateDTO, BuyerUpdateDTO, Buyer } from "../types/buyerTypes";
 
 @injectable()
 export default class BuyerResource {
     private readonly router: Router;
 
-    constructor(private readonly buyerService: BuyerService) {
+    constructor(
+        private readonly buyerService: BuyerService,
+        private readonly activityService: ActivityService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -100,6 +104,14 @@ export default class BuyerResource {
 
                 const buyer = await this.buyerService.create(dto);
 
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'buyer',
+                    entity_id: buyer.id,
+                    action: 'buyer_created',
+                    action_details: { name: buyer.name }
+                });
+
                 // Mask auth_token_encrypted in response
                 res.status(201).json(this.maskAuthToken(buyer));
             } catch (error) {
@@ -118,6 +130,14 @@ export default class BuyerResource {
                 const dto: BuyerUpdateDTO = req.body;
 
                 const buyer = await this.buyerService.update(id, dto);
+
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'buyer',
+                    entity_id: buyer.id,
+                    action: 'buyer_updated',
+                    action_details: { name: buyer.name }
+                });
 
                 // Mask auth_token_encrypted in response
                 res.status(200).json(this.maskAuthToken(buyer));

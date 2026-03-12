@@ -25,6 +25,7 @@ const adminPages = [
     "Lead Managers",
     "Counties",
     "Logs",
+    "Activity",
     "Settings",
     "Worker Jobs",
 ];
@@ -69,6 +70,9 @@ export default function NavBar() {
                 break;
             case "Logs":
                 navigate("/a/logs");
+                break;
+            case "Activity":
+                navigate("/a/activity");
                 break;
             case "Settings":
                 navigate("/a/settings");
@@ -117,6 +121,9 @@ export default function NavBar() {
                 break;
             case path.includes("/logs"):
                 setCurrentPage("Logs");
+                break;
+            case path.includes("/activity"):
+                setCurrentPage("Activity");
                 break;
             case path.includes("/settings"):
                 setCurrentPage("Settings");

@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import CampaignService from "../services/campaignService";
 import SourceService from "../services/sourceService";
 import LeadManagerService from "../services/leadManagerService";
+import ActivityService from "../services/activityService";
 import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 
 /**
@@ -21,7 +22,8 @@ export default class CampaignResource {
     constructor(
         private readonly campaignService: CampaignService,
         private readonly sourceService: SourceService,
-        private readonly leadManagerService: LeadManagerService
+        private readonly leadManagerService: LeadManagerService,
+        private readonly activityService: ActivityService
     ) {
         this.router = express.Router();
         this.initializeRoutes();
@@ -237,6 +239,17 @@ export default class CampaignResource {
             const { campaignId } = req.params;
             const updates = req.body;
             const updated = await this.campaignService.updateCampaignMeta(campaignId, updates);
+
+            if (updates.lead_manager_id !== undefined) {
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'campaign',
+                    entity_id: campaignId,
+                    action: 'campaign_manager_assigned',
+                    action_details: { lead_manager_id: updates.lead_manager_id }
+                });
+            }
+
             res.status(200).send(updated);
         });
     }
