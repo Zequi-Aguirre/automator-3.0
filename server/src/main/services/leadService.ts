@@ -392,6 +392,11 @@ export default class LeadService {
                 for (const buyer of autoSendBuyers) {
                     try {
                         await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+                        await this.activityService.log({
+                            lead_id: lead.id,
+                            action: 'lead_sent',
+                            action_details: { buyer_id: buyer.id, buyer_name: buyer.name, source: 'auto_send' }
+                        });
                     } catch (e) {
                         // Log auto-send errors but don't fail the import
                         console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
