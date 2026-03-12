@@ -1784,6 +1784,8 @@ CREATE TRIGGER update_lead_managers_modified
 **Background**:
 VAs and managers need visibility into who is actually working (verifying leads, updating data). Currently, there's no tracking of which user performed which actions.
 
+**Reference**: Use Northstar as the model for this system. Northstar has activity tracking for both leads and buyers — the data model, UI patterns, and feed structure there are a proven example to follow. Copy that approach rather than designing from scratch.
+
 **Goal**:
 Track key user actions for accountability and performance metrics.
 

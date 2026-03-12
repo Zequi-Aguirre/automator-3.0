@@ -21,6 +21,7 @@ export type Campaign = {
     external_form_id: string | null;  // Platform's form ID (Facebook Lead Ads)
     external_adset_id: string | null;  // Platform's ad set ID
     external_adset_name: string | null;  // Platform's ad set name
+    lead_manager_id: string | null;  // FK to lead_managers
     created: string;  // ISO timestamp
     modified: string;  // ISO timestamp
     deleted: string | null;  // Soft delete timestamp
@@ -54,6 +55,7 @@ export type CampaignCreateDTO = {
     external_form_id?: string;
     external_adset_id?: string;
     external_adset_name?: string;
+    lead_manager_id?: string;
 };
 
 /**
@@ -64,6 +66,7 @@ export type CampaignUpdateDTO = {
     name?: string;
     blacklisted?: boolean;
     rating?: number;
+    lead_manager_id?: string | null;
 };
 
 /**

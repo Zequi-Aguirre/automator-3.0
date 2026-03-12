@@ -34,7 +34,7 @@ const AffiliateCampaignsTable = ({ affiliateId, affiliate }: Props) => {
     const load = async () => {
         try {
             setLoading(true);
-            const data = await campaignService.getByAffiliateId(affiliateId);
+            const data = await campaignService.getBySource(affiliateId);
             setCampaigns(data.campaigns);
         } catch (err) {
             setSnack({

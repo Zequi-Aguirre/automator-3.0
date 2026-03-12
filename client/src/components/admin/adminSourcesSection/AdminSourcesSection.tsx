@@ -41,8 +41,7 @@ const AdminSourcesSection = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingSource, setEditingSource] = useState<Source | null>(null);
     const [formData, setFormData] = useState<SourceCreateDTO | SourceUpdateDTO>({
-        name: '',
-        email: ''
+        name: ''
     });
 
     // Token display dialog state
@@ -81,16 +80,10 @@ const AdminSourcesSection = () => {
     const handleOpenDialog = (source?: Source) => {
         if (source) {
             setEditingSource(source);
-            setFormData({
-                name: source.name,
-                email: source.email
-            });
+            setFormData({ name: source.name });
         } else {
             setEditingSource(null);
-            setFormData({
-                name: '',
-                email: ''
-            });
+            setFormData({ name: '' });
         }
         setDialogOpen(true);
     };
@@ -209,12 +202,11 @@ const AdminSourcesSection = () => {
                     </Box>
                 ) : (
                     <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <TableContainer component={Paper}>
+                        <TableContainer component={Paper} sx={{ height: '100%' }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>Name</TableCell>
-                                        <TableCell>Email</TableCell>
                                         <TableCell>Created</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
@@ -228,7 +220,6 @@ const AdminSourcesSection = () => {
                                             sx={{ cursor: 'pointer' }}
                                         >
                                             <TableCell>{source.name}</TableCell>
-                                            <TableCell>{source.email}</TableCell>
                                             <TableCell>
                                                 {new Date(source.created).toLocaleString('en-US', {
                                                     month: 'short',
@@ -277,14 +268,6 @@ const AdminSourcesSection = () => {
                             label="Name"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                            fullWidth
-                        />
-                        <TextField
-                            label="Email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
                             fullWidth
                         />

@@ -74,24 +74,19 @@ export default class SourceResource {
         // POST /api/sources - Create new source (returns token once)
         this.router.post('/', async (req: Request, res: Response) => {
             try {
-                const { name, email } = req.body;
+                const { name } = req.body;
 
                 if (!name || name.trim().length === 0) {
                     return res.status(400).json({ error: 'Source name is required' });
                 }
 
-                if (!email || email.trim().length === 0) {
-                    return res.status(400).json({ error: 'Source email is required' });
-                }
-
-                const createDTO: SourceCreateDTO = { name, email };
+                const createDTO: SourceCreateDTO = { name };
                 const source = await this.sourceService.create(createDTO);
 
                 // Return full source including token (ONE-TIME DISPLAY)
                 const response: CreateSourceResponse = {
                     id: source.id,
                     name: source.name,
-                    email: source.email,
                     created: source.created,
                     modified: source.modified,
                     deleted: source.deleted,
@@ -108,15 +103,14 @@ export default class SourceResource {
             }
         });
 
-        // PUT /api/sources/:id - Update source (name, email only - not token)
+        // PUT /api/sources/:id - Update source name
         this.router.put('/:id', async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
-                const { name, email } = req.body;
+                const { name } = req.body;
 
                 const updateDTO: SourceUpdateDTO = {};
                 if (name) updateDTO.name = name;
-                if (email) updateDTO.email = email;
 
                 if (Object.keys(updateDTO).length === 0) {
                     return res.status(400).json({ error: 'No fields to update' });
@@ -182,7 +176,6 @@ export default class SourceResource {
         return {
             id: source.id,
             name: source.name,
-            email: source.email,
             created: source.created,
             modified: source.modified,
             deleted: source.deleted

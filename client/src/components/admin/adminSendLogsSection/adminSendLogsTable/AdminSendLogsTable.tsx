@@ -1,4 +1,4 @@
-import { Box, Typography, Chip } from "@mui/material";
+import { Typography, Chip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {SendLog} from "../../../../types/sendLogTypes.ts";
 
@@ -116,21 +116,19 @@ const AdminSendLogsTable = ({ logs }: Props) => {
     ];
 
     return (
-        <Box>
-            <DataGrid
-                rows={logs}
-                columns={columns}
-                disableRowSelectionOnClick
-                hideFooter
-                getRowId={(row) => {
-                    return row.id;
-                }}
-                sx={{
-                    "& .MuiDataGrid-cell": { py: 2 },
-                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
-                }}
-            />
-        </Box>
+        <DataGrid
+            rows={logs}
+            columns={columns}
+            disableRowSelectionOnClick
+            hideFooter
+            getRowId={(row) => {
+                return row.id;
+            }}
+            sx={{
+                "& .MuiDataGrid-cell": { py: 2 },
+                "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
+            }}
+        />
     );
 };
 

@@ -119,10 +119,6 @@ export default class SourceService {
                 throw new Error('Source name is required');
             }
 
-            if (!data.email || data.email.trim().length === 0) {
-                throw new Error('Source email is required');
-            }
-
             // Generate unique token
             const token = await this.generateUniqueToken();
 
@@ -134,8 +130,7 @@ export default class SourceService {
 
             console.info('Created new source', {
                 id: source.id,
-                name: source.name,
-                email: source.email
+                name: source.name
             });
 
             return source;

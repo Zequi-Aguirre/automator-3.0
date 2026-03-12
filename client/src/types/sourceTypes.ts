@@ -1,13 +1,7 @@
-/**
- * Source Types - Frontend type definitions
- * TICKET-046: Lead source API authentication
- */
-
 export type Source = {
     id: string;
-    token: string;  // Only present in CreateSourceResponse
+    token?: string;  // Only present in CreateSourceResponse
     name: string;
-    email: string;
     created: string;
     modified: string;
     deleted: string | null;
@@ -15,22 +9,18 @@ export type Source = {
 
 export type SourceCreateDTO = {
     name: string;
-    email: string;
 };
 
 export type SourceUpdateDTO = {
     name?: string;
-    email?: string;
 };
 
 export type SourceResponse = {
     id: string;
     name: string;
-    email: string;
     created: string;
     modified: string;
     deleted: string | null;
-    // token intentionally excluded (masked)
 };
 
 export type CreateSourceResponse = SourceResponse & {
@@ -39,5 +29,5 @@ export type CreateSourceResponse = SourceResponse & {
 
 export type RefreshTokenResponse = {
     id: string;
-    token: string;  // New token (old token invalid)
+    token: string;
 };

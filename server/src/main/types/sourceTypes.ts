@@ -14,7 +14,6 @@ export type Source = {
     id: string;
     token: string;  // 64-char hex token for Bearer auth
     name: string;
-    email: string;
     created: string;  // ISO timestamp
     modified: string;  // ISO timestamp
     deleted: string | null;  // Soft delete timestamp
@@ -26,16 +25,13 @@ export type Source = {
  */
 export type SourceCreateDTO = {
     name: string;
-    email: string;
 };
 
 /**
  * SourceUpdateDTO - Data for updating existing source
- * All fields optional (COALESCE pattern in SQL)
  */
 export type SourceUpdateDTO = {
     name?: string;
-    email?: string;
 };
 
 /**
@@ -45,7 +41,6 @@ export type SourceUpdateDTO = {
 export type SourceResponse = {
     id: string;
     name: string;
-    email: string;
     created: string;
     modified: string;
     deleted: string | null;
@@ -74,6 +69,6 @@ export type RefreshTokenResponse = {
 export type SourceFilters = {
     page: number;
     limit: number;
-    search?: string;  // Search by name or email
+    search?: string;  // Search by name
     includeDeleted?: boolean;  // Include soft-deleted sources
 };

@@ -11,11 +11,13 @@ import AdminCampaignsTable from './adminCampaignsTable/AdminCampaignsTable';
 import CustomPagination from '../../Pagination';
 import campaignService from '../../../services/campaign.service';
 import { Campaign } from '../../../types/campaignTypes';
-import {Affiliate} from "../../../types/affiliateTypes.ts";
+import { Source } from '../../../types/sourceTypes';
+import { LeadManager } from '../../../types/leadManagerTypes';
 
 const AdminCampaignsSection = () => {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-    const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+    const [sources, setSources] = useState<Source[]>([]);
+    const [managers, setManagers] = useState<LeadManager[]>([]);
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(100);
     const [loading, setLoading] = useState(true);
@@ -34,21 +36,18 @@ const AdminCampaignsSection = () => {
         try {
             const data = await campaignService.getMany({ page, limit });
             setCampaigns(data.campaigns);
-            setAffiliates(data.affiliates);
-        } catch (err: unknown) {
+            setSources(data.sources);
+            setManagers(data.managers);
+        } catch {
             showNotification('Failed to fetch campaigns', 'error');
         } finally {
             setLoading(false);
         }
-    }, [showNotification]);
+    }, [showNotification, page, limit]);
 
     useEffect(() => {
         fetchCampaigns();
     }, [fetchCampaigns]);
-
-    const handleSnackbarClose = () => {
-        setSnackbar(prev => ({ ...prev, open: false }));
-    };
 
     return (
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
@@ -59,16 +58,19 @@ const AdminCampaignsSection = () => {
                     </Typography>
                 </Box>
 
-                {loading
-                ? (
+                {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                         <CircularProgress />
                     </Box>
-                )
-                : (
+                ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                         <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
-                            <AdminCampaignsTable campaigns={campaigns} setCampaigns={setCampaigns} affiliates={affiliates} />
+                            <AdminCampaignsTable
+                                campaigns={campaigns}
+                                setCampaigns={setCampaigns}
+                                sources={sources}
+                                managers={managers}
+                            />
                         </Box>
                         <Box sx={{ backgroundColor: 'background.paper' }}>
                             <CustomPagination
@@ -86,10 +88,10 @@ const AdminCampaignsSection = () => {
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
-                onClose={handleSnackbarClose}
+                onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-                <Alert onClose={handleSnackbarClose} severity={snackbar.severity} variant="filled">
+                <Alert onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} severity={snackbar.severity} variant="filled">
                     {snackbar.message}
                 </Alert>
             </Snackbar>

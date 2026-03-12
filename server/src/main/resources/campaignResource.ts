@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import CampaignService from "../services/campaignService";
 import SourceService from "../services/sourceService";
+import LeadManagerService from "../services/leadManagerService";
 import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 
 /**
@@ -19,7 +20,8 @@ export default class CampaignResource {
 
     constructor(
         private readonly campaignService: CampaignService,
-        private readonly sourceService: SourceService
+        private readonly sourceService: SourceService,
+        private readonly leadManagerService: LeadManagerService
     ) {
         this.router = express.Router();
         this.initializeRoutes();
@@ -200,7 +202,7 @@ export default class CampaignResource {
             }
         });
 
-        // Legacy endpoints for backward compatibility
+        // Admin list endpoint — returns campaigns with sources and managers for table display
         this.router.get("/admin/get-many", async (req: Request, res: Response) => {
             try {
                 const filters = {
@@ -210,16 +212,17 @@ export default class CampaignResource {
                     search: undefined,
                     includeDeleted: false
                 };
-                const result = await this.campaignService.getAll(filters);
+                const [result, sources, managers] = await Promise.all([
+                    this.campaignService.getAll(filters),
+                    this.sourceService.getAll({ page: 1, limit: 1000 }),
+                    this.leadManagerService.getActive()
+                ]);
 
-                // Get all sources for dropdown (frontend expects "affiliates")
-                const sources = await this.sourceService.getAll({ page: 1, limit: 1000 });
-
-                // Transform response to match frontend expectations
                 res.status(200).send({
                     campaigns: result.items,
                     count: result.count,
-                    affiliates: sources.items  // Sources mapped as affiliates for backward compatibility
+                    sources: sources.items,
+                    managers
                 });
             } catch (error) {
                 console.error('Error in get-many campaigns:', error);

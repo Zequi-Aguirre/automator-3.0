@@ -150,14 +150,16 @@ export default class CampaignDAO {
             INSERT INTO campaigns (
                 source_id, name, blacklisted, rating,
                 platform, external_campaign_id, external_campaign_name,
-                external_form_id, external_adset_id, external_adset_name
+                external_form_id, external_adset_id, external_adset_name,
+                lead_manager_id
             )
             VALUES (
                 $[source_id], $[name],
                 COALESCE($[blacklisted], false),
                 COALESCE($[rating], 3),
                 $[platform], $[external_campaign_id], $[external_campaign_name],
-                $[external_form_id], $[external_adset_id], $[external_adset_name]
+                $[external_form_id], $[external_adset_id], $[external_adset_name],
+                $[lead_manager_id]
             )
             RETURNING *;
         `;
@@ -173,7 +175,8 @@ export default class CampaignDAO {
             external_campaign_name: data.external_campaign_name ?? null,
             external_form_id: data.external_form_id ?? null,
             external_adset_id: data.external_adset_id ?? null,
-            external_adset_name: data.external_adset_name ?? null
+            external_adset_name: data.external_adset_name ?? null,
+            lead_manager_id: data.lead_manager_id ?? null
         };
 
         return await this.db.one<Campaign>(query, params);
@@ -237,13 +240,23 @@ export default class CampaignDAO {
             SET
                 name = COALESCE($[name], name),
                 blacklisted = COALESCE($[blacklisted], blacklisted),
-                rating = COALESCE($[rating], rating)
+                rating = COALESCE($[rating], rating),
+                lead_manager_id = CASE
+                    WHEN $[lead_manager_id]::uuid IS NOT NULL THEN $[lead_manager_id]::uuid
+                    WHEN $[clear_manager] THEN NULL
+                    ELSE lead_manager_id
+                END
             WHERE id = $[id]
                 AND deleted IS NULL
             RETURNING *;
         `;
 
-        return await this.db.one<Campaign>(query, { id, ...data });
+        return await this.db.one<Campaign>(query, {
+            id,
+            ...data,
+            lead_manager_id: (data as any).lead_manager_id ?? null,
+            clear_manager: (data as any).lead_manager_id === null
+        });
     }
 
     /**
