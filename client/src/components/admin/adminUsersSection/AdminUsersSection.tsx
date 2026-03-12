@@ -193,7 +193,7 @@ const AdminUsersSection = () => {
                                                         <Button
                                                             size="small"
                                                             onClick={() => { handleOpenPermDialog(u); }}
-                                                            disabled={isSuperAdmin}
+                                                            disabled={isSuperAdmin && !isSelf}
                                                         >
                                                             Edit Permissions
                                                         </Button>

@@ -10,6 +10,7 @@ import CampaignService from "../services/campaignService.ts";
 import LeadFormInputDAO from "../data/leadFormInputDAO.ts";
 import SendLogDAO from "../data/sendLogDAO.ts";
 import { County } from "../types/countyTypes.ts";
+import { SendLog } from "../types/sendLogTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
 import BuyerDispatchService from "./buyerDispatchService.ts";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
@@ -64,7 +65,7 @@ export default class LeadService {
     // Lead Management Methods
     async getLeadById(leadId: string): Promise<Lead | null> {
         try {
-            return await this.leadDAO.getById(leadId);
+            return await this.leadDAO.getByIdAny(leadId);
         } catch (error) {
             console.error("Error fetching lead by ID:", {
                 leadId,
@@ -150,7 +151,7 @@ export default class LeadService {
             'form_bathrooms'
         ];
 
-        const formObj = form as unknown as Record<string, any>;
+        const formObj = form as unknown as Record<string, unknown>;
 
         const missing: string[] = REQUIRED_FIELDS.filter(
             f => !formObj[f] || String(formObj[f]).trim() === ""
@@ -191,7 +192,9 @@ export default class LeadService {
         // Match leads to existing counties using fuzzy matching (no auto-create)
         const countyMap = await this.countyService.matchLeadsToCounties(leads);
 
+        type RejectedLead = parsedLeadFromCSV & { rejection_reason: string };
         const resolvedLeads: parsedLeadFromCSV[] = [];
+        const rejectedLeads: RejectedLead[] = [];
         const errors: string[] = [];
         let rejectedCount = 0;
 
@@ -202,7 +205,9 @@ export default class LeadService {
             // County is required - reject leads with no county match
             if (!county) {
                 rejectedCount++;
-                errors.push(`Lead rejected: Unknown county "${lead.county}, ${lead.state}" (no match found)`);
+                const reason = `Unknown county: ${lead.county}, ${lead.state}`;
+                errors.push(`Lead rejected: ${reason} (no match found)`);
+                rejectedLeads.push({ ...lead, rejection_reason: reason });
                 continue;
             }
 
@@ -220,7 +225,8 @@ export default class LeadService {
                 imported: 0,
                 rejected: rejectedCount,
                 trashed: 0,
-                errors: errors.length > 0 ? errors : ["No valid leads to import after county matching"]
+                errors: errors.length > 0 ? errors : ["No valid leads to import after county matching"],
+                rejectedLeads
             };
         }
 
@@ -239,7 +245,7 @@ export default class LeadService {
         const countyIds = [...new Set(resolvedLeads.map(l => l.county_id!))];
         const recentCountyLogs = await this.sendLogDAO.getLatestLogsByCountyIds(countyIds);
 
-        const countyLogsByCountyId = new Map<string, any>();
+        const countyLogsByCountyId = new Map<string, SendLog>();
         for (const log of recentCountyLogs) {
             if (log.county_id) {
                 countyLogsByCountyId.set(log.county_id, log);
@@ -281,11 +287,13 @@ export default class LeadService {
         const successCount = insertResults.filter(r => r.success).length;
         const failedInsertCount = insertResults.length - successCount;
 
-        errors.push(
-            ...insertResults
-                .filter(r => !r.success)
-                .map(r => r.error || "Unknown error")
-        );
+        insertResults.forEach((r, i) => {
+            if (!r.success) {
+                const reason = r.error ?? 'Insert failed';
+                errors.push(reason);
+                rejectedLeads.push({ ...survivors[i], rejection_reason: reason });
+            }
+        });
 
         if (successCount > 0) {
             await this.activityService.log({
@@ -299,7 +307,8 @@ export default class LeadService {
             imported: successCount,
             rejected: rejectedCount + trashedCount + failedInsertCount,
             trashed: trashedCount,
-            errors
+            errors,
+            rejectedLeads
         };
     }
 
@@ -439,7 +448,7 @@ export default class LeadService {
         _lead: parsedLeadFromCSV,
         _deps: {
             countiesById: Map<string, County>;
-            countyLogsByCountyId: Map<string, any>;
+            countyLogsByCountyId: Map<string, SendLog>;
             delaySameCountyMs: number;
         }
     ): LeadTrashReason | null {
@@ -487,16 +496,24 @@ export default class LeadService {
         // Get send logs for this lead grouped by buyer
         const sendLogs = await this.sendLogDAO.getByLeadIdGroupedByBuyer(leadId);
 
+        // Get outcomes (sold status) for this lead
+        const outcomes = await this.leadBuyerOutcomeDAO.getByLeadId(leadId);
+
         // Map buyers to send history
         const history = allBuyers.map(buyer => {
-            // Find send logs for this buyer
             const buyerLogs = sendLogs.filter(log => log.buyer_id === buyer.id);
+            const outcome = outcomes.find(o => o.buyer_id === buyer.id && o.deleted === null);
+            const hasSuccessfulSend = buyerLogs.some(log =>
+                log.response_code !== null && log.response_code >= 200 && log.response_code < 300
+            );
 
             return {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,
                 buyer_priority: buyer.priority,
                 dispatch_mode: buyer.dispatch_mode,
+                sold: outcome?.status === 'sold',
+                has_successful_send: hasSuccessfulSend,
                 sends: buyerLogs.map(log => ({
                     id: log.id,
                     status: log.status,
@@ -509,6 +526,12 @@ export default class LeadService {
         });
 
         return history;
+    }
+
+    async disableWorker(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.disableWorker(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UNQUEUED });
+        return lead;
     }
 
     /**
@@ -541,24 +564,42 @@ export default class LeadService {
             throw new Error(`Buyer ${buyerId} not found`);
         }
 
+        // Only allow marking as sold if there's a successful send record
+        const wasSent = await this.sendLogDAO.wasSuccessfullySentToBuyer(leadId, buyerId);
+        if (!wasSent) {
+            throw new Error('Cannot mark as sold: no successful send record exists for this lead and buyer');
+        }
+
         // Check if outcome already exists
         const existing = await this.leadBuyerOutcomeDAO.getByLeadAndBuyer(leadId, buyerId);
         if (existing) {
-            // Update existing outcome
             return await this.leadBuyerOutcomeDAO.update(existing.id, {
                 status: 'sold',
                 sold_at: new Date(),
-                sold_price: soldPrice || null
+                sold_price: soldPrice ?? null
             });
         }
 
-        // Create new outcome record
         return await this.leadBuyerOutcomeDAO.create({
             lead_id: leadId,
             buyer_id: buyerId,
             status: 'sold',
             sold_at: new Date(),
-            sold_price: soldPrice || null
+            sold_price: soldPrice ?? null
         });
+    }
+
+    async unmarkSoldToBuyer(leadId: string, buyerId: string) {
+        const existing = await this.leadBuyerOutcomeDAO.getByLeadAndBuyer(leadId, buyerId);
+        if (!existing) {
+            throw new Error('No sold record found for this lead and buyer');
+        }
+        return await this.leadBuyerOutcomeDAO.trash(existing.id);
+    }
+
+    async untrashLead(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.untrashLead(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UNTRASHED });
+        return lead;
     }
 }

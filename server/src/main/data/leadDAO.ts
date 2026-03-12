@@ -151,7 +151,7 @@ export default class LeadDAO {
         return result;
     }
 
-    // Get lead by ID
+    // Get lead by ID (active only)
     async getById(id: string): Promise<Lead | null> {
         const query = `
             SELECT *
@@ -159,15 +159,41 @@ export default class LeadDAO {
             WHERE id = $[id]
             AND deleted IS NULL;
         `;
-
         return await this.db.oneOrNone<Lead>(query, { id });
+    }
+
+    // Get lead by ID including deleted/trashed leads
+    async getByIdAny(id: string): Promise<Lead | null> {
+        const query = `
+            SELECT *
+            FROM leads
+            WHERE id = $[id];
+        `;
+        return await this.db.oneOrNone<Lead>(query, { id });
+    }
+
+    // Untrash a lead
+    async untrashLead(id: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET deleted = NULL,
+                deleted_reason = NULL,
+                modified = NOW()
+            WHERE id = $[id]
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, { id });
+        if (!result) {
+            throw new Error('Lead not found');
+        }
+        return result;
     }
 
     async getMany(filters: {
         page: number;
         limit: number;
         search?: string;
-        status?: "new" | "verified" | "sent" | "trash";
+        status?: "new" | "verified" | "sent" | "sold" | "trash";
     }): Promise<{ leads: Lead[]; count: number }> {
         const { page, limit, search, status } = filters;
         const offset = (page - 1) * limit;
@@ -178,24 +204,31 @@ export default class LeadDAO {
         switch (status) {
             case "new":
                 whereClauses.push(`
-                l.sent = FALSE
-                AND l.verified = FALSE
+                l.verified = FALSE
                 AND l.deleted IS NULL
+                AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
             `);
                 break;
 
             case "verified":
                 whereClauses.push(`
                 l.verified = TRUE
-                AND l.sent = FALSE
                 AND l.deleted IS NULL
+                AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
             `);
                 break;
 
             case "sent":
                 whereClauses.push(`
-                l.sent = TRUE
-                AND l.deleted IS NULL
+                l.deleted IS NULL
+                AND EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
+            `);
+                break;
+
+            case "sold":
+                whereClauses.push(`
+                l.deleted IS NULL
+                AND EXISTS (SELECT 1 FROM lead_buyer_outcomes lbo WHERE lbo.lead_id = l.id AND lbo.status = 'sold' AND lbo.deleted IS NULL)
             `);
                 break;
 
@@ -220,11 +253,14 @@ export default class LeadDAO {
 
         const baseQuery = `
             FROM leads l
+            LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
             ${whereSQL}
         `;
 
         const leadsQuery = `
-            SELECT l.*
+            SELECT l.*,
+                   c.name AS campaign_name,
+                   c.platform AS campaign_platform
             ${baseQuery}
             ORDER BY l.modified DESC
             LIMIT $/limit/
@@ -513,6 +549,24 @@ export default class LeadDAO {
         const query = `
             UPDATE leads
             SET worker_enabled = true,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+
+        const result = await this.db.oneOrNone<Lead>(query, { id });
+        if (!result) {
+            throw new Error("Lead not found or update failed");
+        }
+
+        return result;
+    }
+
+    async disableWorker(id: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET worker_enabled = false,
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL

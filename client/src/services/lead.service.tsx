@@ -9,7 +9,7 @@ class LeadService {
         page: number,
         limit: number,
         search?: string,
-        status?: "new" | "verified" | "sent" | "trash"
+        status?: "new" | "verified" | "sent" | "sold" | "trash"
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
             '/api/leads/get-many',
@@ -60,6 +60,7 @@ class LeadService {
         imported: number;
         rejected?: number;
         errors?: string[];
+        rejectedLeads?: Array<Record<string, string>>;
     }> {
         const response = await this.api.getApi().post(
             '/api/leads-open/import',
@@ -76,7 +77,7 @@ class LeadService {
     // ========================================
 
     // Send lead to specific buyer (manual send)
-    async sendLeadToBuyer(leadId: string, buyerId: string): Promise<any> {
+    async sendLeadToBuyer(leadId: string, buyerId: string): Promise<unknown> {
         const response = await this.api.getApi().post(
             `/api/leads/${leadId}/send-to-buyer`,
             { buyer_id: buyerId }
@@ -91,6 +92,8 @@ class LeadService {
             buyer_name: string;
             buyer_priority: number;
             dispatch_mode: 'manual' | 'worker' | 'both';
+            sold: boolean;
+            has_successful_send: boolean;
             sends: Array<{
                 id: string;
                 status: string;
@@ -105,9 +108,15 @@ class LeadService {
         return response.data;
     }
 
-    // Enable worker processing for lead
+    // Queue lead for worker
     async enableWorker(leadId: string): Promise<Lead> {
-        const response = await this.api.getApi().post(`/api/leads/${leadId}/enable-worker`);
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/queue`);
+        return response.data;
+    }
+
+    // Unqueue lead from worker
+    async disableWorker(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/unqueue`);
         return response.data;
     }
 
@@ -116,10 +125,22 @@ class LeadService {
         leadId: string,
         buyerId: string,
         soldPrice?: number
-    ): Promise<any> {
+    ): Promise<unknown> {
         const response = await this.api.getApi().post(
             `/api/leads/${leadId}/buyers/${buyerId}/sold`,
             { sold_price: soldPrice }
+        );
+        return response.data;
+    }
+
+    async untrashLead(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/untrash/${leadId}`);
+        return response.data;
+    }
+
+    async unmarkSoldToBuyer(leadId: string, buyerId: string): Promise<unknown> {
+        const response = await this.api.getApi().delete(
+            `/api/leads/${leadId}/buyers/${buyerId}/sold`
         );
         return response.data;
     }

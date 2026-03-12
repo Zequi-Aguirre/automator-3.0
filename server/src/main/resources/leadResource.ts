@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import LeadService from '../services/leadService';
 import { requirePermission } from '../middleware/requirePermission';
 import { LeadPermission } from '../types/permissionTypes';
+import { LeadFilters } from '../types/leadTypes';
 
 @injectable()
 export default class LeadResource {
@@ -21,7 +22,7 @@ export default class LeadResource {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 10,
                     search: req.query.search ? String(req.query.search) : "",
-                    status: req.query.status ? String(req.query.status) as any : 'new'
+                    status: req.query.status ? String(req.query.status) as LeadFilters['status'] : 'new'
                 };
 
                 const result = await this.leadService.getMany(filters);
@@ -125,6 +126,21 @@ export default class LeadResource {
             }
         });
 
+        // Untrash lead
+        this.router.patch("/untrash/:leadId", requirePermission(LeadPermission.UNTRASH), async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const response = await this.leadService.untrashLead(leadId, req.user?.id);
+                return res.status(200).send(response);
+            } catch (error) {
+                console.error('Error untrashing lead:', error);
+                return res.status(500).send({
+                    message: 'Failed to untrash lead',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // ========================================
         // Buyer Dispatch & History Endpoints
         // ========================================
@@ -176,8 +192,19 @@ export default class LeadResource {
             }
         });
 
-        // Enable worker for lead
-        this.router.post("/:leadId/enable-worker", requirePermission(LeadPermission.QUEUE), async (req: Request, res: Response) => {
+        // Unqueue lead from worker
+        this.router.post("/:leadId/unqueue", requirePermission(LeadPermission.QUEUE), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const lead = await this.leadService.disableWorker(leadId, req.user?.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                return res.status(500).send({ message: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
+        // Queue lead for worker
+        this.router.post("/:leadId/queue", requirePermission(LeadPermission.QUEUE), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
                 const lead = await this.leadService.enableWorker(leadId, req.user?.id);
@@ -215,9 +242,32 @@ export default class LeadResource {
                 if (error instanceof Error && error.message.includes('not found')) {
                     return res.status(404).send({ message: error.message });
                 }
+                if (error instanceof Error && error.message.includes('Cannot mark as sold')) {
+                    return res.status(400).send({ message: error.message });
+                }
 
                 return res.status(500).send({
                     message: 'Failed to mark lead as sold',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // Unmark lead as sold to buyer
+        this.router.delete("/:leadId/buyers/:buyerId/sold", async (req: Request, res: Response) => {
+            try {
+                const { leadId, buyerId } = req.params;
+                const outcome = await this.leadService.unmarkSoldToBuyer(leadId, buyerId);
+                return res.status(200).send(outcome);
+            } catch (error) {
+                console.error('Error unmarking lead as sold:', error);
+
+                if (error instanceof Error && error.message.includes('not found')) {
+                    return res.status(404).send({ message: error.message });
+                }
+
+                return res.status(500).send({
+                    message: 'Failed to unmark lead as sold',
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

@@ -17,11 +17,15 @@ export type Lead = {
     investor_id: string | null;
     campaign_id: string | null;
     worker_enabled: boolean;
+    deleted: string | null;
+    deleted_reason: string | null;
+    campaign_name: string | null;
+    campaign_platform: string | null;
     // TICKET-047: External platform tracking
-    external_lead_id: string | null;  // Platform's lead ID (e.g., Facebook leadgenId)
-    external_ad_id: string | null;  // Platform's ad ID
-    external_ad_name: string | null;  // Platform's ad name
-    raw_payload: Record<string, any> | null;  // Complete original platform payload
+    external_lead_id: string | null; // Platform's lead ID (e.g., Facebook leadgenId)
+    external_ad_id: string | null; // Platform's ad ID
+    external_ad_name: string | null; // Platform's ad name
+    raw_payload: Record<string, unknown> | null; // Complete original platform payload
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -39,7 +43,7 @@ export type LeadFilters = {
     page: number;
     limit: number;
     search?: string;
-    status?: "new" | "verified" | "sent" | "trash";
+    status?: "new" | "verified" | "sent" | "sold" | "trash";
 };
 
 export type FlatLead = {
@@ -82,14 +86,14 @@ export type FlatLead = {
  * TICKET-047: Stores platform-specific lead tracking data
  */
 export type ExternalLeadMetadata = {
-    external_lead_id?: string;  // Platform's lead ID (e.g., Facebook leadgenId)
-    external_ad_id?: string;  // Platform's ad ID
-    external_ad_name?: string;  // Platform's ad name
-    page_id?: string;  // Facebook page ID
-    inbox_url?: string;  // Facebook inbox URL
-    date_created?: string;  // Platform's creation timestamp
-    is_organic?: boolean;  // Organic vs paid
-    [key: string]: any;  // Allow additional platform-specific fields
+    external_lead_id?: string; // Platform's lead ID (e.g., Facebook leadgenId)
+    external_ad_id?: string; // Platform's ad ID
+    external_ad_name?: string; // Platform's ad name
+    page_id?: string; // Facebook page ID
+    inbox_url?: string; // Facebook inbox URL
+    date_created?: string; // Platform's creation timestamp
+    is_organic?: boolean; // Organic vs paid
+    [key: string]: unknown; // Allow additional platform-specific fields
 };
 
 /**
@@ -105,10 +109,10 @@ export type ApiLeadPayload = {
         city: string;
         state: string;
         zip: string;
-        county?: string;  // Optional - looked up by zip if not provided
+        county?: string; // Optional - looked up by zip if not provided
     };
     campaign?: {
-        platform?: string;  // 'fb', 'google', 'tiktok', etc.
+        platform?: string; // 'fb', 'google', 'tiktok', etc.
         external_campaign_id?: string;
         external_campaign_name?: string;
         external_form_id?: string;
@@ -116,7 +120,7 @@ export type ApiLeadPayload = {
         external_adset_name?: string;
     };
     metadata?: ExternalLeadMetadata;
-    raw_payload?: Record<string, any>;
+    raw_payload?: Record<string, unknown>;
 };
 
 export type parsedLeadFromCSV = {
@@ -131,12 +135,12 @@ export type parsedLeadFromCSV = {
     zipcode: string;
     county: string;
     county_id?: string;
-    investor_id?: string | null;  // Deprecated - kept for backward compatibility
-    source_id?: string | null;  // TICKET-046: Lead source (for API intake)
-    campaign_id?: string | null;  // TICKET-046: Campaign (for API intake)
+    investor_id?: string | null; // Deprecated - kept for backward compatibility
+    source_id?: string | null; // TICKET-046: Lead source (for API intake)
+    campaign_id?: string | null; // TICKET-046: Campaign (for API intake)
     // TICKET-047: External platform tracking
     external_lead_id?: string | null;
     external_ad_id?: string | null;
     external_ad_name?: string | null;
-    raw_payload?: Record<string, any> | null;
+    raw_payload?: Record<string, unknown> | null;
 };

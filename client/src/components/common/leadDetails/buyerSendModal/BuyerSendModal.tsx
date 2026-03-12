@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -27,6 +27,8 @@ import {
 } from '@mui/icons-material';
 import leadsService from '../../../../services/lead.service';
 import { Lead } from '../../../../types/leadTypes';
+import { usePermissions } from '../../../../hooks/usePermissions';
+import { Permission } from '../../../../types/userTypes';
 
 interface BuyerSendModalProps {
     open: boolean;
@@ -40,6 +42,8 @@ interface BuyerHistory {
     buyer_name: string;
     buyer_priority: number;
     dispatch_mode: 'manual' | 'worker' | 'both';
+    sold: boolean;
+    has_successful_send: boolean;
     sends: Array<{
         id: string;
         status: string;
@@ -50,56 +54,66 @@ interface BuyerHistory {
     last_sent_at: string | null;
 }
 
+function extractErrorMessage(err: unknown, fallback: string): string {
+    if (err instanceof Error) return err.message;
+    return fallback;
+}
+
 const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps) => {
+    const { can } = usePermissions();
+    const canSend = can(Permission.LEADS_SEND);
+    const canQueue = can(Permission.LEADS_QUEUE);
     const [loading, setLoading] = useState(false);
     const [buyerHistory, setBuyerHistory] = useState<BuyerHistory[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [sending, setSending] = useState<string | null>(null); // buyer_id currently being sent to
     const [enablingWorker, setEnablingWorker] = useState(false);
 
-    useEffect(() => {
-        if (open) {
-            loadBuyerHistory();
-        }
-    }, [open, lead.id]);
-
-    const loadBuyerHistory = async () => {
+    const loadBuyerHistory = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const data = await leadsService.getBuyerSendHistory(lead.id);
             setBuyerHistory(data.buyers);
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Failed to load buyer history');
+        } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Failed to load buyer history'));
         } finally {
             setLoading(false);
         }
-    };
+    }, [lead.id]);
+
+    useEffect(() => {
+        if (open) {
+            void loadBuyerHistory();
+        }
+    }, [open, loadBuyerHistory]);
 
     const handleSendToBuyer = async (buyerId: string) => {
         setSending(buyerId);
         setError(null);
         try {
             await leadsService.sendLeadToBuyer(lead.id, buyerId);
-            await loadBuyerHistory(); // Refresh history
+            await loadBuyerHistory();
             if (onRefresh) onRefresh();
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Failed to send lead');
+        } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Failed to send lead'));
         } finally {
             setSending(null);
         }
     };
 
     const handleMarkSold = async (buyerId: string, sold: boolean) => {
-        if (!sold) return; // Only handle marking as sold, not unsold
-
         setError(null);
         try {
-            await leadsService.markSoldToBuyer(lead.id, buyerId);
-            await loadBuyerHistory(); // Refresh history
+            if (sold) {
+                await leadsService.markSoldToBuyer(lead.id, buyerId);
+            } else {
+                await leadsService.unmarkSoldToBuyer(lead.id, buyerId);
+            }
+            await loadBuyerHistory();
             if (onRefresh) onRefresh();
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Failed to mark as sold');
+        } catch (err: unknown) {
+            setError(extractErrorMessage(err, sold ? 'Failed to mark as sold' : 'Failed to unmark as sold'));
         }
     };
 
@@ -110,12 +124,14 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
             await leadsService.enableWorker(lead.id);
             if (onRefresh) onRefresh();
             onClose();
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Failed to enable worker');
+        } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Failed to queue for worker'));
         } finally {
             setEnablingWorker(false);
         }
     };
+
+    const handleClearError = () => { setError(null); };
 
     // Manual buyers: dispatch_mode is 'manual' or 'both'
     const manualBuyers = buyerHistory.filter(b =>
@@ -154,21 +170,24 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                         )}
                         {latestSend && (
                             <Box mt={1}>
-                                {wasSuccessful ? (
-                                    <Chip
-                                        icon={<CheckCircleIcon />}
-                                        label={`Success (${latestSend.response_code})`}
-                                        color="success"
-                                        size="small"
-                                    />
-                                ) : (
-                                    <Chip
-                                        icon={<ErrorIcon />}
-                                        label={`Failed (${latestSend.response_code || 'Error'})`}
-                                        color="error"
-                                        size="small"
-                                    />
-                                )}
+                                {wasSuccessful
+                                    ? (
+                                        <Chip
+                                            icon={<CheckCircleIcon />}
+                                            label={`Success (${latestSend.response_code})`}
+                                            color="success"
+                                            size="small"
+                                        />
+                                    )
+                                    : (
+                                        <Chip
+                                            icon={<ErrorIcon />}
+                                            label={`Failed (${latestSend.response_code ?? 'Error'})`}
+                                            color="error"
+                                            size="small"
+                                        />
+                                    )
+                                }
                             </Box>
                         )}
                     </Box>
@@ -177,21 +196,23 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                     <Stack direction="row" spacing={1} alignItems="center">
                         {!isWorkerBuyer && (
                             <>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={false} // TODO: Get sold status from lead_buyer_outcomes
-                                            onChange={(e) => handleMarkSold(buyer.buyer_id, e.target.checked)}
-                                            disabled={sending !== null}
-                                        />
-                                    }
-                                    label="Sold"
-                                />
+                                <Tooltip title={!buyer.has_successful_send ? 'No successful send yet' : ''}>
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={buyer.sold}
+                                                onChange={(e) => { void handleMarkSold(buyer.buyer_id, e.target.checked); }}
+                                                disabled={sending !== null || !buyer.has_successful_send}
+                                            />
+                                        }
+                                        label="Sold"
+                                    />
+                                </Tooltip>
                                 <Button
                                     variant="contained"
                                     startIcon={sending === buyer.buyer_id ? <CircularProgress size={16} /> : <SendIcon />}
-                                    onClick={() => handleSendToBuyer(buyer.buyer_id)}
-                                    disabled={sending !== null || (!lead.verified && buyer.buyer_name.includes('validation'))}
+                                    onClick={() => { void handleSendToBuyer(buyer.buyer_id); }}
+                                    disabled={!canSend || sending !== null || (!lead.verified && buyer.buyer_name.includes('validation'))}
                                     size="small"
                                 >
                                     {sending === buyer.buyer_id ? 'Sending...' : 'Send'}
@@ -213,7 +234,14 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="h6">Send Lead to Buyers</Typography>
+                    <Box>
+                        <Typography variant="h6">Send Lead to Buyers</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {lead.first_name} {lead.last_name}
+                            {lead.county ? ` · ${lead.county}, ${lead.state}` : ` · ${lead.state}`}
+                            {lead.phone ? ` · ${lead.phone}` : ''}
+                        </Typography>
+                    </Box>
                     <IconButton onClick={onClose} size="small">
                         <CloseIcon />
                     </IconButton>
@@ -222,52 +250,55 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
 
             <DialogContent>
                 {error && (
-                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={handleClearError}>
                         {error}
                     </Alert>
                 )}
 
-                {loading ? (
-                    <Box display="flex" justifyContent="center" py={4}>
-                        <CircularProgress />
-                    </Box>
-                ) : (
-                    <>
-                        {/* Manual Buyers Section */}
-                        {manualBuyers.length > 0 && (
-                            <Box mb={3}>
-                                <Typography variant="h6" gutterBottom>
-                                    Manual Buyers
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" paragraph>
-                                    Send leads manually to these buyers
-                                </Typography>
-                                {manualBuyers.map(buyer => renderBuyerRow(buyer, false))}
-                            </Box>
-                        )}
+                {loading
+                    ? (
+                        <Box display="flex" justifyContent="center" py={4}>
+                            <CircularProgress />
+                        </Box>
+                    )
+                    : (
+                        <>
+                            {/* Manual Buyers Section */}
+                            {manualBuyers.length > 0 && (
+                                <Box mb={3}>
+                                    <Typography variant="h6" gutterBottom>
+                                        Manual Buyers
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" paragraph>
+                                        Send leads manually to these buyers
+                                    </Typography>
+                                    {manualBuyers.map(buyer => renderBuyerRow(buyer, false))}
+                                </Box>
+                            )}
 
-                        {manualBuyers.length > 0 && workerBuyers.length > 0 && <Divider sx={{ my: 3 }} />}
+                            {manualBuyers.length > 0 && workerBuyers.length > 0 && <Divider sx={{ my: 3 }} />}
 
-                        {/* Worker Buyers Section */}
-                        {workerBuyers.length > 0 && (
-                            <Box>
-                                <Typography variant="h6" gutterBottom>
-                                    Worker Buyers (Automated)
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" paragraph>
-                                    These buyers receive leads automatically when worker is enabled
-                                </Typography>
-                                {workerBuyers.map(buyer => renderBuyerRow(buyer, true))}
-                            </Box>
-                        )}
+                            {/* Worker Buyers Section */}
+                            {workerBuyers.length > 0 && (
+                                <Box>
+                                    <Typography variant="h6" gutterBottom>
+                                        Worker Buyers (Automated)
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" paragraph>
+                                        These buyers receive leads automatically when worker is enabled
+                                    </Typography>
+                                    {workerBuyers.map(buyer => renderBuyerRow(buyer, true))}
+                                </Box>
+                            )}
 
-                        {buyerHistory.length === 0 && (
-                            <Alert severity="info">
-                                No buyers configured. Add buyers in the admin panel.
-                            </Alert>
-                        )}
-                    </>
-                )}
+                            {buyerHistory.length === 0 && (
+                                <Alert severity="info">
+                                    No buyers configured. Add buyers in the admin panel.
+                                </Alert>
+                            )}
+                        </>
+                    )
+                }
             </DialogContent>
 
             <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -275,8 +306,8 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                     <Button
                         variant="outlined"
                         startIcon={enablingWorker ? <CircularProgress size={16} /> : <PlayArrowIcon />}
-                        onClick={handleEnableWorker}
-                        disabled={enablingWorker || sending !== null}
+                        onClick={() => { void handleEnableWorker(); }}
+                        disabled={!canQueue || enablingWorker || sending !== null}
                         color="primary"
                     >
                         {enablingWorker ? 'Queuing...' : 'Queue for Worker'}

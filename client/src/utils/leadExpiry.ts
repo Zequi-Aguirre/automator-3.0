@@ -18,10 +18,9 @@ export function formatRemaining(ms: number): string {
 }
 
 export function getUrgency(ms: number): Urgency {
-    // TODO: adjust thresholds as needed do settings in DB
     if (ms <= 0) return "expired";
-    if (ms <= 2 * 60 * 1000) return "critical"; // < 2m
-    if (ms <= 10 * 60 * 1000) return "warn"; // < 10m
+    if (ms <= 4 * 60 * 60 * 1000) return "critical"; // < 4h
+    if (ms <= 8 * 60 * 60 * 1000) return "warn"; // < 8h
     return "ok";
 }
 

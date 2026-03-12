@@ -10,7 +10,7 @@ type LeadFilters = {
     page: number;
     limit: number;
     search: string;
-    status: "new" | "verified" | "sent" | "trash";
+    status: "new" | "verified" | "sent" | "sold" | "trash";
 };
 
 type CountyFilters = {
@@ -37,11 +37,11 @@ type DataContextType = {
     setCountyFilters: React.Dispatch<React.SetStateAction<CountyFilters>>;
 };
 
-const CURRENT_VERSION = 4;
+const CURRENT_VERSION = 5;
 
 const defaultLeadFilters: LeadFilters = {
     page: 1,
-    limit: 200,
+    limit: 100,
     search: "",
     status: "new"
 };

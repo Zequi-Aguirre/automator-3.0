@@ -15,13 +15,13 @@
 | **Sprint 5** | 🟢 COMPLETE | #26-31 | 6/6 (100%) |
 | **Sprint 6** | 🟢 COMPLETE | #32-38 | 7/7 (100%) |
 | **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
-| **Sprint 8** | 🟡 IN PROGRESS | #048-057 | 3/10 (30%) |
+| **Sprint 8** | 🟡 IN PROGRESS | #048-061 | 5/14 (36%) |
 | **Backlog** | ⬜ TODO | #39-41 | 0/3 (0%) |
 
-**Overall Progress:** 41/57 tickets complete
+**Overall Progress:** 43/61 tickets complete
 
-**Current Status:** TICKET-057 (user roles & permissions) complete — PR #11 open
-**Next Up:** TICKET-048 (buyer ping system), TICKET-052 (call queue), TICKET-053 (trash reasons)
+**Current Status:** TICKET-061 (leads table redesign) — PR open
+**Next Up:** TICKET-053 (trash reasons), TICKET-058 (disputes), TICKET-059 (dynamic blob)
 
 ### Sprint 8 Ticket Status
 | Ticket | Title | Status |
@@ -38,7 +38,56 @@
 | TICKET-057 | User roles & permissions system | ✅ Done — PR #11 merged |
 | TICKET-058 | Dispute system for sent leads | 🔲 TODO |
 | TICKET-059 | Dynamic lead payload blob | 🔲 TODO |
-| TICKET-060 | Call queue permission + queue-for-call action | 🔲 TODO |
+| TICKET-060 | Worker queue rename (queue/unqueue endpoints) | ✅ Done — PR #12 merged |
+| TICKET-061 | Leads table redesign + buyer dispatch UI fixes | 🔄 In Review — PR open |
+
+---
+
+## TICKET-061: Leads table redesign + buyer dispatch UI fixes
+
+**Status:** 🔄 In Review
+**PR:** TBD (targeting `develop`)
+
+### Summary
+Major leads table and buyer dispatch UI improvements:
+
+**Leads table:**
+- Narrower columns with multi-line cells (DataGrid `getRowHeight="auto"`)
+- County + State merged into single column
+- Received + Expires merged: date on top, "Expires Xh Ym" below with urgency color
+- New Campaign column: `{Platform} - {Campaign Name}` (joined from campaigns table)
+- Consolidated Actions column: Verify chip (toggle), Queue chip (toggle), Buyers icon, Trash icon, Edit icon
+- All actions permission-gated via `usePermissions()` + `<Tooltip>` wrapping disabled elements
+
+**Filters:**
+- Fixed "Sent" filter: was `l.sent = TRUE` (broken), now uses `EXISTS (send_log WHERE response_code 200-299)`
+- Added "Sold" filter: `EXISTS (lead_buyer_outcomes WHERE status='sold')`
+- Extended status type to include "sold" across server + client
+
+**BuyerSendModal:**
+- Lead info (name, county, state, phone) shown in dialog header
+- Sold toggle now bidirectional: mark sold ↔ unmark sold (`DELETE /:leadId/buyers/:buyerId/sold`)
+- Sold toggle disabled if no successful send exists for that buyer (validated both FE + BE)
+- Worker section renamed "Queue for Worker" throughout
+
+**Backend:**
+- `getMany` JOIN campaigns table → returns `campaign_name`, `campaign_platform`
+- `markSoldToBuyer`: validates successful send exists before allowing sold mark
+- `unmarkSoldToBuyer`: soft-deletes the `lead_buyer_outcomes` record
+- `getBuyerSendHistory`: includes `has_successful_send` per buyer
+- Lint: fixed pre-existing `any` types in `leadTypes.ts`, `leadService.ts`, `leadResource.ts`
+
+### Files Changed
+- `server/src/main/data/leadDAO.ts` — JOIN campaigns, status filter fixes
+- `server/src/main/services/leadService.ts` — unmarkSoldToBuyer, sold validation, has_successful_send
+- `server/src/main/resources/leadResource.ts` — DELETE sold endpoint
+- `server/src/main/types/leadTypes.ts` — add sold status, campaign_name, campaign_platform
+- `client/src/components/common/leadsSection/leadsTable/LeadsTable.tsx` — full redesign
+- `client/src/components/common/leadsSection/LeadsSection.tsx` — Sold filter button
+- `client/src/components/common/leadDetails/buyerSendModal/BuyerSendModal.tsx` — bidirectional sold, gating
+- `client/src/context/DataContext.tsx` — add sold to status type
+- `client/src/services/lead.service.tsx` — unmarkSoldToBuyer, updated types
+- `client/src/types/leadTypes.ts` — campaign_name, campaign_platform
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()

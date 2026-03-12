@@ -5,6 +5,8 @@ export enum LeadPermission {
     EXPORT = 'leads.export',
     SEND = 'leads.send',
     TRASH = 'leads.trash',
+    EDIT = 'leads.edit',
+    UNTRASH = 'leads.untrash',
 }
 
 export enum WorkerPermission {
@@ -51,6 +53,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
     user: [
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
+        LeadPermission.EDIT,
         ActivityPermission.VIEW,
     ],
     admin: [
@@ -60,6 +63,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.EXPORT,
         LeadPermission.SEND,
         LeadPermission.TRASH,
+        LeadPermission.EDIT,
+        LeadPermission.UNTRASH,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         ActivityPermission.VIEW,
@@ -71,6 +76,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.EXPORT,
         LeadPermission.SEND,
         LeadPermission.TRASH,
+        LeadPermission.EDIT,
+        LeadPermission.UNTRASH,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         BuyerPermission.MANAGE,

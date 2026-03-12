@@ -14,6 +14,7 @@ export enum LeadAction {
     UNVERIFIED = 'lead_unverified',
     UPDATED = 'lead_updated',
     TRASHED = 'lead_trashed',
+    UNTRASHED = 'lead_untrashed',
     DOWNLOADED = 'lead_downloaded',
     SENT = 'lead_sent',
     QUEUED = 'lead_queued',
@@ -84,7 +85,7 @@ export type ActivityLog = {
     entity_type: EntityType | null;
     entity_id: string | null;
     action: ActivityAction;
-    action_details: Record<string, any> | null;
+    action_details: Record<string, unknown> | null;
     created: string;
     user_name?: string | null;
 };
@@ -95,7 +96,7 @@ export type ActivityCreateDTO = {
     entity_type?: EntityType | null;
     entity_id?: string | null;
     action: ActivityAction;
-    action_details?: Record<string, any> | null;
+    action_details?: Record<string, unknown> | null;
 };
 
 export type UserActivityStats = {
