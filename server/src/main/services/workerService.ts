@@ -1,8 +1,11 @@
 import { injectable } from "tsyringe";
+import { WORKER_USER_ID } from "../constants";
+import { LeadAction } from "../types/activityTypes";
 import LeadDAO from "../data/leadDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import BuyerDAO from "../data/buyerDAO";
 import BuyerDispatchService from "../services/buyerDispatchService";
+import ActivityService from "../services/activityService";
 
 @injectable()
 export default class WorkerService {
@@ -11,7 +14,8 @@ export default class WorkerService {
         private readonly leadDAO: LeadDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly buyerDAO: BuyerDAO,
-        private readonly buyerDispatchService: BuyerDispatchService
+        private readonly buyerDispatchService: BuyerDispatchService,
+        private readonly activityService: ActivityService
     ) {}
 
     /**
@@ -72,9 +76,17 @@ export default class WorkerService {
 
         const reason = `EXPIRED_${expireHours}_HOURS`;
 
-        return await this.leadDAO.trashExpiredLeads(
-            expireHours,
-            reason
-        );
+        const trashedIds = await this.leadDAO.trashExpiredLeads(expireHours, reason);
+
+        for (const leadId of trashedIds) {
+            await this.activityService.log({
+                user_id: WORKER_USER_ID,
+                lead_id: leadId,
+                action: LeadAction.TRASHED,
+                action_details: { reason }
+            });
+        }
+
+        return trashedIds.length;
     }
 }

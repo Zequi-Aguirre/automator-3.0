@@ -1,4 +1,6 @@
 import { injectable } from "tsyringe";
+import { WORKER_USER_ID } from "../constants";
+import { LeadAction } from "../types/activityTypes";
 import BuyerDAO from "../data/buyerDAO";
 import LeadDAO from "../data/leadDAO";
 import SendLogDAO from "../data/sendLogDAO";
@@ -6,6 +8,7 @@ import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO";
 import CampaignDAO from "../data/campaignDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import CountyService from "../services/countyService";
+import ActivityService from "../services/activityService";
 import BuyerWebhookAdapter, { BuyerWebhookResponse } from "../adapters/buyerWebhookAdapter";
 import { Lead } from "../types/leadTypes";
 import { Buyer } from "../types/buyerTypes";
@@ -22,7 +25,8 @@ export default class BuyerDispatchService {
         private readonly campaignDAO: CampaignDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly countyService: CountyService,
-        private readonly buyerWebhookAdapter: BuyerWebhookAdapter
+        private readonly buyerWebhookAdapter: BuyerWebhookAdapter,
+        private readonly activityService: ActivityService
     ) {}
 
     /**
@@ -33,7 +37,7 @@ export default class BuyerDispatchService {
      * @param isWorkerSend - If true, updates buyer timing (worker randomization). Default: false (manual/auto-send)
      * @returns SendLog record with response details
      */
-    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false): Promise<SendLog> {
+    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false, userId?: string | null): Promise<SendLog> {
         // Validation: Can we send this lead to this buyer?
         const canSend = await this.canSendToBuyer(lead, buyer);
         if (!canSend.allowed) {
@@ -89,6 +93,19 @@ export default class BuyerDispatchService {
         if (isWorkerSend) {
             await this.scheduleBuyerNext(buyer.id);
         }
+
+        // Log activity — always attribute to a real user (worker or human)
+        await this.activityService.log({
+            user_id: isWorkerSend ? WORKER_USER_ID : (userId ?? WORKER_USER_ID),
+            lead_id: lead.id,
+            action: LeadAction.SENT,
+            action_details: {
+                buyer_id: buyer.id,
+                buyer_name: buyer.name,
+                source: isWorkerSend ? 'worker' : 'auto_send',
+                status: response.success ? 'sent' : 'failed'
+            }
+        });
 
         // Return updated log
         return updatedLog;

@@ -36,9 +36,10 @@ class LeadService {
 
     // Trash lead by id with oldDatabase support
     async trashLead(
-        leadId: string
+        leadId: string,
+        notes?: string
     ): Promise<Lead> {
-        const response = await this.api.getApi().patch(`/api/leads/trash/${leadId}`);
+        const response = await this.api.getApi().patch(`/api/leads/trash/${leadId}`, notes ? { notes } : {});
         return response.data;
     }
 

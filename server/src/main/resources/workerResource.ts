@@ -1,6 +1,8 @@
 import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
 import SettingsService from "../services/settingsService";
+import ActivityService from "../services/activityService";
+import { WorkerAction } from "../types/activityTypes";
 import { Worker } from "../worker/Worker";
 
 @injectable()
@@ -9,7 +11,8 @@ export default class WorkerResource {
 
     constructor(
         private readonly settingsService: SettingsService,
-        private readonly worker: Worker
+        private readonly worker: Worker,
+        private readonly activityService: ActivityService
     ) {
         this.router = express.Router();
         this.initializeRoutes();
@@ -25,7 +28,7 @@ export default class WorkerResource {
         // Start worker (enable in DB, then initialize cron)
         this.router.patch(
             "/admin/start",
-            async (_req: Request, res: Response) => {
+            async (req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
                     if (!settings) {
@@ -39,6 +42,7 @@ export default class WorkerResource {
                     });
 
                     await this.worker.initialize();
+                    await this.activityService.log({ user_id: req.user?.id, action: WorkerAction.STARTED });
 
                     res.status(200).send({
                         success: true,
@@ -57,7 +61,7 @@ export default class WorkerResource {
         // Stop worker (disable in DB, stop cron)
         this.router.patch(
             "/admin/stop",
-            async (_req: Request, res: Response) => {
+            async (req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
                     if (!settings) {
@@ -71,6 +75,7 @@ export default class WorkerResource {
                     });
 
                     this.worker.stop();
+                    await this.activityService.log({ user_id: req.user?.id, action: WorkerAction.STOPPED });
 
                     res.status(200).send({
                         success: true,

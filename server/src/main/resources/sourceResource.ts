@@ -1,6 +1,8 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import SourceService from "../services/sourceService";
+import ActivityService from "../services/activityService";
+import { SourceAction, EntityType } from "../types/activityTypes";
 import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
 
 /**
@@ -16,7 +18,10 @@ import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceR
 export default class SourceResource {
     private readonly router: Router;
 
-    constructor(private readonly sourceService: SourceService) {
+    constructor(
+        private readonly sourceService: SourceService,
+        private readonly activityService: ActivityService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -93,6 +98,14 @@ export default class SourceResource {
                     token: source.token  // Only time token is returned
                 };
 
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: EntityType.SOURCE,
+                    entity_id: source.id,
+                    action: SourceAction.CREATED,
+                    action_details: { name: source.name }
+                });
+
                 res.status(201).json(response);
             } catch (error) {
                 console.error('Error creating source:', error);
@@ -118,6 +131,14 @@ export default class SourceResource {
 
                 const source = await this.sourceService.update(id, updateDTO);
 
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: EntityType.SOURCE,
+                    entity_id: id,
+                    action: SourceAction.UPDATED,
+                    action_details: updateDTO
+                });
+
                 // Mask token in response
                 res.status(200).json(this.maskToken(source));
             } catch (error) {
@@ -140,6 +161,14 @@ export default class SourceResource {
                     id: source.id,
                     token: source.token  // New token returned once
                 };
+
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: EntityType.SOURCE,
+                    entity_id: id,
+                    action: SourceAction.TOKEN_REFRESHED,
+                    action_details: { name: source.name }
+                });
 
                 res.status(200).json(response);
             } catch (error) {

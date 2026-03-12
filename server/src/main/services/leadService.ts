@@ -1,4 +1,6 @@
 import { injectable } from "tsyringe";
+import { WORKER_USER_ID } from "../constants";
+import { LeadAction } from "../types/activityTypes";
 import LeadDAO from "../data/leadDAO";
 import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
@@ -11,6 +13,7 @@ import { County } from "../types/countyTypes.ts";
 import BuyerDAO from "../data/buyerDAO.ts";
 import BuyerDispatchService from "./buyerDispatchService.ts";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
+import ActivityService from "./activityService.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
@@ -30,7 +33,8 @@ export default class LeadService {
         private readonly sendLogDAO: SendLogDAO,
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
-        private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO
+        private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO,
+        private readonly activityService: ActivityService
     ) {}
 
     // CSV Import Source Management
@@ -75,11 +79,13 @@ export default class LeadService {
         }
     }
 
-    async updateLead(leadId: string, leadData: Partial<Lead>): Promise<Lead> {
-        return await this.leadDAO.updateLead(leadId, leadData);
+    async updateLead(leadId: string, leadData: Partial<Lead>, userId?: string | null): Promise<Lead> {
+        const updated = await this.leadDAO.updateLead(leadId, leadData);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UPDATED });
+        return updated;
     }
 
-    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE"): Promise<Lead> {
+    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null, notes?: string | null): Promise<Lead> {
         try {
             const lead = await this.leadDAO.getById(leadId);
             if (!lead) {
@@ -91,7 +97,9 @@ export default class LeadService {
                 throw new Error("Lead already sent");
             }
 
-            return await this.leadDAO.trashLeadWithReason(leadId, reason);
+            const trashed = await this.leadDAO.trashLeadWithReason(leadId, reason);
+            await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.TRASHED, action_details: { reason, ...(notes ? { notes } : {}) } });
+            return trashed;
 
         } catch (error) {
             console.error("Error during lead trash process:", error);
@@ -112,7 +120,7 @@ export default class LeadService {
         }
     }
 
-    async verifyLead(leadId: string): Promise<Lead> {
+    async verifyLead(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
             throw new Error("Lead not found");
@@ -152,10 +160,12 @@ export default class LeadService {
             throw new Error(`Missing required fields: ${missing.join(", ")}`);
         }
 
-        return await this.leadDAO.verifyLead(leadId);
+        const verified = await this.leadDAO.verifyLead(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.VERIFIED });
+        return verified;
     }
 
-    async unverifyLead(leadId: string): Promise<Lead> {
+    async unverifyLead(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
             throw new Error("Lead not found");
@@ -167,10 +177,12 @@ export default class LeadService {
             throw new Error("Lead is not verified");
         }
 
-        return await this.leadDAO.unverifyLead(leadId);
+        const unverified = await this.leadDAO.unverifyLead(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UNVERIFIED });
+        return unverified;
     }
 
-    async importLeads(csvContent: string) {
+    async importLeads(csvContent: string, userId?: string | null) {
         const { leads } = parseCsvToLeads(csvContent);
 
         // Get or create CSV_IMPORT source and campaign
@@ -275,6 +287,14 @@ export default class LeadService {
                 .map(r => r.error || "Unknown error")
         );
 
+        if (successCount > 0) {
+            await this.activityService.log({
+                user_id: userId,
+                action: LeadAction.IMPORTED,
+                action_details: { count: successCount, method: 'csv' }
+            });
+        }
+
         return {
             imported: successCount,
             rejected: rejectedCount + trashedCount + failedInsertCount,
@@ -304,7 +324,6 @@ export default class LeadService {
             zipcode: p.zipcode || "",
             county: p.county || "",
             county_id: undefined,
-            private_notes: p.private_notes || null,
             investor_id: null,
             source_id: source_id || null,
             campaign_id: campaign_id || null,
@@ -376,7 +395,7 @@ export default class LeadService {
             for (const lead of successfulLeads) {
                 for (const buyer of autoSendBuyers) {
                     try {
-                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, WORKER_USER_ID);
                     } catch (e) {
                         // Log auto-send errors but don't fail the import
                         console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
@@ -396,6 +415,18 @@ export default class LeadService {
                 .filter(r => !r.success)
                 .map(r => r.error || "Unknown insert error")
         );
+
+        if (successCount > 0) {
+            let sourceName: string | null = null;
+            if (source_id) {
+                const source = await this.sourceService.getById(source_id);
+                sourceName = source?.name ?? null;
+            }
+            await this.activityService.log({
+                action: LeadAction.IMPORTED,
+                action_details: { count: successCount, method: 'api', source_name: sourceName }
+            });
+        }
 
         return {
             imported: successCount,
@@ -429,7 +460,7 @@ export default class LeadService {
      * Send lead to specific buyer (manual send)
      * Delegates to BuyerDispatchService for validation and dispatch
      */
-    async sendLeadToBuyer(leadId: string, buyerId: string) {
+    async sendLeadToBuyer(leadId: string, buyerId: string, userId: string) {
         // Get lead and buyer
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
@@ -441,8 +472,8 @@ export default class LeadService {
             throw new Error(`Buyer ${buyerId} not found`);
         }
 
-        // Delegate to BuyerDispatchService
-        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+        // Delegate to BuyerDispatchService (activity logged inside dispatch)
+        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, userId);
     }
 
     /**
@@ -484,8 +515,10 @@ export default class LeadService {
      * Enable worker processing for a lead
      * Sets worker_enabled=true so worker can process this lead
      */
-    async enableWorker(leadId: string): Promise<Lead> {
-        return await this.leadDAO.enableWorker(leadId);
+    async enableWorker(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.enableWorker(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.QUEUED });
+        return lead;
     }
 
     /**

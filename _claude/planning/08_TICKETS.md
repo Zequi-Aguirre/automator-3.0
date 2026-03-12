@@ -17,11 +17,11 @@
 | **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
 | **Backlog** | ⬜ TODO | #39-41 | 0/3 (0%) |
 
-**Overall Progress:** 38/41 core tickets (93%) + 2 additional features (BUG-001, TICKET-046)
-**Remaining:** 3 enhancement tickets (documentation & UX improvements)
+**Overall Progress:** 39/41 core tickets (95%) + 2 additional features (BUG-001, TICKET-046)
+**Remaining:** 2 enhancement tickets
 
-**Current Status:** All core functionality complete - TICKET-046 merged to develop
-**Next Up:** QA session and user feedback
+**Current Status:** TICKET-051 (activity tracking) complete — PR #10 open, awaiting merge
+**Next Up:** TICKET-053, TICKET-048, TICKET-052
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()
@@ -1780,6 +1780,7 @@ CREATE TRIGGER update_lead_managers_modified
 **Estimate**: 6 hours
 **Sprint**: 8 (Foundation)
 **Date Created**: 2026-03-06
+**Status**: ✅ COMPLETE — PR #10 merged to develop (2026-03-12)
 
 **Background**:
 VAs and managers need visibility into who is actually working (verifying leads, updating data). Currently, there's no tracking of which user performed which actions.
@@ -1787,13 +1788,26 @@ VAs and managers need visibility into who is actually working (verifying leads, 
 **Reference**: Use Northstar as the model for this system. Northstar has activity tracking for both leads and buyers — the data model, UI patterns, and feed structure there are a proven example to follow. Copy that approach rather than designing from scratch.
 
 **Goal**:
-Track key user actions for accountability and performance metrics.
+Track everything. Every action that touches a lead or a system entity should be logged. No exceptions.
 
-**Actions to Track**:
-1. Lead verification (who verified each lead)
-2. Lead updates (who made changes)
-3. Lead trashed (who trashed and why)
-4. Manual sends to buyers (who initiated)
+**Actions Tracked** (implemented):
+
+Lead lifecycle:
+1. `lead_imported` — batch event: N leads imported via CSV (user) or API (source name)
+2. `lead_verified` — lead marked verified (who + when)
+3. `lead_unverified` — lead unmarked verified (who)
+4. `lead_updated` — lead fields edited (who)
+5. `lead_trashed` — lead deleted (who + reason); includes worker expiration trashes (source: worker)
+6. `lead_sent` — lead dispatched to buyer; covers manual, auto-send on API import, and worker sends (source field distinguishes)
+
+System / admin actions:
+7. `worker_enabled` / `worker_disabled` — who turned worker on/off
+8. `worker_settings_updated` — settings page changes (who + what fields)
+9. `source_created` / `source_updated` — source add/edit (who)
+10. `campaign_manager_assigned` — manager assigned to campaign (who)
+11. `buyer_created` / `buyer_updated` — buyer add/edit (who)
+12. `lead_manager_created` / `lead_manager_updated` — lead manager add/edit (who)
+13. `county_updated` — county field edits and blacklist toggle (who)
 
 **Database Changes**:
 ```sql
@@ -1806,12 +1820,15 @@ ADD COLUMN verified_by_user_id UUID REFERENCES users(id);
 CREATE INDEX idx_leads_verified_by ON leads(verified_by_user_id) WHERE verified_by_user_id IS NOT NULL;
 
 -- Create activity log table
-CREATE TABLE user_activity_log (
+-- user_id is nullable: NULL means the action was triggered by the system (worker auto-send, CSV import job, etc.)
+CREATE TABLE activity_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
-  lead_id UUID REFERENCES leads(id),
-  action TEXT NOT NULL, -- 'verified', 'updated', 'trashed', 'sent', 'enabled_worker'
-  action_details JSONB, -- additional context (e.g., what changed, which buyer)
+  user_id UUID REFERENCES users(id),       -- NULL = system action
+  lead_id UUID REFERENCES leads(id),        -- NULL for non-lead actions (source created, buyer created, etc.)
+  entity_type TEXT,                          -- 'lead', 'source', 'campaign', 'buyer' — what was acted on
+  entity_id UUID,                            -- ID of the entity acted on (if not a lead)
+  action TEXT NOT NULL,                      -- see Actions to Track above
+  action_details JSONB,                      -- context: what changed, which buyer, platform, etc.
   created TIMESTAMPTZ DEFAULT NOW()
 );
 

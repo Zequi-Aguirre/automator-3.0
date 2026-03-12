@@ -123,7 +123,6 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         },
         county: lead.county ?? "No county saved",
         state: lead.state,
-        private_notes: lead.private_notes ?? "",
         daySent: parseUtcToZone(lead.sent_date),
         created: parseUtcToZone(lead.created),
         raw: lead,
@@ -175,24 +174,6 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         },
         { field: "county", headerName: "County", flex: 1, sortingOrder: ["asc", "desc"] },
         { field: "state", headerName: "State", flex: 0.7 },
-        {
-            field: "private_notes",
-            headerName: "Notes",
-            flex: 1.2,
-            renderCell: (params) => (
-                <Typography
-                    variant="body2"
-                    sx={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                    }}
-                    title={params.value || ""}
-                >
-                    {params.value || "—"}
-                </Typography>
-            ),
-        },
         {
             field: "created",
             headerName: "Received",

@@ -83,7 +83,6 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             State,
             'Zip Code': ZipCode,
             County,
-            'Private Notes': PrivateNotes,
             Investor
         } = row;
 
@@ -108,7 +107,6 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             zipcode: ZipCode || "",
             county: County || "",
             county_id: undefined,
-            private_notes: PrivateNotes || null,
             investor_id: Investor?.trim() || null,
         });
     }

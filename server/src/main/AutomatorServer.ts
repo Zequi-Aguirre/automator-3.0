@@ -25,6 +25,7 @@ import SendLogResource from "./resources/sendLogResource.ts";
 import BuyerResource from "./resources/buyerResource.ts";
 import SourceResource from "./resources/sourceResource";
 import LeadManagerResource from "./resources/leadManagerResource";
+import ActivityResource from "./resources/activityResource";
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ export class AutomatorServer {
         const apiKeyFunc = cont.resolve(ApiKeyAuthenticator).authenticateFunc();
 
         // Set up routes
+        this.app.use("/api/activity", authFunc, cont.resolve(ActivityResource).routes());
         this.app.use("/api/affiliates", authFunc, cont.resolve(AffiliateResource).routes());
         this.app.use("/api/authenticate", cont.resolve(AuthenticateResource).routes());
         this.app.use("/api/buyers", authFunc, cont.resolve(BuyerResource).routes());
@@ -64,7 +66,7 @@ export class AutomatorServer {
         this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
         this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());
         this.app.use("/api/leads-intake", apiKeyFunc, cont.resolve(LeadIntakeResource).routes());
-        this.app.use("/api/leads-open", cont.resolve(LeadOpenResource).routes());
+        this.app.use("/api/leads-open", authFunc, cont.resolve(LeadOpenResource).routes());
         this.app.use("/api/leads-form-input", authFunc, cont.resolve(LeadFormInputResource).routes());
         this.app.use("/api/logs", authFunc, cont.resolve(SendLogResource).routes());
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());

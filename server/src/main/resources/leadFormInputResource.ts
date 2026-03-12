@@ -1,13 +1,18 @@
 import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
 import LeadFormInputService from "../services/leadFormInputService";
+import ActivityService from "../services/activityService";
+import { VerificationAction } from "../types/activityTypes";
 import { LeadFormInputCreate, LeadFormInputUpdate } from "../types/leadFormInputTypes";
 
 @injectable()
 export default class LeadFormInputResource {
     private readonly router: Router;
 
-    constructor(private readonly leadFormInputService: LeadFormInputService) {
+    constructor(
+        private readonly leadFormInputService: LeadFormInputService,
+        private readonly activityService: ActivityService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -38,6 +43,11 @@ export default class LeadFormInputResource {
             try {
                 const data: LeadFormInputCreate = req.body;
                 const result = await this.leadFormInputService.create(data);
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    lead_id: data.lead_id,
+                    action: VerificationAction.STARTED
+                });
                 return res.status(201).send(result);
             } catch (error) {
                 console.error("Error creating form input:", error);
@@ -55,6 +65,18 @@ export default class LeadFormInputResource {
                 const updates: LeadFormInputUpdate = req.body;
 
                 const updated = await this.leadFormInputService.update(leadId, updates);
+
+                // Only include non-empty form_* fields in action_details
+                const filledFields = Object.fromEntries(
+                    Object.entries(updates).filter(([k, v]) => k.startsWith('form_') && v !== null && v !== undefined && v !== '')
+                );
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    lead_id: leadId,
+                    action: VerificationAction.SAVED,
+                    action_details: filledFields
+                });
+
                 return res.status(200).send(updated);
             } catch (error) {
                 console.error("Error updating form input:", error);

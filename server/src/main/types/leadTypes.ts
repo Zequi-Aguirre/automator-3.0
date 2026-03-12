@@ -14,7 +14,6 @@ export type Lead = {
     sent: boolean;
     verified: boolean;
     sent_date: string;
-    private_notes: string | null;
     investor_id: string | null;
     campaign_id: string | null;
     worker_enabled: boolean;
@@ -107,7 +106,6 @@ export type ApiLeadPayload = {
         state: string;
         zip: string;
         county?: string;  // Optional - looked up by zip if not provided
-        private_notes?: string;
     };
     campaign?: {
         platform?: string;  // 'fb', 'google', 'tiktok', etc.
@@ -133,7 +131,6 @@ export type parsedLeadFromCSV = {
     zipcode: string;
     county: string;
     county_id?: string;
-    private_notes?: string | null;
     investor_id?: string | null;  // Deprecated - kept for backward compatibility
     source_id?: string | null;  // TICKET-046: Lead source (for API intake)
     campaign_id?: string | null;  // TICKET-046: Campaign (for API intake)
