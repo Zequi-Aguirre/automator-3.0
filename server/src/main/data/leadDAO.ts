@@ -427,7 +427,6 @@ export default class LeadDAO {
                         zipcode: lead.zipcode ?? null,
                         county: lead.county ?? null,
                         county_id: lead.county_id ?? null,
-                        private_notes: lead.private_notes ?? null,
                         source_id: lead.source_id,
                         campaign_id: lead.campaign_id,
                         external_lead_id: lead.external_lead_id ?? null,
@@ -440,12 +439,12 @@ export default class LeadDAO {
                         `
                           INSERT INTO leads (
                             first_name, last_name, email, phone, address, city, state, zipcode,
-                            county, county_id, private_notes, source_id, campaign_id,
+                            county, county_id, source_id, campaign_id,
                             external_lead_id, external_ad_id, external_ad_name, raw_payload
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
-                            $[county], $[county_id], $[private_notes], $[source_id], $[campaign_id],
+                            $[county], $[county_id], $[source_id], $[campaign_id],
                             $[external_lead_id], $[external_ad_id], $[external_ad_name], $[raw_payload]
                           )
                           RETURNING *;
@@ -496,13 +495,13 @@ export default class LeadDAO {
             INSERT INTO leads (
                 first_name, last_name, email, phone,
                 address, city, state, zipcode,
-                county, county_id, private_notes,
+                county, county_id,
                 deleted, deleted_reason
             )
             VALUES (
                 $[first_name], $[last_name], $[email], $[phone],
                 $[address], $[city], $[state], $[zipcode],
-                $[county], $[county_id], $[private_notes],
+                $[county], $[county_id],
                 NOW(), $[reason]
             )
             RETURNING *;

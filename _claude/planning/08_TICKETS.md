@@ -1787,13 +1787,25 @@ VAs and managers need visibility into who is actually working (verifying leads, 
 **Reference**: Use Northstar as the model for this system. Northstar has activity tracking for both leads and buyers — the data model, UI patterns, and feed structure there are a proven example to follow. Copy that approach rather than designing from scratch.
 
 **Goal**:
-Track key user actions for accountability and performance metrics.
+Track everything. Every action that touches a lead or a system entity should be logged. No exceptions.
 
 **Actions to Track**:
-1. Lead verification (who verified each lead)
-2. Lead updates (who made changes)
-3. Lead trashed (who trashed and why)
-4. Manual sends to buyers (who initiated)
+
+Lead lifecycle:
+1. `lead_imported` — lead created via CSV upload or API intake (include source, campaign, platform)
+2. `lead_verified` — lead marked verified (who + when)
+3. `lead_updated` — lead fields edited (who + what changed)
+4. `lead_trashed` — lead deleted (who + reason)
+5. `lead_downloaded` — lead exported/downloaded (who)
+6. `lead_sent` — lead dispatched to a buyer manually (who + which buyer)
+7. `worker_enabled` — lead added to worker queue (who)
+8. `worker_disabled` — lead removed from worker queue (who)
+
+System / admin actions:
+9. `source_created` — new source added (who)
+10. `campaign_manager_assigned` — lead_manager_id set or changed on a campaign (who + campaign + manager)
+11. `buyer_created` — new buyer added (who)
+12. `buyer_updated` — buyer settings changed (who + what changed)
 
 **Database Changes**:
 ```sql
@@ -1806,12 +1818,15 @@ ADD COLUMN verified_by_user_id UUID REFERENCES users(id);
 CREATE INDEX idx_leads_verified_by ON leads(verified_by_user_id) WHERE verified_by_user_id IS NOT NULL;
 
 -- Create activity log table
-CREATE TABLE user_activity_log (
+-- user_id is nullable: NULL means the action was triggered by the system (worker auto-send, CSV import job, etc.)
+CREATE TABLE activity_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
-  lead_id UUID REFERENCES leads(id),
-  action TEXT NOT NULL, -- 'verified', 'updated', 'trashed', 'sent', 'enabled_worker'
-  action_details JSONB, -- additional context (e.g., what changed, which buyer)
+  user_id UUID REFERENCES users(id),       -- NULL = system action
+  lead_id UUID REFERENCES leads(id),        -- NULL for non-lead actions (source created, buyer created, etc.)
+  entity_type TEXT,                          -- 'lead', 'source', 'campaign', 'buyer' — what was acted on
+  entity_id UUID,                            -- ID of the entity acted on (if not a lead)
+  action TEXT NOT NULL,                      -- see Actions to Track above
+  action_details JSONB,                      -- context: what changed, which buyer, platform, etc.
   created TIMESTAMPTZ DEFAULT NOW()
 );
 

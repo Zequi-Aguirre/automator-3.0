@@ -304,7 +304,6 @@ export default class LeadService {
             zipcode: p.zipcode || "",
             county: p.county || "",
             county_id: undefined,
-            private_notes: p.private_notes || null,
             investor_id: null,
             source_id: source_id || null,
             campaign_id: campaign_id || null,
