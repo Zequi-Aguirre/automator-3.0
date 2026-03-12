@@ -199,7 +199,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                             </>
                         )}
                         {isWorkerBuyer && !lead.worker_enabled && (
-                            <Tooltip title="Enable worker to send to this buyer">
+                            <Tooltip title="Lead must be queued for worker to send to this buyer">
                                 <Chip label="Worker Only" color="warning" size="small" />
                             </Tooltip>
                         )}
@@ -279,7 +279,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                         disabled={enablingWorker || sending !== null}
                         color="primary"
                     >
-                        {enablingWorker ? 'Enabling...' : 'Enable Worker'}
+                        {enablingWorker ? 'Queuing...' : 'Queue for Worker'}
                     </Button>
                 )}
                 <Button onClick={onClose}>Close</Button>

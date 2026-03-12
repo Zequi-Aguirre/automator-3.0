@@ -280,13 +280,13 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 params.row.raw?.worker_enabled ? (
                     <Chip
                         icon={<PlayArrowIcon />}
-                        label="Enabled"
+                        label="Queued"
                         color="success"
                         size="small"
                     />
                 ) : (
                     <Chip
-                        label="Disabled"
+                        label="Not Queued"
                         variant="outlined"
                         size="small"
                     />

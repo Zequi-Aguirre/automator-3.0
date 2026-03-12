@@ -26,8 +26,8 @@
 ### Sprint 8 Ticket Status
 | Ticket | Title | Status |
 |--------|-------|--------|
-| TICKET-048 | Buyer ping system | 🔲 TODO |
-| TICKET-049 | Buyer auction/waterfall | 🔲 TODO |
+| TICKET-048 | Buyer ping system | ⏸ On hold |
+| TICKET-049 | Buyer auction/waterfall | ⏸ On hold |
 | TICKET-050 | Lead manager system | ✅ Done — PR merged |
 | TICKET-051 | Activity tracking | ✅ Done — PR #10 merged |
 | TICKET-052 | Call queue for leads | 🔲 TODO |
@@ -35,7 +35,10 @@
 | TICKET-054 | Disputes system expansion | 🔲 TODO |
 | TICKET-055 | Configurable worker delays | 🔲 TODO |
 | TICKET-056 | Enhanced reporting dashboard | 🔲 TODO |
-| TICKET-057 | User roles & permissions system | ✅ Done — PR #11 open |
+| TICKET-057 | User roles & permissions system | ✅ Done — PR #11 merged |
+| TICKET-058 | Dispute system for sent leads | 🔲 TODO |
+| TICKET-059 | Dynamic lead payload blob | 🔲 TODO |
+| TICKET-060 | Call queue permission + queue-for-call action | 🔲 TODO |
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()
@@ -2819,10 +2822,146 @@ Implemented a full per-user, DB-stored permissions system with role-based defaul
 
 ---
 
+---
+
+### TICKET-058: Dispute system for sent leads
+**Type**: Full Stack Feature
+**Priority**: P1
+**Estimate**: 8 hours
+**Sprint**: 8
+**Status**: 🔲 TODO
+
+**Background**:
+When a lead is sent to a buyer and the buyer disputes it (bad data, wrong criteria, etc.), we need to record that dispute against the specific send_log entry. Disputes are per-buyer, per-lead, and include a reason + notes.
+
+**Database Changes**:
+```sql
+CREATE TABLE lead_disputes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  send_log_id UUID NOT NULL REFERENCES send_log(id),
+  lead_id UUID NOT NULL REFERENCES leads(id),
+  buyer_id UUID NOT NULL REFERENCES buyers(id),
+  reason VARCHAR NOT NULL,
+  notes TEXT,
+  status VARCHAR NOT NULL DEFAULT 'open',  -- open, resolved, rejected
+  resolved_at TIMESTAMPTZ,
+  created TIMESTAMPTZ DEFAULT NOW(),
+  modified TIMESTAMPTZ DEFAULT NOW(),
+  deleted TIMESTAMPTZ
+);
+```
+
+**Backend Changes**:
+1. `disputeTypes.ts`: `LeadDispute`, `LeadDisputeCreateDTO`, `LeadDisputeUpdateDTO`
+2. `disputeDAO.ts`: create, getByLead, getByBuyer, updateStatus
+3. `disputeService.ts`: business logic
+4. `disputeResource.ts`:
+   - `POST /api/disputes` — create dispute (requires `leads.dispute` permission)
+   - `GET /api/disputes?lead_id=` — get disputes for a lead
+   - `PATCH /api/disputes/:id/status` — resolve/reject (requires `leads.dispute`)
+5. Add `LeadPermission.DISPUTE = 'leads.dispute'` to permission types
+6. Seed `leads.dispute` for admin + superadmin
+
+**Frontend Changes**:
+1. In send history (lead details / buyer send modal): "Dispute" button next to each send log entry
+2. Dispute dialog: reason dropdown + notes text field
+3. Show dispute status badge on send log rows that have disputes
+4. Permission gate: `can(Permission.LEADS_DISPUTE)` hides the button
+
+**Acceptance Criteria**:
+- [ ] Disputes table created
+- [ ] Can dispute any send_log entry
+- [ ] Dispute shows in lead details send history
+- [ ] Dispute status (open/resolved/rejected) tracked
+- [ ] Permission-gated
+
+---
+
+### TICKET-059: Dynamic lead payload blob (vertical-specific fields)
+**Type**: Full Stack Feature
+**Priority**: P1
+**Estimate**: 10 hours
+**Sprint**: 9
+**Status**: 🔲 TODO
+
+**Background**:
+Different lead sources send vertical-specific extra data (real estate: bedrooms, bathrooms, sqft, sale timeline; pool companies: pool size, fence type; etc.). This needs to be stored as a dynamic blob per lead, not a fixed schema.
+
+Also needed for Northstar integration — sources should be able to submit a freeform JSON blob alongside the standard lead fields.
+
+**Database Changes**:
+```sql
+ALTER TABLE leads ADD COLUMN extra_data JSONB;
+-- Index for common query patterns
+CREATE INDEX idx_leads_extra_data ON leads USING gin(extra_data);
+```
+
+**Backend Changes**:
+1. Update `Lead` type to include `extra_data?: Record<string, any>`
+2. Update `leadDAO` insert/update to persist `extra_data`
+3. Update `/api/leads-open` import endpoint to accept and store `extra_data` from the request body
+4. Update lead DTOs
+
+**Frontend Changes**:
+1. In lead details view: show `extra_data` fields as a collapsible "Extra Fields" section
+   - Render as key-value pairs (pretty-print the keys: snake_case → Title Case)
+2. No editing in UI — this is source-provided data
+
+**Acceptance Criteria**:
+- [ ] `extra_data` stored on leads
+- [ ] Import endpoint accepts and stores `extra_data`
+- [ ] Lead details shows extra fields if present
+- [ ] Does not break existing leads without `extra_data`
+
+---
+
+### TICKET-060: Call queue permission + queue-for-call action
+**Type**: Full Stack Feature
+**Priority**: P1
+**Estimate**: 6 hours
+**Sprint**: 8
+**Status**: 🔲 TODO
+
+**Background**:
+During lead verification, if a verifier determines the lead needs a phone call (e.g., missing county/zip, suspicious data), they should be able to mark it "Queue for Call". This is a separate queue from the worker queue — it means a human needs to call this lead.
+
+**Permission**:
+Add `LeadPermission.CALL_QUEUE = 'leads.call_queue'` — only users with this permission can queue a lead for a call.
+Seed: user ✅, admin ✅, superadmin ✅ (it's a basic action).
+
+**Database Changes**:
+```sql
+ALTER TABLE leads ADD COLUMN call_queued BOOLEAN DEFAULT false;
+ALTER TABLE leads ADD COLUMN call_queued_at TIMESTAMPTZ;
+ALTER TABLE leads ADD COLUMN call_queued_by UUID REFERENCES users(id);
+```
+
+**Backend Changes**:
+1. Add `call_queued`, `call_queued_at`, `call_queued_by` to `Lead` type
+2. `leadDAO`: update `queueForCall(leadId, userId)`
+3. `leadService`: `queueForCall(leadId, userId)` — sets flag + timestamp
+4. `leadResource`: `PATCH /api/leads/:id/queue-call` — requires `LeadPermission.CALL_QUEUE`
+5. Activity logging: new `LeadAction.CALL_QUEUED = 'lead_call_queued'`
+
+**Frontend Changes**:
+1. In lead verification form / lead details: "Queue for Call" button
+2. Permission gate: `can(Permission.LEADS_CALL_QUEUE)`
+3. Show "Call Queued" badge on lead if `call_queued=true`
+4. In leads table: filter option to show call-queued leads
+
+**Acceptance Criteria**:
+- [ ] `call_queued` flag on leads
+- [ ] Queue-for-call action works from lead details
+- [ ] Permission gated
+- [ ] Activity logged
+- [ ] Badge visible in lead details and table
+
+---
+
 ### Grand Total (All Tickets)
 
 | Category | Tickets | Hours | Completed |
 |----------|---------|-------|-----------|
 | **Original Refactor** | 47 | ~150 hrs | 38 tickets (81%) |
-| **New Features** | 10 | ~90 hrs | 3 tickets (30%) |
-| **GRAND TOTAL** | **57** | **~240 hrs** | **41 tickets (72%)** |
+| **New Features** | 13 | ~120 hrs | 3 tickets (23%) |
+| **GRAND TOTAL** | **60** | **~270 hrs** | **41 tickets (68%)** |
