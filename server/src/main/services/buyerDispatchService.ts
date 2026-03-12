@@ -1,4 +1,6 @@
 import { injectable } from "tsyringe";
+import { WORKER_USER_ID } from "../constants";
+import { ActivityAction } from "../types/activityTypes";
 import BuyerDAO from "../data/buyerDAO";
 import LeadDAO from "../data/leadDAO";
 import SendLogDAO from "../data/sendLogDAO";
@@ -35,7 +37,7 @@ export default class BuyerDispatchService {
      * @param isWorkerSend - If true, updates buyer timing (worker randomization). Default: false (manual/auto-send)
      * @returns SendLog record with response details
      */
-    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false): Promise<SendLog> {
+    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false, userId?: string | null): Promise<SendLog> {
         // Validation: Can we send this lead to this buyer?
         const canSend = await this.canSendToBuyer(lead, buyer);
         if (!canSend.allowed) {
@@ -92,10 +94,11 @@ export default class BuyerDispatchService {
             await this.scheduleBuyerNext(buyer.id);
         }
 
-        // Log activity (worker_send vs manual/auto distinguished by isWorkerSend)
+        // Log activity — always attribute to a real user (worker or human)
         await this.activityService.log({
+            user_id: isWorkerSend ? WORKER_USER_ID : (userId ?? WORKER_USER_ID),
             lead_id: lead.id,
-            action: 'lead_sent',
+            action: ActivityAction.LEAD_SENT,
             action_details: {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,

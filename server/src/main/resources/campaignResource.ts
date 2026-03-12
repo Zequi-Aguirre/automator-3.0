@@ -4,6 +4,7 @@ import CampaignService from "../services/campaignService";
 import SourceService from "../services/sourceService";
 import LeadManagerService from "../services/leadManagerService";
 import ActivityService from "../services/activityService";
+import { ActivityAction, EntityType } from "../types/activityTypes";
 import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 
 /**
@@ -243,9 +244,9 @@ export default class CampaignResource {
             if (updates.lead_manager_id !== undefined) {
                 await this.activityService.log({
                     user_id: req.user?.id,
-                    entity_type: 'campaign',
+                    entity_type: EntityType.CAMPAIGN,
                     entity_id: campaignId,
-                    action: 'campaign_manager_assigned',
+                    action: ActivityAction.CAMPAIGN_MANAGER_ASSIGNED,
                     action_details: { lead_manager_id: updates.lead_manager_id }
                 });
             }

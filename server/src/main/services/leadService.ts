@@ -1,4 +1,6 @@
 import { injectable } from "tsyringe";
+import { WORKER_USER_ID } from "../constants";
+import { ActivityAction } from "../types/activityTypes";
 import LeadDAO from "../data/leadDAO";
 import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
 import { parseCsvToLeads, cleanPhone, cleanState } from "../middleware/parseCsvToLeads.ts";
@@ -79,7 +81,7 @@ export default class LeadService {
 
     async updateLead(leadId: string, leadData: Partial<Lead>, userId?: string | null): Promise<Lead> {
         const updated = await this.leadDAO.updateLead(leadId, leadData);
-        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_updated' });
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: ActivityAction.LEAD_UPDATED });
         return updated;
     }
 
@@ -96,7 +98,7 @@ export default class LeadService {
             }
 
             const trashed = await this.leadDAO.trashLeadWithReason(leadId, reason);
-            await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_trashed', action_details: { reason, ...(notes ? { notes } : {}) } });
+            await this.activityService.log({ user_id: userId, lead_id: leadId, action: ActivityAction.LEAD_TRASHED, action_details: { reason, ...(notes ? { notes } : {}) } });
             return trashed;
 
         } catch (error) {
@@ -159,7 +161,7 @@ export default class LeadService {
         }
 
         const verified = await this.leadDAO.verifyLead(leadId);
-        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_verified' });
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: ActivityAction.LEAD_VERIFIED });
         return verified;
     }
 
@@ -176,7 +178,7 @@ export default class LeadService {
         }
 
         const unverified = await this.leadDAO.unverifyLead(leadId);
-        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_unverified' });
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: ActivityAction.LEAD_UNVERIFIED });
         return unverified;
     }
 
@@ -288,7 +290,7 @@ export default class LeadService {
         if (successCount > 0) {
             await this.activityService.log({
                 user_id: userId,
-                action: 'lead_imported',
+                action: ActivityAction.LEAD_IMPORTED,
                 action_details: { count: successCount, method: 'csv' }
             });
         }
@@ -393,7 +395,7 @@ export default class LeadService {
             for (const lead of successfulLeads) {
                 for (const buyer of autoSendBuyers) {
                     try {
-                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, WORKER_USER_ID);
                     } catch (e) {
                         // Log auto-send errors but don't fail the import
                         console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
@@ -421,7 +423,7 @@ export default class LeadService {
                 sourceName = source?.name ?? null;
             }
             await this.activityService.log({
-                action: 'lead_imported',
+                action: ActivityAction.LEAD_IMPORTED,
                 action_details: { count: successCount, method: 'api', source_name: sourceName }
             });
         }
@@ -458,7 +460,7 @@ export default class LeadService {
      * Send lead to specific buyer (manual send)
      * Delegates to BuyerDispatchService for validation and dispatch
      */
-    async sendLeadToBuyer(leadId: string, buyerId: string, _userId?: string | null) {
+    async sendLeadToBuyer(leadId: string, buyerId: string, userId: string) {
         // Get lead and buyer
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
@@ -471,7 +473,7 @@ export default class LeadService {
         }
 
         // Delegate to BuyerDispatchService (activity logged inside dispatch)
-        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
+        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, userId);
     }
 
     /**
@@ -515,7 +517,7 @@ export default class LeadService {
      */
     async enableWorker(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.enableWorker(leadId);
-        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_queued' });
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: ActivityAction.LEAD_QUEUED });
         return lead;
     }
 

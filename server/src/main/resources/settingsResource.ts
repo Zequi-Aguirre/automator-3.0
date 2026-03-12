@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import SettingsService from "../services/settingsService.ts";
 import ActivityService from "../services/activityService";
+import { ActivityAction } from "../types/activityTypes";
 
 @injectable()
 export default class SettingsResource {
@@ -27,7 +28,7 @@ export default class SettingsResource {
             const updatedSettings = await this.settingsService.updateSettings(req.body);
             await this.activityService.log({
                 user_id: req.user?.id,
-                action: 'worker_settings_updated',
+                action: ActivityAction.WORKER_SETTINGS_UPDATED,
                 action_details: req.body
             });
             res.status(200).send(updatedSettings);

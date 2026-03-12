@@ -1,5 +1,5 @@
 import { Box, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/material";
-import { ActivityLog, ACTION_LABELS } from "../../../types/activityTypes";
+import { ActivityLog, ActivityAction, ACTION_LABELS } from "../../../types/activityTypes";
 import { DateTime } from "luxon";
 
 interface Props {
@@ -7,30 +7,83 @@ interface Props {
     loading?: boolean;
 }
 
-const actionColor = (action: string): "default" | "success" | "error" | "warning" | "info" | "primary" => {
-    if (action === 'worker_stopped' || action === 'lead_unqueued' || action.includes('trashed')) return 'error';
-    if (action === 'worker_started' || action === 'lead_queued' || action.includes('verified') || action.includes('sent') || action.includes('imported')) return 'success';
-    if (action.includes('updated') || action.includes('assigned') || action === 'worker_settings_updated') return 'warning';
-    if (action.includes('created')) return 'primary';
-    return 'default';
+const actionColor = (action: ActivityAction): "default" | "success" | "error" | "warning" | "info" | "primary" => {
+    switch (action) {
+        case ActivityAction.WORKER_STOPPED:
+        case ActivityAction.LEAD_UNQUEUED:
+        case ActivityAction.LEAD_TRASHED:
+        case ActivityAction.USER_LOGIN_FAILED:
+            return 'error';
+
+        case ActivityAction.USER_LOGIN:
+            return 'info';
+
+        case ActivityAction.WORKER_STARTED:
+        case ActivityAction.LEAD_QUEUED:
+        case ActivityAction.LEAD_VERIFIED:
+        case ActivityAction.LEAD_SENT:
+        case ActivityAction.LEAD_IMPORTED:
+            return 'success';
+
+        case ActivityAction.LEAD_UPDATED:
+        case ActivityAction.LEAD_UNVERIFIED:
+        case ActivityAction.VERIFICATION_SAVED:
+        case ActivityAction.WORKER_SETTINGS_UPDATED:
+        case ActivityAction.SOURCE_UPDATED:
+        case ActivityAction.BUYER_UPDATED:
+        case ActivityAction.LEAD_MANAGER_UPDATED:
+        case ActivityAction.COUNTY_UPDATED:
+        case ActivityAction.CAMPAIGN_MANAGER_ASSIGNED:
+        case ActivityAction.SOURCE_TOKEN_REFRESHED:
+            return 'warning';
+
+        case ActivityAction.SOURCE_CREATED:
+        case ActivityAction.BUYER_CREATED:
+        case ActivityAction.LEAD_MANAGER_CREATED:
+        case ActivityAction.VERIFICATION_STARTED:
+            return 'primary';
+
+        default:
+            return 'default';
+    }
 };
 
 const formatDetails = (log: ActivityLog): string | null => {
     if (!log.action_details) return null;
     const d = log.action_details;
-    if (log.action === 'lead_imported') {
-        const via = d.method === 'api' && d.source_name ? `via ${d.source_name}` : d.method === 'csv' ? 'via CSV' : '';
-        return `${d.count ?? 1} lead${(d.count ?? 1) !== 1 ? 's' : ''} ${via}`.trim();
+
+    switch (log.action) {
+        case ActivityAction.LEAD_IMPORTED: {
+            const via = d.method === 'api' && d.source_name ? `via ${d.source_name}` : d.method === 'csv' ? 'via CSV' : '';
+            return `${d.count ?? 1} lead${(d.count ?? 1) !== 1 ? 's' : ''} ${via}`.trim();
+        }
+        case ActivityAction.LEAD_TRASHED: {
+            const reason = d.reason ? d.reason.replace(/_/g, ' ') : '';
+            const notes = d.notes ? ` · ${d.notes.replace(/_/g, ' ')}` : '';
+            return `${reason}${notes}` || null;
+        }
+        case ActivityAction.USER_LOGIN:
+        case ActivityAction.USER_LOGIN_FAILED: {
+            const parts = [];
+            if (d.ip) parts.push(d.ip);
+            if (d.email) parts.push(`(${d.email})`);
+            return parts.join(' ') || null;
+        }
+        case ActivityAction.VERIFICATION_SAVED: {
+            const fields = Object.keys(d).map(k => k.replace('form_', '').replace(/_/g, ' ')).join(', ');
+            return fields || null;
+        }
+        case ActivityAction.LEAD_SENT:
+            return d.buyer_name ? `→ ${d.buyer_name}` : null;
+        case ActivityAction.SOURCE_CREATED:
+        case ActivityAction.BUYER_CREATED:
+        case ActivityAction.BUYER_UPDATED:
+            return d.name ?? null;
+        case ActivityAction.CAMPAIGN_MANAGER_ASSIGNED:
+            return d.lead_manager_id ? `manager: ${d.lead_manager_id}` : null;
+        default:
+            return null;
     }
-    if (log.action === 'lead_trashed' && d.reason) {
-        const reason = d.reason.replace(/_/g, ' ');
-        const notes = d.notes ? ` · ${d.notes.replace(/_/g, ' ')}` : '';
-        return `${reason}${notes}`;
-    }
-    if (log.action === 'lead_sent' && d.buyer_name) return `→ ${d.buyer_name}`;
-    if ((log.action === 'source_created' || log.action === 'buyer_created' || log.action === 'buyer_updated') && d.name) return d.name;
-    if (log.action === 'campaign_manager_assigned' && d.lead_manager_id) return `manager: ${d.lead_manager_id}`;
-    return null;
 };
 
 export default function ActivityFeed({ logs, loading }: Props) {

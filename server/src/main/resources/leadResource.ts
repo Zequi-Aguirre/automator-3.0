@@ -137,7 +137,7 @@ export default class LeadResource {
                     return res.status(400).send({ message: 'buyer_id is required' });
                 }
 
-                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id, req.user?.id);
+                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id, req.user.id);
                 return res.status(200).send(sendLog);
             } catch (error) {
                 console.error('Error sending lead to buyer:', error);

@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
 import SettingsService from "../services/settingsService";
 import ActivityService from "../services/activityService";
+import { ActivityAction } from "../types/activityTypes";
 import { Worker } from "../worker/Worker";
 
 @injectable()
@@ -41,7 +42,7 @@ export default class WorkerResource {
                     });
 
                     await this.worker.initialize();
-                    await this.activityService.log({ user_id: req.user?.id, action: 'worker_started' });
+                    await this.activityService.log({ user_id: req.user?.id, action: ActivityAction.WORKER_STARTED });
 
                     res.status(200).send({
                         success: true,
@@ -74,7 +75,7 @@ export default class WorkerResource {
                     });
 
                     this.worker.stop();
-                    await this.activityService.log({ user_id: req.user?.id, action: 'worker_stopped' });
+                    await this.activityService.log({ user_id: req.user?.id, action: ActivityAction.WORKER_STOPPED });
 
                     res.status(200).send({
                         success: true,

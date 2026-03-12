@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import LeadManagerService from '../services/leadManagerService';
 import ActivityService from '../services/activityService';
+import { ActivityAction, EntityType } from "../types/activityTypes";
 
 @injectable()
 export default class LeadManagerResource {
@@ -60,9 +61,9 @@ export default class LeadManagerResource {
                 const manager = await this.leadManagerService.create({ name, email, phone, notes });
                 await this.activityService.log({
                     user_id: req.user?.id,
-                    entity_type: 'lead_manager',
+                    entity_type: EntityType.LEAD_MANAGER,
                     entity_id: manager.id,
-                    action: 'lead_manager_created',
+                    action: ActivityAction.LEAD_MANAGER_CREATED,
                     action_details: { name: manager.name }
                 });
                 res.status(201).json(manager);
@@ -79,9 +80,9 @@ export default class LeadManagerResource {
                 const manager = await this.leadManagerService.update(req.params.id, { name, email, phone, active, notes });
                 await this.activityService.log({
                     user_id: req.user?.id,
-                    entity_type: 'lead_manager',
+                    entity_type: EntityType.LEAD_MANAGER,
                     entity_id: manager.id,
-                    action: 'lead_manager_updated',
+                    action: ActivityAction.LEAD_MANAGER_UPDATED,
                     action_details: { name: manager.name }
                 });
                 res.status(200).json(manager);

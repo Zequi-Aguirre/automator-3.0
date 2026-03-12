@@ -3,6 +3,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import CountyService from "../services/countyService.ts";
 import ActivityService from "../services/activityService";
+import { ActivityAction, EntityType } from "../types/activityTypes";
 import multer from "multer";
 
 const upload = multer(); // memory storage by default
@@ -66,9 +67,9 @@ export default class CountyResource {
                 const updated = await this.countyService.updateCounty(countyId, updates);
                 await this.activityService.log({
                     user_id: req.user?.id,
-                    entity_type: 'county',
+                    entity_type: EntityType.COUNTY,
                     entity_id: countyId,
-                    action: 'county_updated',
+                    action: ActivityAction.COUNTY_UPDATED,
                     action_details: updates
                 });
                 res.status(200).send(updated);
@@ -87,9 +88,9 @@ export default class CountyResource {
             const updated = await this.countyService.updateCountyBlacklistStatus(countyId, blacklisted);
             await this.activityService.log({
                 user_id: req.user?.id,
-                entity_type: 'county',
+                entity_type: EntityType.COUNTY,
                 entity_id: countyId,
-                action: 'county_updated',
+                action: ActivityAction.COUNTY_UPDATED,
                 action_details: { blacklisted }
             });
             res.status(200).send(updated);
