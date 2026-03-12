@@ -100,7 +100,7 @@ const AdminLeadManagersSection = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                 ) : (
                     <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <TableContainer component={Paper}>
+                        <TableContainer component={Paper} sx={{ height: '100%' }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>

@@ -429,7 +429,7 @@ const AdminBuyersSection = () => {
                             collisionDetection={closestCenter}
                             onDragEnd={handleDragEnd}
                         >
-                            <TableContainer component={Paper}>
+                            <TableContainer component={Paper} sx={{ height: '100%' }}>
                                 <Table stickyHeader>
                                     <TableHead>
                                         <TableRow>
