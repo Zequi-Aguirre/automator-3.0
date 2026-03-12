@@ -4,7 +4,7 @@
 
 ---
 
-## 📊 Sprint Status (Last Updated: 2026-03-02)
+## 📊 Sprint Status (Last Updated: 2026-03-12)
 
 | Sprint | Status | Tickets | Progress |
 |--------|--------|---------|----------|
@@ -15,13 +15,27 @@
 | **Sprint 5** | 🟢 COMPLETE | #26-31 | 6/6 (100%) |
 | **Sprint 6** | 🟢 COMPLETE | #32-38 | 7/7 (100%) |
 | **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
+| **Sprint 8** | 🟡 IN PROGRESS | #048-057 | 3/10 (30%) |
 | **Backlog** | ⬜ TODO | #39-41 | 0/3 (0%) |
 
-**Overall Progress:** 39/41 core tickets (95%) + 2 additional features (BUG-001, TICKET-046)
-**Remaining:** 2 enhancement tickets
+**Overall Progress:** 41/57 tickets complete
 
-**Current Status:** TICKET-051 (activity tracking) complete — PR #10 open, awaiting merge
-**Next Up:** TICKET-053, TICKET-048, TICKET-052
+**Current Status:** TICKET-057 (user roles & permissions) complete — PR #11 open
+**Next Up:** TICKET-048 (buyer ping system), TICKET-052 (call queue), TICKET-053 (trash reasons)
+
+### Sprint 8 Ticket Status
+| Ticket | Title | Status |
+|--------|-------|--------|
+| TICKET-048 | Buyer ping system | 🔲 TODO |
+| TICKET-049 | Buyer auction/waterfall | 🔲 TODO |
+| TICKET-050 | Lead manager system | ✅ Done — PR merged |
+| TICKET-051 | Activity tracking | ✅ Done — PR #10 merged |
+| TICKET-052 | Call queue for leads | 🔲 TODO |
+| TICKET-053 | Trash reasons master table | 🔲 TODO |
+| TICKET-054 | Disputes system expansion | 🔲 TODO |
+| TICKET-055 | Configurable worker delays | 🔲 TODO |
+| TICKET-056 | Enhanced reporting dashboard | 🔲 TODO |
+| TICKET-057 | User roles & permissions system | ✅ Done — PR #11 open |
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()
@@ -2740,10 +2754,10 @@ Use Recharts or Chart.js for visualizations:
 
 | Sprint | Tickets | Total Hours | Risk Level | Status |
 |--------|---------|-------------|------------|--------|
-| **Sprint 8 (Foundation)** | #48, 50, 51, 53 | 26 hours | Low | 🔲 PLANNED |
-| **Sprint 9 (Core Features)** | #52, 55 | 10 hours | Low | 🔲 PLANNED |
-| **Sprint 10 (Advanced)** | #49, 54, 56 | 44 hours | Medium | 🔲 PLANNED |
-| **NEW TOTAL** | **9** | **80 hours** | - | **0 Complete** |
+| **Sprint 8 (Foundation)** | #048, 050, 051, 053, 057 | ~36 hours | Low | 🟡 IN PROGRESS — 3/5 done |
+| **Sprint 9 (Core Features)** | #052, 055 | 10 hours | Low | 🔲 PLANNED |
+| **Sprint 10 (Advanced)** | #049, 054, 056 | 44 hours | Medium | 🔲 PLANNED |
+| **NEW TOTAL** | **10** | **~90 hours** | - | **3 Complete** |
 
 **New Features Timeline** (Sprints 8-10):
 - Developer Days: ~10-11 days (8-hour days)
@@ -2767,10 +2781,48 @@ Use Recharts or Chart.js for visualizations:
 
 ---
 
+---
+
+### TICKET-057: User roles, permissions, and user management UI
+**Type**: Full-stack
+**Priority**: P0
+**Status**: ✅ COMPLETE — PR #11
+
+**Summary**:
+Implemented a full per-user, DB-stored permissions system with role-based defaults and a user management UI.
+
+**What was built**:
+- `user_permissions` table (migration `20260312000001`)
+- Per-entity permission enums: `LeadPermission`, `WorkerPermission`, `SourcePermission`, `BuyerPermission`, `ManagerPermission`, `SettingsPermission`, `UserPermission`, `ActivityPermission`
+- `requirePermission()` middleware guards all sensitive routes
+- `UserService`: `getAllUsers()`, `updateUserRole()`, `setUserPermissions()`
+- `UserResource`: `GET /admin/users`, `PATCH /admin/users/:id/role`, `PUT /admin/users/:id/permissions`, `GET /admin/permissions`
+- Activity logging: `UserAction.ROLE_CHANGED`, `UserAction.PERMISSIONS_CHANGED`
+- Client: `usePermissions()` hook, `Permission` enum, `AdminUsersSection` table with inline role dropdown + permissions editor dialog
+- `ActivityPermission.VIEW` gates all activity endpoints
+
+**Files affected**:
+- `postgres/migrations/20260312000001.do._add-user-permissions-table.sql`
+- `server/src/main/types/permissionTypes.ts` (new)
+- `server/src/main/middleware/requirePermission.ts` (new)
+- `server/src/main/data/userDAO.ts`
+- `server/src/main/services/userService.ts`
+- `server/src/main/resources/userResource.ts`
+- `server/src/main/resources/activityResource.ts`, `leadResource.ts`, `workerResource.ts`, `settingsResource.ts`, `sourceResource.ts`, `buyerResource.ts`, `leadManagerResource.ts`
+- `client/src/types/userTypes.ts`
+- `client/src/hooks/usePermissions.ts` (new)
+- `client/src/services/user.service.tsx`
+- `client/src/components/admin/adminUsersSection/AdminUsersSection.tsx` (new)
+- `client/src/views/adminViews/AdminUsersView.tsx` (new)
+- `client/src/context/routes/AdminRoutes.tsx`
+- `client/src/components/navBar/NavBar.tsx`
+
+---
+
 ### Grand Total (All Tickets)
 
 | Category | Tickets | Hours | Completed |
 |----------|---------|-------|-----------|
 | **Original Refactor** | 47 | ~150 hrs | 38 tickets (81%) |
-| **New Features** | 9 | 80 hrs | 0 tickets (0%) |
-| **GRAND TOTAL** | **56** | **~230 hrs** | **38 tickets (68%)** |
+| **New Features** | 10 | ~90 hrs | 3 tickets (30%) |
+| **GRAND TOTAL** | **57** | **~240 hrs** | **41 tickets (72%)** |
