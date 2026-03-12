@@ -1,7 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import UserService from '../services/userService';
 import ActivityService from '../services/activityService';
-import { ActivityAction } from '../types/activityTypes';
+import { AuthAction } from '../types/activityTypes';
 import { injectable } from "tsyringe";
 
 @injectable()
@@ -27,7 +27,7 @@ export default class AuthenticateResource {
             const response = await this.userService.authenticate(email, password);
             if (!response) {
                 await this.activityService.log({
-                    action: ActivityAction.USER_LOGIN_FAILED,
+                    action: AuthAction.LOGIN_FAILED,
                     action_details: { email, ip, user_agent }
                 });
                 res.status(401).json({ message: 'Unauthorized' });
@@ -36,7 +36,7 @@ export default class AuthenticateResource {
 
             await this.activityService.log({
                 user_id: response.user.id,
-                action: ActivityAction.USER_LOGIN,
+                action: AuthAction.LOGIN,
                 action_details: { ip, user_agent }
             });
 

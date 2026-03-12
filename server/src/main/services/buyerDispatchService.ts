@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { WORKER_USER_ID } from "../constants";
-import { ActivityAction } from "../types/activityTypes";
+import { LeadAction } from "../types/activityTypes";
 import BuyerDAO from "../data/buyerDAO";
 import LeadDAO from "../data/leadDAO";
 import SendLogDAO from "../data/sendLogDAO";
@@ -98,7 +98,7 @@ export default class BuyerDispatchService {
         await this.activityService.log({
             user_id: isWorkerSend ? WORKER_USER_ID : (userId ?? WORKER_USER_ID),
             lead_id: lead.id,
-            action: ActivityAction.LEAD_SENT,
+            action: LeadAction.SENT,
             action_details: {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,

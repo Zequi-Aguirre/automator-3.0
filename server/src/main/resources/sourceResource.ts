@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import SourceService from "../services/sourceService";
 import ActivityService from "../services/activityService";
-import { ActivityAction, EntityType } from "../types/activityTypes";
+import { SourceAction, EntityType } from "../types/activityTypes";
 import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
 
 /**
@@ -102,7 +102,7 @@ export default class SourceResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.SOURCE,
                     entity_id: source.id,
-                    action: ActivityAction.SOURCE_CREATED,
+                    action: SourceAction.CREATED,
                     action_details: { name: source.name }
                 });
 
@@ -135,7 +135,7 @@ export default class SourceResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.SOURCE,
                     entity_id: id,
-                    action: ActivityAction.SOURCE_UPDATED,
+                    action: SourceAction.UPDATED,
                     action_details: updateDTO
                 });
 
@@ -166,7 +166,7 @@ export default class SourceResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.SOURCE,
                     entity_id: id,
-                    action: ActivityAction.SOURCE_TOKEN_REFRESHED,
+                    action: SourceAction.TOKEN_REFRESHED,
                     action_details: { name: source.name }
                 });
 

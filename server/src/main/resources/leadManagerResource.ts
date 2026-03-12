@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import LeadManagerService from '../services/leadManagerService';
 import ActivityService from '../services/activityService';
-import { ActivityAction, EntityType } from "../types/activityTypes";
+import { LeadManagerAction, EntityType } from "../types/activityTypes";
 
 @injectable()
 export default class LeadManagerResource {
@@ -63,7 +63,7 @@ export default class LeadManagerResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.LEAD_MANAGER,
                     entity_id: manager.id,
-                    action: ActivityAction.LEAD_MANAGER_CREATED,
+                    action: LeadManagerAction.CREATED,
                     action_details: { name: manager.name }
                 });
                 res.status(201).json(manager);
@@ -82,7 +82,7 @@ export default class LeadManagerResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.LEAD_MANAGER,
                     entity_id: manager.id,
-                    action: ActivityAction.LEAD_MANAGER_UPDATED,
+                    action: LeadManagerAction.UPDATED,
                     action_details: { name: manager.name }
                 });
                 res.status(200).json(manager);

@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
 import LeadFormInputService from "../services/leadFormInputService";
 import ActivityService from "../services/activityService";
-import { ActivityAction } from "../types/activityTypes";
+import { VerificationAction } from "../types/activityTypes";
 import { LeadFormInputCreate, LeadFormInputUpdate } from "../types/leadFormInputTypes";
 
 @injectable()
@@ -46,7 +46,7 @@ export default class LeadFormInputResource {
                 await this.activityService.log({
                     user_id: req.user?.id,
                     lead_id: data.lead_id,
-                    action: ActivityAction.VERIFICATION_STARTED
+                    action: VerificationAction.STARTED
                 });
                 return res.status(201).send(result);
             } catch (error) {
@@ -73,7 +73,7 @@ export default class LeadFormInputResource {
                 await this.activityService.log({
                     user_id: req.user?.id,
                     lead_id: leadId,
-                    action: ActivityAction.VERIFICATION_SAVED,
+                    action: VerificationAction.SAVED,
                     action_details: filledFields
                 });
 

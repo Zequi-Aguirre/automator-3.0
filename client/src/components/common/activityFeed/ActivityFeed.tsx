@@ -1,5 +1,9 @@
 import { Box, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/material";
-import { ActivityLog, ActivityAction, ACTION_LABELS } from "../../../types/activityTypes";
+import {
+    ActivityLog, ActivityAction, ACTION_LABELS,
+    LeadAction, VerificationAction, WorkerAction, SourceAction,
+    BuyerAction, CampaignAction, LeadManagerAction, CountyAction, AuthAction
+} from "../../../types/activityTypes";
 import { DateTime } from "luxon";
 
 interface Props {
@@ -9,38 +13,38 @@ interface Props {
 
 const actionColor = (action: ActivityAction): "default" | "success" | "error" | "warning" | "info" | "primary" => {
     switch (action) {
-        case ActivityAction.WORKER_STOPPED:
-        case ActivityAction.LEAD_UNQUEUED:
-        case ActivityAction.LEAD_TRASHED:
-        case ActivityAction.USER_LOGIN_FAILED:
+        case WorkerAction.STOPPED:
+        case LeadAction.UNQUEUED:
+        case LeadAction.TRASHED:
+        case AuthAction.LOGIN_FAILED:
             return 'error';
 
-        case ActivityAction.USER_LOGIN:
+        case AuthAction.LOGIN:
             return 'info';
 
-        case ActivityAction.WORKER_STARTED:
-        case ActivityAction.LEAD_QUEUED:
-        case ActivityAction.LEAD_VERIFIED:
-        case ActivityAction.LEAD_SENT:
-        case ActivityAction.LEAD_IMPORTED:
+        case WorkerAction.STARTED:
+        case LeadAction.QUEUED:
+        case LeadAction.VERIFIED:
+        case LeadAction.SENT:
+        case LeadAction.IMPORTED:
             return 'success';
 
-        case ActivityAction.LEAD_UPDATED:
-        case ActivityAction.LEAD_UNVERIFIED:
-        case ActivityAction.VERIFICATION_SAVED:
-        case ActivityAction.WORKER_SETTINGS_UPDATED:
-        case ActivityAction.SOURCE_UPDATED:
-        case ActivityAction.BUYER_UPDATED:
-        case ActivityAction.LEAD_MANAGER_UPDATED:
-        case ActivityAction.COUNTY_UPDATED:
-        case ActivityAction.CAMPAIGN_MANAGER_ASSIGNED:
-        case ActivityAction.SOURCE_TOKEN_REFRESHED:
+        case LeadAction.UPDATED:
+        case LeadAction.UNVERIFIED:
+        case VerificationAction.SAVED:
+        case WorkerAction.SETTINGS_UPDATED:
+        case SourceAction.UPDATED:
+        case BuyerAction.UPDATED:
+        case LeadManagerAction.UPDATED:
+        case CountyAction.UPDATED:
+        case CampaignAction.MANAGER_ASSIGNED:
+        case SourceAction.TOKEN_REFRESHED:
             return 'warning';
 
-        case ActivityAction.SOURCE_CREATED:
-        case ActivityAction.BUYER_CREATED:
-        case ActivityAction.LEAD_MANAGER_CREATED:
-        case ActivityAction.VERIFICATION_STARTED:
+        case SourceAction.CREATED:
+        case BuyerAction.CREATED:
+        case LeadManagerAction.CREATED:
+        case VerificationAction.STARTED:
             return 'primary';
 
         default:
@@ -53,33 +57,33 @@ const formatDetails = (log: ActivityLog): string | null => {
     const d = log.action_details;
 
     switch (log.action) {
-        case ActivityAction.LEAD_IMPORTED: {
+        case LeadAction.IMPORTED: {
             const via = d.method === 'api' && d.source_name ? `via ${d.source_name}` : d.method === 'csv' ? 'via CSV' : '';
             return `${d.count ?? 1} lead${(d.count ?? 1) !== 1 ? 's' : ''} ${via}`.trim();
         }
-        case ActivityAction.LEAD_TRASHED: {
+        case LeadAction.TRASHED: {
             const reason = d.reason ? d.reason.replace(/_/g, ' ') : '';
             const notes = d.notes ? ` · ${d.notes.replace(/_/g, ' ')}` : '';
             return `${reason}${notes}` || null;
         }
-        case ActivityAction.USER_LOGIN:
-        case ActivityAction.USER_LOGIN_FAILED: {
+        case AuthAction.LOGIN:
+        case AuthAction.LOGIN_FAILED: {
             const parts = [];
             if (d.ip) parts.push(d.ip);
             if (d.email) parts.push(`(${d.email})`);
             return parts.join(' ') || null;
         }
-        case ActivityAction.VERIFICATION_SAVED: {
+        case VerificationAction.SAVED: {
             const fields = Object.keys(d).map(k => k.replace('form_', '').replace(/_/g, ' ')).join(', ');
             return fields || null;
         }
-        case ActivityAction.LEAD_SENT:
+        case LeadAction.SENT:
             return d.buyer_name ? `→ ${d.buyer_name}` : null;
-        case ActivityAction.SOURCE_CREATED:
-        case ActivityAction.BUYER_CREATED:
-        case ActivityAction.BUYER_UPDATED:
+        case SourceAction.CREATED:
+        case BuyerAction.CREATED:
+        case BuyerAction.UPDATED:
             return d.name ?? null;
-        case ActivityAction.CAMPAIGN_MANAGER_ASSIGNED:
+        case CampaignAction.MANAGER_ASSIGNED:
             return d.lead_manager_id ? `manager: ${d.lead_manager_id}` : null;
         default:
             return null;

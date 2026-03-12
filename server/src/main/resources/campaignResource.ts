@@ -4,7 +4,7 @@ import CampaignService from "../services/campaignService";
 import SourceService from "../services/sourceService";
 import LeadManagerService from "../services/leadManagerService";
 import ActivityService from "../services/activityService";
-import { ActivityAction, EntityType } from "../types/activityTypes";
+import { CampaignAction, EntityType } from "../types/activityTypes";
 import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
 
 /**
@@ -246,7 +246,7 @@ export default class CampaignResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.CAMPAIGN,
                     entity_id: campaignId,
-                    action: ActivityAction.CAMPAIGN_MANAGER_ASSIGNED,
+                    action: CampaignAction.MANAGER_ASSIGNED,
                     action_details: { lead_manager_id: updates.lead_manager_id }
                 });
             }

@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import BuyerService from "../services/buyerService";
 import ActivityService from "../services/activityService";
-import { ActivityAction, EntityType } from "../types/activityTypes";
+import { BuyerAction, EntityType } from "../types/activityTypes";
 import { BuyerCreateDTO, BuyerUpdateDTO, Buyer } from "../types/buyerTypes";
 
 @injectable()
@@ -109,7 +109,7 @@ export default class BuyerResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.BUYER,
                     entity_id: buyer.id,
-                    action: ActivityAction.BUYER_CREATED,
+                    action: BuyerAction.CREATED,
                     action_details: { name: buyer.name }
                 });
 
@@ -136,7 +136,7 @@ export default class BuyerResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.BUYER,
                     entity_id: buyer.id,
-                    action: ActivityAction.BUYER_UPDATED,
+                    action: BuyerAction.UPDATED,
                     action_details: { name: buyer.name }
                 });
 

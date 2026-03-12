@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { IDatabase } from "pg-promise";
 import { IClient } from "pg-promise/typescript/pg-subset";
 import { DBContainer } from "../config/DBContainer";
-import { ActivityAction, ActivityLog, ActivityCreateDTO, UserActivityStats } from "../types/activityTypes";
+import { LeadAction, ActivityLog, ActivityCreateDTO, UserActivityStats } from "../types/activityTypes";
 
 @injectable()
 export default class ActivityDAO {
@@ -66,9 +66,9 @@ export default class ActivityDAO {
             `SELECT
                 u.id as user_id,
                 u.name as user_name,
-                COUNT(a.id) FILTER (WHERE a.action = '${ActivityAction.LEAD_VERIFIED}')  as verified,
-                COUNT(a.id) FILTER (WHERE a.action = '${ActivityAction.LEAD_SENT}')      as sent,
-                COUNT(a.id) FILTER (WHERE a.action = '${ActivityAction.LEAD_TRASHED}')   as deleted
+                COUNT(a.id) FILTER (WHERE a.action = '${LeadAction.VERIFIED}') as verified,
+                COUNT(a.id) FILTER (WHERE a.action = '${LeadAction.SENT}') as sent,
+                COUNT(a.id) FILTER (WHERE a.action = '${LeadAction.TRASHED}') as deleted
              FROM users u
              LEFT JOIN activity_log a
                ON a.user_id = u.id

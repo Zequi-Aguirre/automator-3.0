@@ -3,7 +3,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import CountyService from "../services/countyService.ts";
 import ActivityService from "../services/activityService";
-import { ActivityAction, EntityType } from "../types/activityTypes";
+import { CountyAction, EntityType } from "../types/activityTypes";
 import multer from "multer";
 
 const upload = multer(); // memory storage by default
@@ -69,7 +69,7 @@ export default class CountyResource {
                     user_id: req.user?.id,
                     entity_type: EntityType.COUNTY,
                     entity_id: countyId,
-                    action: ActivityAction.COUNTY_UPDATED,
+                    action: CountyAction.UPDATED,
                     action_details: updates
                 });
                 res.status(200).send(updated);
@@ -90,7 +90,7 @@ export default class CountyResource {
                 user_id: req.user?.id,
                 entity_type: EntityType.COUNTY,
                 entity_id: countyId,
-                action: ActivityAction.COUNTY_UPDATED,
+                action: CountyAction.UPDATED,
                 action_details: { blacklisted }
             });
             res.status(200).send(updated);
