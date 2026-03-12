@@ -392,11 +392,6 @@ export default class LeadService {
                 for (const buyer of autoSendBuyers) {
                     try {
                         await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
-                        await this.activityService.log({
-                            lead_id: lead.id,
-                            action: 'lead_sent',
-                            action_details: { buyer_id: buyer.id, buyer_name: buyer.name, source: 'auto_send' }
-                        });
                     } catch (e) {
                         // Log auto-send errors but don't fail the import
                         console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
@@ -455,7 +450,7 @@ export default class LeadService {
      * Send lead to specific buyer (manual send)
      * Delegates to BuyerDispatchService for validation and dispatch
      */
-    async sendLeadToBuyer(leadId: string, buyerId: string, userId?: string | null) {
+    async sendLeadToBuyer(leadId: string, buyerId: string, _userId?: string | null) {
         // Get lead and buyer
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
@@ -467,15 +462,8 @@ export default class LeadService {
             throw new Error(`Buyer ${buyerId} not found`);
         }
 
-        // Delegate to BuyerDispatchService
-        const result = await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
-        await this.activityService.log({
-            user_id: userId,
-            lead_id: leadId,
-            action: 'lead_sent',
-            action_details: { buyer_id: buyerId, buyer_name: buyer.name }
-        });
-        return result;
+        // Delegate to BuyerDispatchService (activity logged inside dispatch)
+        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer);
     }
 
     /**

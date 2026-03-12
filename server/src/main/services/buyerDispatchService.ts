@@ -6,6 +6,7 @@ import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO";
 import CampaignDAO from "../data/campaignDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import CountyService from "../services/countyService";
+import ActivityService from "../services/activityService";
 import BuyerWebhookAdapter, { BuyerWebhookResponse } from "../adapters/buyerWebhookAdapter";
 import { Lead } from "../types/leadTypes";
 import { Buyer } from "../types/buyerTypes";
@@ -22,7 +23,8 @@ export default class BuyerDispatchService {
         private readonly campaignDAO: CampaignDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
         private readonly countyService: CountyService,
-        private readonly buyerWebhookAdapter: BuyerWebhookAdapter
+        private readonly buyerWebhookAdapter: BuyerWebhookAdapter,
+        private readonly activityService: ActivityService
     ) {}
 
     /**
@@ -89,6 +91,18 @@ export default class BuyerDispatchService {
         if (isWorkerSend) {
             await this.scheduleBuyerNext(buyer.id);
         }
+
+        // Log activity (worker_send vs manual/auto distinguished by isWorkerSend)
+        await this.activityService.log({
+            lead_id: lead.id,
+            action: 'lead_sent',
+            action_details: {
+                buyer_id: buyer.id,
+                buyer_name: buyer.name,
+                source: isWorkerSend ? 'worker' : 'auto_send',
+                status: response.success ? 'sent' : 'failed'
+            }
+        });
 
         // Return updated log
         return updatedLog;
