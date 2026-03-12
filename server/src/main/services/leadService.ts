@@ -65,7 +65,7 @@ export default class LeadService {
     // Lead Management Methods
     async getLeadById(leadId: string): Promise<Lead | null> {
         try {
-            return await this.leadDAO.getById(leadId);
+            return await this.leadDAO.getByIdAny(leadId);
         } catch (error) {
             console.error("Error fetching lead by ID:", {
                 leadId,
@@ -587,5 +587,11 @@ export default class LeadService {
             throw new Error('No sold record found for this lead and buyer');
         }
         return await this.leadBuyerOutcomeDAO.trash(existing.id);
+    }
+
+    async untrashLead(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.untrashLead(leadId);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UNTRASHED });
+        return lead;
     }
 }

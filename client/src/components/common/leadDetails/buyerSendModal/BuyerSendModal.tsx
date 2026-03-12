@@ -27,6 +27,8 @@ import {
 } from '@mui/icons-material';
 import leadsService from '../../../../services/lead.service';
 import { Lead } from '../../../../types/leadTypes';
+import { usePermissions } from '../../../../hooks/usePermissions';
+import { Permission } from '../../../../types/userTypes';
 
 interface BuyerSendModalProps {
     open: boolean;
@@ -58,6 +60,9 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps) => {
+    const { can } = usePermissions();
+    const canSend = can(Permission.LEADS_SEND);
+    const canQueue = can(Permission.LEADS_QUEUE);
     const [loading, setLoading] = useState(false);
     const [buyerHistory, setBuyerHistory] = useState<BuyerHistory[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -207,7 +212,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                                     variant="contained"
                                     startIcon={sending === buyer.buyer_id ? <CircularProgress size={16} /> : <SendIcon />}
                                     onClick={() => { void handleSendToBuyer(buyer.buyer_id); }}
-                                    disabled={sending !== null || (!lead.verified && buyer.buyer_name.includes('validation'))}
+                                    disabled={!canSend || sending !== null || (!lead.verified && buyer.buyer_name.includes('validation'))}
                                     size="small"
                                 >
                                     {sending === buyer.buyer_id ? 'Sending...' : 'Send'}
@@ -302,7 +307,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                         variant="outlined"
                         startIcon={enablingWorker ? <CircularProgress size={16} /> : <PlayArrowIcon />}
                         onClick={() => { void handleEnableWorker(); }}
-                        disabled={enablingWorker || sending !== null}
+                        disabled={!canQueue || enablingWorker || sending !== null}
                         color="primary"
                     >
                         {enablingWorker ? 'Queuing...' : 'Queue for Worker'}

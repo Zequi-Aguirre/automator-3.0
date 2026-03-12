@@ -7,6 +7,8 @@ export enum Permission {
     LEADS_EXPORT = 'leads.export',
     LEADS_SEND = 'leads.send',
     LEADS_TRASH = 'leads.trash',
+    LEADS_EDIT = 'leads.edit',
+    LEADS_UNTRASH = 'leads.untrash',
     SOURCES_MANAGE = 'sources.manage',
     MANAGERS_MANAGE = 'managers.manage',
     BUYERS_MANAGE = 'buyers.manage',

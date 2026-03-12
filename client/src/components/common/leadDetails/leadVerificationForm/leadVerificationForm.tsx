@@ -48,9 +48,11 @@ import {
 interface Props {
     lead: Lead;
     refreshLead: () => Promise<void> | void;
+    canEdit?: boolean;
+    canVerify?: boolean;
 }
 
-const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
+const LeadVerificationForm = ({ lead, refreshLead, canEdit = true, canVerify = true }: Props) => {
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
@@ -171,8 +173,8 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
         }
     };
 
-    const handleChange = (field: keyof LeadFormInput, value: any) => {
-        if (!form || isLocked) {
+    const handleChange = (field: keyof LeadFormInput, value: unknown) => {
+        if (!form || !canEdit || isLocked) {
             return;
         }
 
@@ -278,7 +280,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
     };
 
     const isRequired = (field: keyof LeadFormInput): boolean => {
-        return REQUIRED_FIELDS.includes(field as any);
+        return REQUIRED_FIELDS.includes(field as keyof LeadFormInput);
     };
 
     const RequiredHeader = ({ field }: { field: keyof LeadFormInput }) => {
@@ -334,7 +336,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                             <Button
                                 variant="contained"
                                 onClick={handleStart}
-                                disabled={isLocked || saving}
+                                disabled={!canEdit || isLocked || saving}
                             >
                                 Start Verification
                             </Button>
@@ -352,7 +354,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Listed?"
                                     value={form.form_listed ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_listed", e.target.value);
                                     }}
@@ -373,7 +375,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Type of house"
                                     value={form.form_multifamily ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_multifamily", e.target.value);
                                     }}
@@ -391,7 +393,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     multiple
                                     fullWidth
                                     displayEmpty
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     value={form.form_repairs ? form.form_repairs.split("\n") : []}
                                     onChange={(e) => {
                                         const val = (e.target.value as string[]).join("\n");
@@ -420,7 +422,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Occupied"
                                     value={form.form_occupied ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_occupied", e.target.value);
                                     }}
@@ -439,7 +441,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="How fast"
                                     value={form.form_sell_fast ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_sell_fast", e.target.value);
                                     }}
@@ -457,7 +459,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     multiple
                                     fullWidth
                                     displayEmpty
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     value={form.form_goal ? form.form_goal.split("\n") : []}
                                     onChange={(e) => {
                                         const val = (e.target.value as string[]).join("\n");
@@ -486,7 +488,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Owner"
                                     value={form.form_owner ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_owner", e.target.value);
                                     }}
@@ -505,7 +507,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Owned years"
                                     value={form.form_owned_years ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_owned_years", e.target.value);
                                     }}
@@ -523,7 +525,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Bedrooms"
                                     value={form.form_bedrooms ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_bedrooms", e.target.value);
                                     }}
@@ -541,7 +543,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                     fullWidth
                                     label="Bathrooms"
                                     value={form.form_bathrooms ?? ""}
-                                    disabled={isLocked}
+                                    disabled={!canEdit || isLocked}
                                     onChange={(e) => {
                                         handleChange("form_bathrooms", e.target.value);
                                     }}
@@ -559,7 +561,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                 fullWidth
                                 label="Square footage"
                                 value={form.form_square ?? ""}
-                                disabled={isLocked}
+                                disabled={!canEdit || isLocked}
                                 onChange={(e) => {
                                     handleChange("form_square", e.target.value);
                                 }}
@@ -574,7 +576,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                 fullWidth
                                 label="Year built range"
                                 value={form.form_year ?? ""}
-                                disabled={isLocked}
+                                disabled={!canEdit || isLocked}
                                 onChange={(e) => {
                                     handleChange("form_year", e.target.value);
                                 }}
@@ -589,7 +591,7 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
                                 fullWidth
                                 label="Garage"
                                 value={form.form_garage ?? ""}
-                                disabled={isLocked}
+                                disabled={!canEdit || isLocked}
                                 onChange={(e) => {
                                     handleChange("form_garage", e.target.value);
                                 }}
@@ -605,34 +607,38 @@ const LeadVerificationForm = ({ lead, refreshLead }: Props) => {
 
                             {!isLocked && (
                                 <Stack direction="row" spacing={2}>
-                                    <Button
-                                        variant="contained"
-                                        disabled={!dirty || saving}
-                                        onClick={handleSave}
-                                    >
-                                        Save
-                                    </Button>
-
-                                    <Button
-                                        variant="outlined"
-                                        disabled={!dirty}
-                                        onClick={handleCancel}
-                                    >
-                                        Cancel
-                                    </Button>
-
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        disabled={dirty || !isVerifiable}
-                                        onClick={handleVerify}
-                                    >
-                                        Verify
-                                    </Button>
+                                    {canEdit && (
+                                        <>
+                                            <Button
+                                                variant="contained"
+                                                disabled={!dirty || saving}
+                                                onClick={handleSave}
+                                            >
+                                                Save
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                disabled={!dirty}
+                                                onClick={handleCancel}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </>
+                                    )}
+                                    {canVerify && (
+                                        <Button
+                                            variant="contained"
+                                            color="success"
+                                            disabled={dirty || !isVerifiable}
+                                            onClick={handleVerify}
+                                        >
+                                            Verify
+                                        </Button>
+                                    )}
                                 </Stack>
                             )}
 
-                            {isVerified && !isSent && (
+                            {isVerified && !isSent && canVerify && (
                                 <Stack direction="row" spacing={2}>
                                     <Button
                                         variant="contained"

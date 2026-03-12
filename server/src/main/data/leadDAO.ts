@@ -151,7 +151,7 @@ export default class LeadDAO {
         return result;
     }
 
-    // Get lead by ID
+    // Get lead by ID (active only)
     async getById(id: string): Promise<Lead | null> {
         const query = `
             SELECT *
@@ -159,8 +159,34 @@ export default class LeadDAO {
             WHERE id = $[id]
             AND deleted IS NULL;
         `;
-
         return await this.db.oneOrNone<Lead>(query, { id });
+    }
+
+    // Get lead by ID including deleted/trashed leads
+    async getByIdAny(id: string): Promise<Lead | null> {
+        const query = `
+            SELECT *
+            FROM leads
+            WHERE id = $[id];
+        `;
+        return await this.db.oneOrNone<Lead>(query, { id });
+    }
+
+    // Untrash a lead
+    async untrashLead(id: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET deleted = NULL,
+                deleted_reason = NULL,
+                modified = NOW()
+            WHERE id = $[id]
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, { id });
+        if (!result) {
+            throw new Error('Lead not found');
+        }
+        return result;
     }
 
     async getMany(filters: {

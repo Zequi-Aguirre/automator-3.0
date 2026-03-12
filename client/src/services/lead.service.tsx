@@ -132,6 +132,11 @@ class LeadService {
         return response.data;
     }
 
+    async untrashLead(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/untrash/${leadId}`);
+        return response.data;
+    }
+
     async unmarkSoldToBuyer(leadId: string, buyerId: string): Promise<unknown> {
         const response = await this.api.getApi().delete(
             `/api/leads/${leadId}/buyers/${buyerId}/sold`

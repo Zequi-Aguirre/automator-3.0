@@ -1,4 +1,4 @@
-import {useCallback, useContext, useEffect, useState} from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -6,6 +6,7 @@ import {
     Card,
     CardContent,
     CardHeader,
+    Chip,
     CircularProgress,
     Container,
     Dialog,
@@ -19,12 +20,13 @@ import {
     TextField,
     Typography,
     Alert,
-    Snackbar
+    Snackbar,
+    Tooltip
 } from '@mui/material';
 import ActivityFeed from '../activityFeed/ActivityFeed';
 import activityService from '../../../services/activity.service';
 import { ActivityLog } from '../../../types/activityTypes';
-import { ArrowBack, Edit, Save, Cancel } from '@mui/icons-material';
+import { ArrowBack, Edit, Save, Cancel, RestoreFromTrash } from '@mui/icons-material';
 import leadsService from '../../../services/lead.service';
 import { Lead } from '../../../types/leadTypes';
 import { DateTime } from 'luxon';
@@ -43,11 +45,15 @@ import { Permission } from '../../../types/userTypes';
 const LeadDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { role } = useContext(DataContext)
-    const isAdmin = role.includes('admin')
+    const { role } = useContext(DataContext);
+    const isAdmin = role.includes('admin');
     const { can } = usePermissions();
+    const canEdit = can(Permission.LEADS_EDIT);
+    const canVerify = can(Permission.LEADS_VERIFY);
+    const canTrash = can(Permission.LEADS_TRASH);
+    const canUntrash = can(Permission.LEADS_UNTRASH);
+
     const [lead, setLead] = useState<Lead | null>(null);
-    const [isLocked, setIsLocked] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -69,36 +75,26 @@ const LeadDetails = () => {
     });
 
     const [now, setNow] = useState(DateTime.utc());
-    const [leadExpireHours, setLeadExpireHours] = useState(18); // default to 18 hours
+    const [leadExpireHours, setLeadExpireHours] = useState(18);
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
     const [activityLoading, setActivityLoading] = useState(false);
 
     useEffect(() => {
-        // Fetch worker settings to get expire_after_hours
         const fetchSettings = async () => {
             try {
                 const settings = await workingsService.getWorkerSettings();
                 setLeadExpireHours(settings.expire_after_hours);
-            } catch (error) {
-                console.error("Error fetching worker settings:", error);
+            } catch {
+                // use default
             }
         };
-        fetchSettings();
-
-        const id = setInterval(() => {
-            setNow(DateTime.utc());
-        }, 60_000);
-        return () => {
-            clearInterval(id);
-        };
+        void fetchSettings();
+        const intervalId = setInterval(() => { setNow(DateTime.utc()); }, 60_000);
+        return () => { clearInterval(intervalId); };
     }, []);
 
     const showNotification = (message: string, severity: 'success' | 'error') => {
-        setSnackbar({
-            open: true,
-            message,
-            severity
-        });
+        setSnackbar({ open: true, message, severity });
     };
 
     const fetchActivity = useCallback(async () => {
@@ -107,8 +103,8 @@ const LeadDetails = () => {
         try {
             const logs = await activityService.getByLead(id);
             setActivityLogs(logs);
-        } catch (err) {
-            console.error('Failed to load activity:', err);
+        } catch {
+            // non-critical
         } finally {
             setActivityLoading(false);
         }
@@ -132,25 +128,23 @@ const LeadDetails = () => {
             });
             setError(null);
             setEditMode(false);
-            setIsLocked(response.verified || response.sent);
-        } catch (err) {
+        } catch {
             setError('Failed to load lead details');
-            console.error('Error fetching lead:', err);
         } finally {
             setLoading(false);
         }
     }, [id]);
 
     useEffect(() => {
-        fetchLead();
-        fetchActivity();
+        void fetchLead();
+        void fetchActivity();
     }, [fetchLead, fetchActivity]);
 
+    const isLocked = lead ? (lead.verified || lead.sent || !!lead.deleted) : false;
+    const isTrashed = !!lead?.deleted;
+
     const handleEditClick = () => {
-        if (!lead) return;
-        if (isLocked) {
-            return;
-        }
+        if (!lead || isLocked || !canEdit) return;
         setEditMode(true);
     };
 
@@ -158,14 +152,22 @@ const LeadDetails = () => {
         try {
             if (!id) return;
             await leadsService.trashLead(id);
-            const url = isAdmin ? '/a/leads' : '/u/leads';
-            navigate(url);
-            showNotification('Lead moved to trash successfully', 'success');
-        } catch (error) {
+            navigate(isAdmin ? '/a/leads' : '/u/leads');
+        } catch {
             showNotification('Failed to trash lead', 'error');
-            console.error('Error trashing the lead:', error);
         }
         setConfirmDialogOpen(false);
+    };
+
+    const handleUntrashLead = async () => {
+        try {
+            if (!id) return;
+            await leadsService.untrashLead(id);
+            await fetchLead();
+            showNotification('Lead restored from trash', 'success');
+        } catch {
+            showNotification('Failed to restore lead', 'error');
+        }
     };
 
     const handleCancelEdit = () => {
@@ -185,130 +187,45 @@ const LeadDetails = () => {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedContact(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        setEditedContact(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSave = async () => {
         try {
-            if (!id || !lead) return;
-
-            if (isLocked) {
-                return;
-            }
-
-            await leadsService.updateLead(id, {
-                ...lead,
-                ...editedContact
-            });
+            if (!id || !lead || isLocked) return;
+            await leadsService.updateLead(id, { ...lead, ...editedContact });
             setEditMode(false);
             await fetchLead();
-            showNotification('Lead information updated successfully', 'success');
-        } catch (err) {
-            console.error('Error updating lead:', err);
-            showNotification('Failed to update lead information', 'error');
+            showNotification('Lead updated', 'success');
+        } catch {
+            showNotification('Failed to update lead', 'error');
         }
-    };
-
-    const renderExpiresBanner = () => {
-        if (!lead?.created) return null;
-        const ms = remainingMs(lead.created, now, leadExpireHours);
-        const label = formatRemaining(ms);
-        const urgency = getUrgency(ms);
-        const color = colorForUrgency(urgency);
-
-        return (
-            <Typography
-                variant="body2"
-                sx={{ color, fontWeight: label === 'Expired' ? 700 : 600, textTransform: 'uppercase' }}
-            >
-                Expires in: {label}
-            </Typography>
-        );
     };
 
     const handleCopyAddress = () => {
         if (!lead) return;
-
-        const fullAddress = `${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`;
-
-        navigator.clipboard.writeText(fullAddress)
-            .then(() => {
-                showNotification('Address copied to clipboard', 'success');
-            })
-            .catch(() => {
-                showNotification('Failed to copy address', 'error');
-            });
+        const addr = `${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`;
+        navigator.clipboard.writeText(addr)
+            .then(() => { showNotification('Address copied', 'success'); })
+            .catch(() => { showNotification('Failed to copy address', 'error'); });
     };
 
     const handleOpenGoogleSearch = () => {
         if (!lead) return;
-
-        const fullAddress = `${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`;
-        const encoded = encodeURIComponent(fullAddress);
-
-        const url = `https://www.google.com/search?q=${encoded}`;
-
-        window.open(url, "_blank");
+        const addr = encodeURIComponent(`${lead.address}, ${lead.city}, ${lead.state} ${lead.zipcode}`);
+        window.open(`https://www.google.com/search?q=${addr}`, '_blank');
     };
 
-    const renderHeaderActions = () => {
-        if (!lead) return null;
-        if (editMode) {
-            return (
-                <Stack direction="column" spacing={1} alignItems="flex-end">
-                    {renderExpiresBanner()}
-                    <Stack direction="row" spacing={1}>
-                        <Button
-                            startIcon={<Save />}
-                            variant="contained"
-                            onClick={handleSave}
-                            disabled={isLocked}
-                        >
-                            Save
-                        </Button>
-                        <Button
-                            startIcon={<Cancel />}
-                            variant="outlined"
-                            onClick={handleCancelEdit}
-                            disabled={isLocked}
-                        >
-                            Cancel
-                        </Button>
-                    </Stack>
-                </Stack>
-            );
-        }
-
+    const renderExpiresBanner = () => {
+        if (!lead?.created || isTrashed) return null;
+        const ms = remainingMs(lead.created, now, leadExpireHours);
+        const label = formatRemaining(ms);
+        const urgency = getUrgency(ms);
+        const color = colorForUrgency(urgency);
         return (
-            <Stack direction="column" spacing={1} alignItems="flex-end">
-                {renderExpiresBanner()}
-                <Stack direction="row" spacing={1}>
-                    {can(Permission.LEADS_TRASH) && (
-                        <Button
-                            variant="contained"
-                            color="error"
-                            sx={{ mr: 1 }}
-                            onClick={() => {
-                                setConfirmDialogOpen(true);
-                            }}
-                            disabled={lead.sent}
-                        >
-                            Trash
-                        </Button>
-                    )}
-                    <Button
-                        startIcon={<Edit />}
-                        variant="contained"
-                        onClick={handleEditClick}
-                        disabled={isLocked}
-                    >
-                        Edit
-                    </Button>
-                </Stack>
-            </Stack>
+            <Typography variant="body2" sx={{ color, fontWeight: urgency === 'expired' ? 700 : 600, textTransform: 'uppercase' }}>
+                Expires in: {label}
+            </Typography>
         );
     };
 
@@ -328,175 +245,208 @@ const LeadDetails = () => {
         );
     }
 
+    // ─── Layout ───────────────────────────────────────────────────────────────
+    // Full-height 2-column layout:
+    //   Left  (fixed, no scroll): Lead info card + Activity feed
+    //   Right (scrollable):       Lead verification form
+    // ─────────────────────────────────────────────────────────────────────────
+
     return (
-        <Container maxWidth="md">
-            <Box sx={{ py: 4 }}>
-                <Stack spacing={3}>
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                        <IconButton
-                            onClick={() => {
-                                const url = isAdmin ? '/a/leads' : '/u/leads';
-                                navigate(url);
-                            }}
-                            size="large"
-                        >
-                            <ArrowBack />
-                        </IconButton>
+        <Container maxWidth={false} disableGutters sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+            {/* Top bar */}
+            <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+                <IconButton onClick={() => { navigate(isAdmin ? '/a/leads' : '/u/leads'); }} size="small">
+                    <ArrowBack />
+                </IconButton>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>Lead Details</Typography>
+                {isTrashed && <Chip label="Trashed" color="error" size="small" />}
+                {lead.verified && !isTrashed && <Chip label="Verified" color="success" size="small" />}
+                {!editMode && (
+                    <>
+                        <Button variant="outlined" size="small" onClick={handleCopyAddress}>Copy Address</Button>
+                        <Button variant="outlined" size="small" onClick={handleOpenGoogleSearch}>See on Google</Button>
+                    </>
+                )}
+                <Box sx={{ flex: 1 }} />
+                {renderExpiresBanner()}
+            </Box>
 
-                        <Typography variant="h4">Lead Details</Typography>
+            {/* 2-column body */}
+            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-                        {!editMode && lead && (
-                            <>
-                                <Button
-                                    variant="outlined"
-                                    onClick={handleCopyAddress}
-                                >
-                                    Copy Address
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={handleOpenGoogleSearch}
-                                >
-                                    See on Google
-                                </Button>
-                            </>
-                        )}
-                    </Stack>
+                {/* ── LEFT: Lead info + Activity (fixed, no scroll) ── */}
+                <Box sx={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider', overflow: 'hidden' }}>
 
-                    <Card>
-                        <CardHeader title="Lead Information" action={renderHeaderActions()} />
+                    {/* Lead Info card */}
+                    <Card square elevation={0} sx={{ flexShrink: 0 }}>
+                        <CardHeader
+                            title="Lead Info"
+                            titleTypographyProps={{ variant: 'subtitle1', fontWeight: 700 }}
+                            action={
+                                <Stack direction="row" spacing={0.5}>
+                                    {isTrashed && canUntrash && (
+                                        <Tooltip title="Restore from trash">
+                                            <IconButton size="small" color="warning" onClick={() => { void handleUntrashLead(); }}>
+                                                <RestoreFromTrash fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                    {!isTrashed && !editMode && canTrash && (
+                                        <Tooltip title="Trash lead">
+                                            <IconButton size="small" color="error" onClick={() => { setConfirmDialogOpen(true); }} disabled={lead.sent}>
+                                                <Cancel fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                    {!isTrashed && !editMode && (
+                                        <Tooltip title={!canEdit ? "You don't have permission to edit leads" : isLocked ? "Verified/sent leads cannot be edited" : "Edit lead"}>
+                                            <span>
+                                                <IconButton size="small" disabled={!canEdit || isLocked} onClick={handleEditClick}>
+                                                    <Edit fontSize="small" />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                    )}
+                                    {editMode && (
+                                        <>
+                                            <IconButton size="small" color="primary" onClick={() => { void handleSave(); }}>
+                                                <Save fontSize="small" />
+                                            </IconButton>
+                                            <IconButton size="small" onClick={handleCancelEdit}>
+                                                <Cancel fontSize="small" />
+                                            </IconButton>
+                                        </>
+                                    )}
+                                </Stack>
+                            }
+                            sx={{ pb: 0.5 }}
+                        />
                         <Divider />
-                        <CardContent>
-                            <Stack spacing={3}>
-                                <Stack direction="row" spacing={2}>
+                        <CardContent sx={{ pt: 1.5 }}>
+                            <Stack spacing={1.5}>
+                                <Stack direction="row" spacing={1}>
                                     <TextField
-                                        fullWidth
-                                        label="First Name"
-                                        name="first_name"
+                                        fullWidth size="small" label="First Name" name="first_name"
                                         value={editMode ? editedContact.first_name : lead.first_name}
                                         onChange={handleInputChange}
-                                        disabled={!editMode || isLocked}
+                                        disabled={!editMode}
+                                        InputProps={{ readOnly: !editMode }}
                                     />
                                     <TextField
-                                        fullWidth
-                                        label="Last Name"
-                                        name="last_name"
+                                        fullWidth size="small" label="Last Name" name="last_name"
                                         value={editMode ? editedContact.last_name : lead.last_name}
                                         onChange={handleInputChange}
-                                        disabled={!editMode || isLocked}
+                                        disabled={!editMode}
+                                        InputProps={{ readOnly: !editMode }}
                                     />
                                 </Stack>
                                 <TextField
-                                    fullWidth
-                                    label="Email"
-                                    name="email"
+                                    fullWidth size="small" label="Email" name="email"
                                     value={editMode ? editedContact.email : lead.email}
                                     onChange={handleInputChange}
-                                    disabled={!editMode || isLocked}
+                                    disabled={!editMode}
+                                    InputProps={{ readOnly: !editMode }}
                                 />
                                 <TextField
-                                    fullWidth
-                                    label="Phone"
-                                    name="phone"
+                                    fullWidth size="small" label="Phone" name="phone"
                                     value={editMode ? editedContact.phone : lead.phone}
                                     onChange={handleInputChange}
-                                    disabled={!editMode || isLocked}
+                                    disabled={!editMode}
+                                    InputProps={{ readOnly: !editMode }}
                                 />
                                 <TextField
-                                    fullWidth
-                                    label="Address"
-                                    name="address"
+                                    fullWidth size="small" label="Address" name="address"
                                     value={editMode ? editedContact.address : lead.address}
                                     onChange={handleInputChange}
-                                    disabled={!editMode || isLocked}
+                                    disabled={!editMode}
+                                    InputProps={{ readOnly: !editMode }}
                                 />
-                                <Stack direction="row" spacing={2}>
+                                <Stack direction="row" spacing={1}>
                                     <TextField
-                                        fullWidth
-                                        label="City"
-                                        name="city"
+                                        fullWidth size="small" label="City" name="city"
                                         value={editMode ? editedContact.city : lead.city}
                                         onChange={handleInputChange}
-                                        disabled={!editMode || isLocked}
+                                        disabled={!editMode}
+                                        InputProps={{ readOnly: !editMode }}
                                     />
                                     <TextField
-                                        fullWidth
-                                        label="State"
-                                        name="state"
+                                        sx={{ width: 80 }} size="small" label="State" name="state"
                                         value={editMode ? editedContact.state : lead.state}
                                         onChange={handleInputChange}
-                                        disabled={!editMode || isLocked}
+                                        disabled={!editMode}
+                                        InputProps={{ readOnly: !editMode }}
                                     />
                                     <TextField
-                                        fullWidth
-                                        label="Zip Code"
-                                        name="zipcode"
+                                        sx={{ width: 100 }} size="small" label="Zip" name="zipcode"
                                         value={editMode ? editedContact.zipcode : lead.zipcode}
                                         onChange={handleInputChange}
-                                        disabled={!editMode || isLocked}
+                                        disabled={!editMode}
+                                        InputProps={{ readOnly: !editMode }}
                                     />
                                 </Stack>
                             </Stack>
                         </CardContent>
                     </Card>
-                </Stack>
+
+                    {/* Activity feed — fills remaining left height */}
+                    <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ px: 2, py: 1, borderTop: 1, borderColor: 'divider' }}>
+                            <Typography variant="subtitle2" fontWeight={700}>Activity</Typography>
+                        </Box>
+                        <Divider />
+                        <Box sx={{ flex: 1, overflow: 'auto' }}>
+                            <ActivityFeed logs={activityLogs} loading={activityLoading} />
+                        </Box>
+                    </Box>
+                </Box>
+
+                {/* ── RIGHT: Verification form (scrollable) ── */}
+                <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+                    {isTrashed
+                        ? (
+                            <Alert severity="warning" sx={{ mt: 2 }}>
+                                This lead has been trashed and cannot be verified or edited.
+                                {canUntrash && (
+                                    <Button size="small" color="warning" onClick={() => { void handleUntrashLead(); }} sx={{ ml: 2 }}>
+                                        Restore
+                                    </Button>
+                                )}
+                            </Alert>
+                        )
+                        : (
+                            <LeadVerificationForm
+                                lead={lead}
+                                refreshLead={fetchLead}
+                                canEdit={canEdit && !isLocked}
+                                canVerify={canVerify}
+                            />
+                        )
+                    }
+                </Box>
             </Box>
 
-            {!editMode && lead && can(Permission.LEADS_VERIFY) && (
-                <LeadVerificationForm
-                    lead={lead}
-                    refreshLead={fetchLead}
-                />)
-            }
-
-            <Box sx={{ mt: 3, mb: 4 }}>
-                <Card>
-                    <CardHeader title="Activity" titleTypographyProps={{ variant: 'h6' }} />
-                    <Divider />
-                    <CardContent sx={{ p: 0 }}>
-                        <ActivityFeed logs={activityLogs} loading={activityLoading} />
-                    </CardContent>
-                </Card>
-            </Box>
-
-            <Dialog
-                open={confirmDialogOpen}
-                onClose={() => {
-                    setConfirmDialogOpen(false);
-                }}
-            >
-                <DialogTitle>Confirm Action</DialogTitle>
+            {/* Trash confirm dialog */}
+            <Dialog open={confirmDialogOpen} onClose={() => { setConfirmDialogOpen(false); }}>
+                <DialogTitle>Move to Trash?</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Are you sure you want to move this lead to trash? This action can be undone from the trash section.
+                        Are you sure you want to move this lead to trash? You can restore it later.
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button
-                        onClick={() => {
-                            setConfirmDialogOpen(false);
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button onClick={handleTrashLead} color="error" variant="contained">
-                        Move to Trash
-                    </Button>
+                    <Button onClick={() => { setConfirmDialogOpen(false); }}>Cancel</Button>
+                    <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained">Move to Trash</Button>
                 </DialogActions>
             </Dialog>
 
             <Snackbar
                 open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => {
-                    setSnackbar(prev => ({ ...prev, open: false }));
-                }}
+                autoHideDuration={5000}
+                onClose={() => { setSnackbar(prev => ({ ...prev, open: false })); }}
                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
                 <Alert
-                    onClose={() => {
-                        setSnackbar(prev => ({ ...prev, open: false }));
-                    }}
+                    onClose={() => { setSnackbar(prev => ({ ...prev, open: false })); }}
                     severity={snackbar.severity}
                     variant="filled"
                 >

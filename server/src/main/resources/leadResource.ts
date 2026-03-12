@@ -126,6 +126,21 @@ export default class LeadResource {
             }
         });
 
+        // Untrash lead
+        this.router.patch("/untrash/:leadId", requirePermission(LeadPermission.UNTRASH), async (req: Request, res: Response) => {
+            try {
+                const leadId = req.params.leadId;
+                const response = await this.leadService.untrashLead(leadId, req.user?.id);
+                return res.status(200).send(response);
+            } catch (error) {
+                console.error('Error untrashing lead:', error);
+                return res.status(500).send({
+                    message: 'Failed to untrash lead',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // ========================================
         // Buyer Dispatch & History Endpoints
         // ========================================
