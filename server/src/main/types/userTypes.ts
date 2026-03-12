@@ -5,6 +5,7 @@ export type User = {
     name: string;
     email: string;
     role: 'user' | 'admin' | 'superadmin';
+    permissions?: Permission[];
 };
 
 export type UserWithPermissions = User & {

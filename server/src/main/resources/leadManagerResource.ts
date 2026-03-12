@@ -4,7 +4,7 @@ import LeadManagerService from '../services/leadManagerService';
 import ActivityService from '../services/activityService';
 import { LeadManagerAction, EntityType } from "../types/activityTypes";
 import { requirePermission } from '../middleware/requirePermission';
-import { Permission } from '../types/permissionTypes';
+import { ManagerPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class LeadManagerResource {
@@ -57,7 +57,7 @@ export default class LeadManagerResource {
         });
 
         // POST /api/lead-managers
-        this.router.post('/', requirePermission(Permission.MANAGERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.post('/', requirePermission(ManagerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { name, email, phone, notes } = req.body;
                 const manager = await this.leadManagerService.create({ name, email, phone, notes });
@@ -76,7 +76,7 @@ export default class LeadManagerResource {
         });
 
         // PUT /api/lead-managers/:id
-        this.router.put('/:id', requirePermission(Permission.MANAGERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.put('/:id', requirePermission(ManagerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { name, email, phone, active, notes } = req.body;
                 const manager = await this.leadManagerService.update(req.params.id, { name, email, phone, active, notes });
@@ -95,7 +95,7 @@ export default class LeadManagerResource {
         });
 
         // DELETE /api/lead-managers/:id
-        this.router.delete('/:id', requirePermission(Permission.MANAGERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.delete('/:id', requirePermission(ManagerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 await this.leadManagerService.trash(req.params.id);
                 res.status(204).send();

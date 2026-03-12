@@ -50,6 +50,11 @@ export enum AuthAction {
     LOGIN_FAILED = 'user_login_failed',
 }
 
+export enum UserAction {
+    ROLE_CHANGED = 'user_role_changed',
+    PERMISSIONS_CHANGED = 'user_permissions_changed',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -59,7 +64,8 @@ export type ActivityAction =
     | CampaignAction
     | LeadManagerAction
     | CountyAction
-    | AuthAction;
+    | AuthAction
+    | UserAction;
 
 export type ActivityLog = {
     id: string;
@@ -124,4 +130,8 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     // Auth
     [AuthAction.LOGIN]: 'User Login',
     [AuthAction.LOGIN_FAILED]: 'Login Failed',
+
+    // User management
+    [UserAction.ROLE_CHANGED]: 'Role Changed',
+    [UserAction.PERMISSIONS_CHANGED]: 'Permissions Changed',
 };

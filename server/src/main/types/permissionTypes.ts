@@ -1,55 +1,82 @@
-export enum Permission {
-    LEADS_VERIFY = 'leads.verify',
-    LEADS_QUEUE = 'leads.queue',
-    LEADS_IMPORT = 'leads.import',
-    LEADS_EXPORT = 'leads.export',
-    LEADS_SEND = 'leads.send',
-    LEADS_TRASH = 'leads.trash',
-    SOURCES_MANAGE = 'sources.manage',
-    MANAGERS_MANAGE = 'managers.manage',
-    BUYERS_MANAGE = 'buyers.manage',
-    WORKER_TOGGLE = 'worker.toggle',
-    SETTINGS_MANAGE = 'settings.manage',
-    USERS_MANAGE = 'users.manage',
+export enum LeadPermission {
+    VERIFY = 'leads.verify',
+    QUEUE = 'leads.queue',
+    IMPORT = 'leads.import',
+    EXPORT = 'leads.export',
+    SEND = 'leads.send',
+    TRASH = 'leads.trash',
 }
+
+export enum WorkerPermission {
+    TOGGLE = 'worker.toggle',
+}
+
+export enum SourcePermission {
+    MANAGE = 'sources.manage',
+}
+
+export enum BuyerPermission {
+    MANAGE = 'buyers.manage',
+}
+
+export enum ManagerPermission {
+    MANAGE = 'managers.manage',
+}
+
+export enum SettingsPermission {
+    MANAGE = 'settings.manage',
+}
+
+export enum UserPermission {
+    MANAGE = 'users.manage',
+}
+
+export enum ActivityPermission {
+    VIEW = 'activity.view',
+}
+
+export type Permission =
+    | LeadPermission
+    | WorkerPermission
+    | SourcePermission
+    | BuyerPermission
+    | ManagerPermission
+    | SettingsPermission
+    | UserPermission
+    | ActivityPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin';
 
-const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
     user: [
-        Permission.LEADS_VERIFY,
-        Permission.LEADS_QUEUE,
+        LeadPermission.VERIFY,
+        LeadPermission.QUEUE,
+        ActivityPermission.VIEW,
     ],
     admin: [
-        Permission.LEADS_VERIFY,
-        Permission.LEADS_QUEUE,
-        Permission.LEADS_IMPORT,
-        Permission.LEADS_EXPORT,
-        Permission.LEADS_SEND,
-        Permission.LEADS_TRASH,
-        Permission.SOURCES_MANAGE,
-        Permission.MANAGERS_MANAGE,
+        LeadPermission.VERIFY,
+        LeadPermission.QUEUE,
+        LeadPermission.IMPORT,
+        LeadPermission.EXPORT,
+        LeadPermission.SEND,
+        LeadPermission.TRASH,
+        SourcePermission.MANAGE,
+        ManagerPermission.MANAGE,
+        ActivityPermission.VIEW,
     ],
     superadmin: [
-        Permission.LEADS_VERIFY,
-        Permission.LEADS_QUEUE,
-        Permission.LEADS_IMPORT,
-        Permission.LEADS_EXPORT,
-        Permission.LEADS_SEND,
-        Permission.LEADS_TRASH,
-        Permission.SOURCES_MANAGE,
-        Permission.MANAGERS_MANAGE,
-        Permission.BUYERS_MANAGE,
-        Permission.WORKER_TOGGLE,
-        Permission.SETTINGS_MANAGE,
-        Permission.USERS_MANAGE,
+        LeadPermission.VERIFY,
+        LeadPermission.QUEUE,
+        LeadPermission.IMPORT,
+        LeadPermission.EXPORT,
+        LeadPermission.SEND,
+        LeadPermission.TRASH,
+        SourcePermission.MANAGE,
+        ManagerPermission.MANAGE,
+        BuyerPermission.MANAGE,
+        WorkerPermission.TOGGLE,
+        SettingsPermission.MANAGE,
+        UserPermission.MANAGE,
+        ActivityPermission.VIEW,
     ],
 };
-
-export function getEffectivePermissions(role: UserRole): Permission[] {
-    return ROLE_PERMISSIONS[role] ?? ROLE_PERMISSIONS.user;
-}
-
-export function hasPermission(role: UserRole, permission: Permission): boolean {
-    return getEffectivePermissions(role).includes(permission);
-}

@@ -5,6 +5,7 @@ export enum EntityType {
     CAMPAIGN = 'campaign',
     COUNTY = 'county',
     LEAD_MANAGER = 'lead_manager',
+    USER = 'user',
 }
 
 export enum LeadAction {
@@ -59,6 +60,11 @@ export enum AuthAction {
     LOGIN_FAILED = 'user_login_failed',
 }
 
+export enum UserAction {
+    ROLE_CHANGED = 'user_role_changed',
+    PERMISSIONS_CHANGED = 'user_permissions_changed',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -68,7 +74,8 @@ export type ActivityAction =
     | CampaignAction
     | LeadManagerAction
     | CountyAction
-    | AuthAction;
+    | AuthAction
+    | UserAction;
 
 export type ActivityLog = {
     id: string;

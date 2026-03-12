@@ -1,15 +1,20 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import UserService from "../services/userService.ts";
+import ActivityService from "../services/activityService";
 import { requirePermission } from '../middleware/requirePermission';
-import { Permission, UserRole } from '../types/permissionTypes';
+import { Permission, UserRole, LeadPermission, WorkerPermission, SourcePermission, BuyerPermission, ManagerPermission, SettingsPermission, UserPermission, ActivityPermission } from '../types/permissionTypes';
+import { EntityType, UserAction } from '../types/activityTypes';
 
 @injectable()
 export default class UserResource {
 
     private readonly router: Router;
 
-    constructor(private readonly userService: UserService) {
+    constructor(
+        private readonly userService: UserService,
+        private readonly activityService: ActivityService,
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -21,14 +26,14 @@ export default class UserResource {
             res.status(200).json(response);
         });
 
-        // List all users (requires users.manage)
-        this.router.get('/admin/users', requirePermission(Permission.USERS_MANAGE), async (_req: Request, res: Response) => {
+        // List all users with their permissions
+        this.router.get('/admin/users', requirePermission(UserPermission.MANAGE), async (_req: Request, res: Response) => {
             const users = await this.userService.getAllUsers();
             res.status(200).json(users);
         });
 
-        // Update a user's role (requires users.manage; superadmin-only logic enforced in service)
-        this.router.patch('/admin/users/:id/role', requirePermission(Permission.USERS_MANAGE), async (req: Request, res: Response) => {
+        // Update a user's role
+        this.router.patch('/admin/users/:id/role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             const { role } = req.body;
             if (!['user', 'admin'].includes(role)) {
                 return res.status(400).json({ message: 'Invalid role. Must be user or admin.' });
@@ -37,7 +42,46 @@ export default class UserResource {
             if (!updated) {
                 return res.status(403).json({ message: 'Cannot update this user\'s role.' });
             }
+            await this.activityService.log({
+                user_id: req.user.id,
+                entity_type: EntityType.USER,
+                entity_id: req.params.id,
+                action: UserAction.ROLE_CHANGED,
+                action_details: { new_role: role, target_user_id: req.params.id },
+            });
             res.status(200).json(updated);
+        });
+
+        // Set a user's permissions (superadmin only)
+        this.router.put('/admin/users/:id/permissions', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+            const { permissions } = req.body;
+            if (!Array.isArray(permissions)) {
+                return res.status(400).json({ message: 'permissions must be an array.' });
+            }
+            const ok = await this.userService.setUserPermissions(req.params.id, permissions as Permission[], req.user.role as UserRole);
+            if (!ok) return res.status(403).json({ message: 'Only superadmin can set permissions.' });
+            await this.activityService.log({
+                user_id: req.user.id,
+                entity_type: EntityType.USER,
+                entity_id: req.params.id,
+                action: UserAction.PERMISSIONS_CHANGED,
+                action_details: { permissions, target_user_id: req.params.id },
+            });
+            res.status(200).json({ success: true });
+        });
+
+        // Get all available permissions grouped by entity (for the UI checkboxes)
+        this.router.get('/admin/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
+            res.status(200).json({
+                leads: Object.values(LeadPermission),
+                worker: Object.values(WorkerPermission),
+                sources: Object.values(SourcePermission),
+                buyers: Object.values(BuyerPermission),
+                managers: Object.values(ManagerPermission),
+                settings: Object.values(SettingsPermission),
+                users: Object.values(UserPermission),
+                activity: Object.values(ActivityPermission),
+            });
         });
     }
 

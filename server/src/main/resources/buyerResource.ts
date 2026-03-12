@@ -5,7 +5,7 @@ import ActivityService from "../services/activityService";
 import { BuyerAction, EntityType } from "../types/activityTypes";
 import { BuyerCreateDTO, BuyerUpdateDTO, Buyer } from "../types/buyerTypes";
 import { requirePermission } from '../middleware/requirePermission';
-import { Permission } from '../types/permissionTypes';
+import { BuyerPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class BuyerResource {
@@ -51,7 +51,7 @@ export default class BuyerResource {
         // PUT /api/buyers/reorder-priority - Reorder buyer priority (drag-and-drop)
         // TICKET-QA-012
         // IMPORTANT: This route must come BEFORE /:id routes to avoid matching "reorder-priority" as an ID
-        this.router.put('/reorder-priority', requirePermission(Permission.BUYERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.put('/reorder-priority', requirePermission(BuyerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { buyerId, oldPriority, newPriority } = req.body;
 
@@ -94,7 +94,7 @@ export default class BuyerResource {
         });
 
         // POST /api/buyers - Create new buyer
-        this.router.post('/', requirePermission(Permission.BUYERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.post('/', requirePermission(BuyerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const dto: BuyerCreateDTO = req.body;
 
@@ -127,7 +127,7 @@ export default class BuyerResource {
         });
 
         // PUT /api/buyers/:id - Update buyer
-        this.router.put('/:id', requirePermission(Permission.BUYERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.put('/:id', requirePermission(BuyerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
                 const dto: BuyerUpdateDTO = req.body;
@@ -162,7 +162,7 @@ export default class BuyerResource {
         });
 
         // DELETE /api/buyers/:id - Soft-delete buyer
-        this.router.delete('/:id', requirePermission(Permission.BUYERS_MANAGE), async (req: Request, res: Response) => {
+        this.router.delete('/:id', requirePermission(BuyerPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
                 const buyer = await this.buyerService.trash(id);
