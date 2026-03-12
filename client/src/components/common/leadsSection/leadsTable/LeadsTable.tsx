@@ -241,87 +241,91 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             },
         },
         {
-            field: "actions",
-            headerName: "Actions",
-            flex: 1.6,
+            field: "status_actions",
+            headerName: "Status",
+            flex: 1.1,
             sortable: false,
             filterable: false,
             renderCell: (params: GridRenderCellParams) => {
                 const lead: Lead = params.row.raw;
                 const canVerify = can(Permission.LEADS_VERIFY);
                 const canQueue = can(Permission.LEADS_QUEUE);
+
+                return (
+                    <Stack spacing={0.5} onClick={(e) => { e.stopPropagation(); }} sx={{ py: 0.5 }}>
+                        <Tooltip title={
+                            !canVerify
+                                ? "You don't have permission to verify leads"
+                                : lead.verified ? "Click to unverify" : "Click to verify"
+                        }>
+                            <span>
+                                <Chip
+                                    icon={lead.verified ? <CheckCircleIcon /> : <VerifiedIcon />}
+                                    label={lead.verified ? "Verified" : "Verify"}
+                                    color={lead.verified ? "success" : "warning"}
+                                    variant={lead.verified ? "filled" : "outlined"}
+                                    size="small"
+                                    onClick={canVerify ? () => { void handleVerifyToggle(lead); } : undefined}
+                                    sx={{ cursor: canVerify ? "pointer" : "default", opacity: canVerify ? 1 : 0.5 }}
+                                />
+                            </span>
+                        </Tooltip>
+                        <Tooltip title={
+                            !canQueue
+                                ? "You don't have permission to queue leads"
+                                : lead.worker_enabled ? "Click to remove from queue" : "Click to queue for worker"
+                        }>
+                            <span>
+                                <Chip
+                                    icon={lead.worker_enabled ? <StopIcon /> : <PlayArrowIcon />}
+                                    label={lead.worker_enabled ? "Queued" : "Queue"}
+                                    color={lead.worker_enabled ? "success" : "default"}
+                                    variant={lead.worker_enabled ? "filled" : "outlined"}
+                                    size="small"
+                                    onClick={canQueue ? () => { void handleQueueToggle(lead); } : undefined}
+                                    sx={{ cursor: canQueue ? "pointer" : "default", opacity: canQueue ? 1 : 0.5 }}
+                                />
+                            </span>
+                        </Tooltip>
+                    </Stack>
+                );
+            },
+        },
+        {
+            field: "actions",
+            headerName: "",
+            width: 120,
+            sortable: false,
+            filterable: false,
+            renderCell: (params: GridRenderCellParams) => {
+                const lead: Lead = params.row.raw;
                 const canSend = can(Permission.LEADS_SEND);
                 const canTrash = can(Permission.LEADS_TRASH);
                 const canEdit = can(Permission.LEADS_EDIT);
 
                 return (
-                    <Stack spacing={0.5} onClick={(e) => { e.stopPropagation(); }} sx={{ py: 0.5 }}>
-                        {/* Row 1: Verify chip */}
-                        <Box>
-                            <Tooltip title={
-                                !canVerify
-                                    ? "You don't have permission to verify leads"
-                                    : lead.verified ? "Click to unverify" : "Click to verify"
-                            }>
-                                <span>
-                                    <Chip
-                                        icon={lead.verified ? <CheckCircleIcon /> : <VerifiedIcon />}
-                                        label={lead.verified ? "Verified" : "Verify"}
-                                        color={lead.verified ? "success" : "warning"}
-                                        variant={lead.verified ? "filled" : "outlined"}
-                                        size="small"
-                                        onClick={canVerify ? () => { void handleVerifyToggle(lead); } : undefined}
-                                        sx={{ cursor: canVerify ? "pointer" : "default", opacity: canVerify ? 1 : 0.5 }}
-                                    />
-                                </span>
-                            </Tooltip>
-                        </Box>
-
-                        {/* Row 2: Queue chip */}
-                        <Box>
-                            <Tooltip title={
-                                !canQueue
-                                    ? "You don't have permission to queue leads"
-                                    : lead.worker_enabled ? "Click to remove from queue" : "Click to queue for worker"
-                            }>
-                                <span>
-                                    <Chip
-                                        icon={lead.worker_enabled ? <StopIcon /> : <PlayArrowIcon />}
-                                        label={lead.worker_enabled ? "Queued" : "Queue"}
-                                        color={lead.worker_enabled ? "success" : "default"}
-                                        variant={lead.worker_enabled ? "filled" : "outlined"}
-                                        size="small"
-                                        onClick={canQueue ? () => { void handleQueueToggle(lead); } : undefined}
-                                        sx={{ cursor: canQueue ? "pointer" : "default", opacity: canQueue ? 1 : 0.5 }}
-                                    />
-                                </span>
-                            </Tooltip>
-                        </Box>
-
-                        {/* Row 3: Icon buttons */}
-                        <Stack direction="row" spacing={0.25}>
-                            <Tooltip title={canSend ? "Send to buyers" : "You don't have permission to send leads"}>
-                                <span>
-                                    <IconButton size="small" color="primary" disabled={!canSend} onClick={() => { handleOpenBuyerModal(lead); }}>
-                                        <GroupsIcon fontSize="small" />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                            <Tooltip title={canTrash ? "Trash lead" : "You don't have permission to trash leads"}>
-                                <span>
-                                    <IconButton size="small" color="error" disabled={!canTrash} onClick={() => { void handleTrashLead(lead.id); }}>
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                            <Tooltip title={canEdit ? "Edit lead" : "You don't have permission to edit leads"}>
-                                <span>
-                                    <IconButton size="small" disabled={!canEdit} onClick={() => { navigate(`/${isAdmin ? "a" : "u"}/leads/${lead.id}`); }}>
-                                        <EditIcon fontSize="small" />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                        </Stack>
+                    <Stack direction="row" spacing={0.25} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>
+                        <Tooltip title={canSend ? "Send to buyers" : "You don't have permission to send leads"}>
+                            <span>
+                                <IconButton size="small" color="primary" disabled={!canSend} onClick={() => { handleOpenBuyerModal(lead); }}>
+                                    <GroupsIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                        <Tooltip title={canTrash ? "Trash lead" : "You don't have permission to trash leads"}>
+                            <span>
+                                <IconButton size="small" color="error" disabled={!canTrash} onClick={() => { void handleTrashLead(lead.id); }}>
+                                    <DeleteIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                        <Tooltip title={canEdit ? "Edit lead" : "You don't have permission to edit leads"}>
+                            <span>
+                                <IconButton size="small" disabled={!canEdit} onClick={() => { navigate(`/${isAdmin ? "a" : "u"}/leads/${lead.id}`); }}>
+                                    <EditIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
                     </Stack>
                 );
             },
