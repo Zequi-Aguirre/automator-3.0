@@ -515,7 +515,7 @@ export default class LeadService {
      */
     async enableWorker(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.enableWorker(leadId);
-        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'worker_enabled' });
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_queued' });
         return lead;
     }
 

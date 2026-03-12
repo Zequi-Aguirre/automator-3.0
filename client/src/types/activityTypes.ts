@@ -6,9 +6,11 @@ export type ActivityAction =
     | 'lead_trashed'
     | 'lead_downloaded'
     | 'lead_sent'
-    | 'worker_enabled'
-    | 'worker_disabled'
+    | 'worker_started'
+    | 'worker_stopped'
     | 'worker_settings_updated'
+    | 'lead_queued'
+    | 'lead_unqueued'
     | 'source_created'
     | 'source_updated'
     | 'campaign_manager_assigned'
@@ -46,9 +48,11 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     lead_trashed: 'Lead Trashed',
     lead_downloaded: 'Lead Downloaded',
     lead_sent: 'Lead Sent',
-    worker_enabled: 'Worker ON',
-    worker_disabled: 'Worker OFF',
+    worker_started: 'Worker Started',
+    worker_stopped: 'Worker Stopped',
     worker_settings_updated: 'Settings Updated',
+    lead_queued: 'Lead Queued',
+    lead_unqueued: 'Lead Unqueued',
     source_created: 'Source Created',
     source_updated: 'Source Updated',
     campaign_manager_assigned: 'Manager Assigned',

@@ -41,7 +41,7 @@ export default class WorkerResource {
                     });
 
                     await this.worker.initialize();
-                    await this.activityService.log({ user_id: req.user?.id, action: 'worker_enabled' });
+                    await this.activityService.log({ user_id: req.user?.id, action: 'worker_started' });
 
                     res.status(200).send({
                         success: true,
@@ -74,7 +74,7 @@ export default class WorkerResource {
                     });
 
                     this.worker.stop();
-                    await this.activityService.log({ user_id: req.user?.id, action: 'worker_disabled' });
+                    await this.activityService.log({ user_id: req.user?.id, action: 'worker_stopped' });
 
                     res.status(200).send({
                         success: true,

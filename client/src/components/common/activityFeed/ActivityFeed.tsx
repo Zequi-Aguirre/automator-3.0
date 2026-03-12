@@ -8,8 +8,8 @@ interface Props {
 }
 
 const actionColor = (action: string): "default" | "success" | "error" | "warning" | "info" | "primary" => {
-    if (action === 'worker_disabled' || action.includes('trashed')) return 'error';
-    if (action === 'worker_enabled' || action.includes('verified') || action.includes('sent') || action.includes('imported')) return 'success';
+    if (action === 'worker_stopped' || action === 'lead_unqueued' || action.includes('trashed')) return 'error';
+    if (action === 'worker_started' || action === 'lead_queued' || action.includes('verified') || action.includes('sent') || action.includes('imported')) return 'success';
     if (action.includes('updated') || action.includes('assigned') || action === 'worker_settings_updated') return 'warning';
     if (action.includes('created')) return 'primary';
     return 'default';
