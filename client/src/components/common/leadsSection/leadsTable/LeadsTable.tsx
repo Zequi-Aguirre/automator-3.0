@@ -1,10 +1,27 @@
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
-import { Button, Snackbar, Alert, Typography, IconButton, Badge, Chip } from "@mui/material";
-import { Groups as GroupsIcon, PlayArrow as PlayArrowIcon } from "@mui/icons-material";
+import {
+    Alert,
+    Box,
+    Chip,
+    IconButton,
+    Snackbar,
+    Stack,
+    Tooltip,
+    Typography,
+} from "@mui/material";
+import {
+    CheckCircle as CheckCircleIcon,
+    Edit as EditIcon,
+    Delete as DeleteIcon,
+    Groups as GroupsIcon,
+    PlayArrow as PlayArrowIcon,
+    Stop as StopIcon,
+    VerifiedUser as VerifiedIcon,
+} from "@mui/icons-material";
 import { Lead } from "../../../../types/leadTypes.ts";
 import { useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
-import {useContext, useEffect, useState} from "react";
+import { useContext, useEffect, useState } from "react";
 import { DateTime } from "luxon";
 import {
     remainingMs,
@@ -12,10 +29,12 @@ import {
     getUrgency,
     colorForUrgency,
 } from "../../../../utils/leadExpiry";
-import { parseUtcToZone } from "../../../../utils/dates.ts"; // adjust the relative path if needed
+import { parseUtcToZone } from "../../../../utils/dates.ts";
 import workingsService from "../../../../services/settings.service.tsx";
 import DataContext from "../../../../context/DataContext.tsx";
 import BuyerSendModal from "../../leadDetails/buyerSendModal/BuyerSendModal.tsx";
+import { usePermissions } from "../../../../hooks/usePermissions.ts";
+import { Permission } from "../../../../types/userTypes.ts";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -24,6 +43,7 @@ interface LeadsTableProps {
 
 const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     const navigate = useNavigate();
+    const { can } = usePermissions();
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: "",
@@ -31,53 +51,66 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     });
     const [buyerModalOpen, setBuyerModalOpen] = useState(false);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-
-    // one ticking clock for all rows
     const [now, setNow] = useState(DateTime.utc());
-    const [leadExpireHours, setLeadExpireHours] = useState(18); // default to 18 hours
-    const { role } = useContext(DataContext)
-    const isAdmin = role.includes('admin')
+    const [leadExpireHours, setLeadExpireHours] = useState(18);
+    const { role } = useContext(DataContext);
+    const isAdmin = role.includes("admin");
 
     useEffect(() => {
-        // Fetch worker settings to get expire_after_hours
         const fetchSettings = async () => {
             try {
                 const settings = await workingsService.getWorkerSettings();
                 setLeadExpireHours(settings.expire_after_hours);
-            } catch (error) {
-                console.error("Error fetching worker settings:", error);
+            } catch {
+                // use default
             }
         };
-        fetchSettings();
-
-        const id = setInterval(() => {
-            setNow(DateTime.utc());
-        }, 60_000);
-        return () => {
-            clearInterval(id);
-        };
+        void fetchSettings();
+        const id = setInterval(() => { setNow(DateTime.utc()); }, 60_000);
+        return () => { clearInterval(id); };
     }, []);
 
-    const handleCloseSnackbar = () => {
-        setSnackbar((prev) => ({ ...prev, open: false }));
+    const showNotification = (message: string, severity: "success" | "error") => {
+        setSnackbar({ open: true, message, severity });
     };
 
-    const showNotification = (message: string, severity: "success" | "error") => {
-        setSnackbar({
-            open: true,
-            message,
-            severity,
-        });
+    const handleVerifyToggle = async (lead: Lead) => {
+        try {
+            if (lead.verified) {
+                const updated = await leadsService.unverifyLead(lead.id);
+                setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+                showNotification("Lead unverified", "success");
+            } else {
+                navigate(`/${isAdmin ? "a" : "u"}/leads/${lead.id}`);
+            }
+        } catch {
+            showNotification("Failed to update verification", "error");
+        }
+    };
+
+    const handleQueueToggle = async (lead: Lead) => {
+        try {
+            if (lead.worker_enabled) {
+                const updated = await leadsService.disableWorker(lead.id);
+                setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+                showNotification("Lead removed from queue", "success");
+            } else {
+                const updated = await leadsService.enableWorker(lead.id);
+                setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+                showNotification("Lead queued for worker", "success");
+            }
+        } catch {
+            showNotification("Failed to update queue", "error");
+        }
     };
 
     const handleTrashLead = async (leadId: string) => {
         try {
-            const leadDeleted = await leadsService.trashLead(leadId);
-            setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== leadDeleted.id));
-            showNotification("Lead moved to trash successfully", "success");
-        } catch (error) {
+            const deleted = await leadsService.trashLead(leadId);
+            setLeads(prev => prev.filter(l => l.id !== deleted.id));
+            showNotification("Lead moved to trash", "success");
+        } catch {
             showNotification("Failed to trash lead", "error");
-            console.error("Error trashing the lead:", error);
         }
     };
 
@@ -86,61 +119,53 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         setBuyerModalOpen(true);
     };
 
-    const handleCloseBuyerModal = () => {
-        setBuyerModalOpen(false);
-        setSelectedLead(null);
-    };
-
     const handleRefreshLead = async () => {
         if (!selectedLead) return;
         try {
-            const updatedLead = await leadsService.getLeadById(selectedLead.id);
-            setLeads(prevLeads =>
-                prevLeads.map(l => l.id === updatedLead.id ? updatedLead : l)
-            );
-            setSelectedLead(updatedLead);
-        } catch (error) {
-            console.error("Error refreshing lead:", error);
+            const updated = await leadsService.getLeadById(selectedLead.id);
+            setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+            setSelectedLead(updated);
+        } catch {
+            // ignore
         }
     };
 
-    const handleRowClick = (params: Lead) => {
-        navigate(`/${isAdmin ? 'a' : 'u'}/leads/${params.id}`);
+    const platformLabel = (platform: string | null): string => {
+        const map: Record<string, string> = {
+            fb: "Facebook",
+            google: "Google",
+            tiktok: "TikTok",
+            instagram: "Instagram",
+            youtube: "YouTube",
+        };
+        if (!platform) return "";
+        return map[platform] ?? platform;
     };
 
     const rows = leads.map((lead) => ({
         id: lead.id,
-        name: `${lead.first_name} ${lead.last_name}`,
-        contact: {
-            phone: lead.phone,
-            email: lead.email,
-        },
-        location: {
-            address: lead.address,
-            city: lead.city,
-            state: lead.state,
-            zipcode: lead.zipcode,
-        },
-        county: lead.county ?? "No county saved",
-        state: lead.state,
-        daySent: parseUtcToZone(lead.sent_date),
-        created: parseUtcToZone(lead.created),
         raw: lead,
+        name: `${lead.first_name} ${lead.last_name}`,
+        contact: { phone: lead.phone, email: lead.email },
+        address: { address: lead.address, city: lead.city, zipcode: lead.zipcode },
+        countyState: `${lead.county ?? "—"}, ${lead.state}`,
+        created: parseUtcToZone(lead.created),
+        campaign: lead.campaign_name
+            ? [platformLabel(lead.campaign_platform), lead.campaign_name].filter(Boolean).join(" - ")
+            : null,
     }));
 
     const columns: GridColDef[] = [
         {
             field: "name",
             headerName: "Name",
-            flex: 1,
-            sortingOrder: ["asc", "desc"],
+            flex: 0.8,
             renderCell: (params) => (
                 <Typography
-                    className="cursor-pointer hover:underline"
+                    variant="body2"
                     color="primary"
-                    onClick={() => {
-                        handleRowClick(params.row);
-                    }}
+                    sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                    onClick={() => { navigate(`/${isAdmin ? "a" : "u"}/leads/${params.row.id}`); }}
                 >
                     {params.value}
                 </Typography>
@@ -149,170 +174,169 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         {
             field: "contact",
             headerName: "Contact",
-            flex: 1.5,
-            sortingOrder: ["asc", "desc"],
-            renderCell: (params) => (
-                <div className="flex flex-col">
-                    <Typography variant="body2">{params.value.phone}</Typography>
-                    <Typography variant="body2">{params.value.email}</Typography>
-                </div>
-            ),
-        },
-        {
-            field: "location",
-            headerName: "Address",
-            flex: 1.5,
-            sortingOrder: ["asc", "desc"],
-            renderCell: (params) => (
-                <div className="flex flex-col">
-                    <Typography variant="body2">{params.value.address}</Typography>
-                    <Typography variant="body2">
-                        {params.value.city}, {params.value.state} {params.value.zipcode}
-                    </Typography>
-                </div>
-            ),
-        },
-        { field: "county", headerName: "County", flex: 1, sortingOrder: ["asc", "desc"] },
-        { field: "state", headerName: "State", flex: 0.7 },
-        {
-            field: "created",
-            headerName: "Received",
-            flex: 1,
-            sortable: false,
-            filterable: false,
-            renderCell: (params) =>
-                params.value
-                ? (
-                    <div className="flex flex-col">
-                        <Typography variant="body2">{params.value.date}</Typography>
-                        <Typography variant="body2">{params.value.time}</Typography>
-                    </div>
-                )
-                : (
-                    "N/A"
-                ),
-        },
-        {
-            field: "expires_in",
-            headerName: "Expires In",
             flex: 1.1,
             sortable: false,
-            filterable: false,
-            renderCell: (params: GridRenderCellParams) => {
-                const importedISO: string | null = params.row.raw?.created ?? null;
-                if (!importedISO) return "—";
-                const ms = remainingMs(importedISO, now, leadExpireHours);
-                const label = formatRemaining(ms);
-                const urgency = getUrgency(ms);
-                const color = colorForUrgency(urgency);
-                return (
-                    <Typography variant="body2" sx={{ color, fontWeight: urgency === "expired" ? 700 : 500 }}>
-                        {label}
+            renderCell: (params) => (
+                <Box>
+                    <Typography variant="body2">{params.value.phone}</Typography>
+                    <Typography variant="caption" color="text.secondary">{params.value.email}</Typography>
+                </Box>
+            ),
+        },
+        {
+            field: "address",
+            headerName: "Address",
+            flex: 1.2,
+            sortable: false,
+            renderCell: (params) => (
+                <Box>
+                    <Typography variant="body2">{params.value.address}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {params.value.city} {params.value.zipcode}
                     </Typography>
-                );
-            },
+                </Box>
+            ),
         },
         {
-            field: "verified",
-            headerName: "Verify",
-            flex: 1,
+            field: "countyState",
+            headerName: "County",
+            flex: 0.9,
+        },
+        {
+            field: "campaign",
+            headerName: "Campaign",
+            flex: 1.1,
             sortable: false,
-            filterable: false,
+            renderCell: (params) => (
+                params.value
+                    ? <Typography variant="body2" color="text.secondary">{params.value}</Typography>
+                    : <Typography variant="caption" color="text.disabled">—</Typography>
+            ),
+        },
+        {
+            field: "received",
+            headerName: "Received / Expires",
+            flex: 1.2,
+            sortable: false,
             renderCell: (params: GridRenderCellParams) => {
-                const isVerified: boolean = !!params.row.raw?.verified;
-
-                // If not verified, show verify button
-                if (!isVerified) {
-                    return (
-                        <Button
-                            variant="contained"
-                            color="warning"
-                            size="small"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/${isAdmin ? 'a' : 'u'}/leads/${params.row.id}`);
-                            }}
-                        >
-                            Verify Lead
-                        </Button>
-                    );
-                }
-
-                // Verified: show checkmark
+                const created = params.row.created;
+                const importedISO: string | null = params.row.raw?.created ?? null;
+                const ms = importedISO ? remainingMs(importedISO, now, leadExpireHours) : null;
+                const expiryLabel = ms !== null ? formatRemaining(ms) : "—";
+                const urgency = ms !== null ? getUrgency(ms) : "ok";
+                const expiryColor = colorForUrgency(urgency);
                 return (
-                    <Chip
-                        label="Verified"
-                        color="success"
-                        size="small"
-                    />
+                    <Box>
+                        {created
+                            ? (
+                                <Typography variant="body2">{created.date} {created.time}</Typography>
+                            )
+                            : <Typography variant="body2">—</Typography>
+                        }
+                        <Typography variant="caption" sx={{ color: expiryColor, fontWeight: urgency === "expired" ? 700 : 400 }}>
+                            Expires {expiryLabel}
+                        </Typography>
+                    </Box>
                 );
             },
-        },
-        {
-            field: "buyers",
-            headerName: "Buyers",
-            flex: 0.8,
-            sortable: false,
-            filterable: false,
-            renderCell: (params) => (
-                <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenBuyerModal(params.row.raw);
-                    }}
-                    title="Send to buyers"
-                >
-                    <Badge badgeContent={0} color="secondary">
-                        <GroupsIcon />
-                    </Badge>
-                </IconButton>
-            ),
-        },
-        {
-            field: "worker",
-            headerName: "Worker",
-            flex: 0.7,
-            sortable: false,
-            filterable: false,
-            renderCell: (params) => (
-                params.row.raw?.worker_enabled ? (
-                    <Chip
-                        icon={<PlayArrowIcon />}
-                        label="Queued"
-                        color="success"
-                        size="small"
-                    />
-                ) : (
-                    <Chip
-                        label="Not Queued"
-                        variant="outlined"
-                        size="small"
-                    />
-                )
-            ),
         },
         {
             field: "actions",
             headerName: "Actions",
-            flex: 0.5,
+            flex: 1.6,
             sortable: false,
             filterable: false,
-            renderCell: (params) => (
-                <Button
-                    variant="contained"
-                    color="error"
-                    size="small"
-                    disabled={params.row.raw?.sent}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleTrashLead(params.row.id);
-                    }}
-                >
-                    Trash
-                </Button>
-            ),
+            renderCell: (params: GridRenderCellParams) => {
+                const lead: Lead = params.row.raw;
+                const canVerify = can(Permission.LEADS_VERIFY);
+                const canQueue = can(Permission.LEADS_QUEUE);
+                const canSend = can(Permission.LEADS_SEND);
+                const canTrash = can(Permission.LEADS_TRASH);
+
+                return (
+                    <Stack direction="row" spacing={0.5} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>
+                        {/* Verify toggle */}
+                        <Tooltip title={
+                            !canVerify
+                                ? "You don't have permission to verify leads"
+                                : lead.verified
+                                    ? "Click to unverify"
+                                    : "Click to verify"
+                        }>
+                            <span>
+                                <Chip
+                                    icon={lead.verified ? <CheckCircleIcon /> : <VerifiedIcon />}
+                                    label={lead.verified ? "Verified" : "Verify"}
+                                    color={lead.verified ? "success" : "warning"}
+                                    variant={lead.verified ? "filled" : "outlined"}
+                                    size="small"
+                                    onClick={canVerify ? () => { void handleVerifyToggle(lead); } : undefined}
+                                    sx={{ cursor: canVerify ? "pointer" : "default", opacity: canVerify ? 1 : 0.5 }}
+                                />
+                            </span>
+                        </Tooltip>
+
+                        {/* Queue toggle */}
+                        <Tooltip title={
+                            !canQueue
+                                ? "You don't have permission to queue leads"
+                                : lead.worker_enabled
+                                    ? "Click to remove from queue"
+                                    : "Click to queue for worker"
+                        }>
+                            <span>
+                                <Chip
+                                    icon={lead.worker_enabled ? <StopIcon /> : <PlayArrowIcon />}
+                                    label={lead.worker_enabled ? "Queued" : "Queue"}
+                                    color={lead.worker_enabled ? "success" : "default"}
+                                    variant={lead.worker_enabled ? "filled" : "outlined"}
+                                    size="small"
+                                    onClick={canQueue ? () => { void handleQueueToggle(lead); } : undefined}
+                                    sx={{ cursor: canQueue ? "pointer" : "default", opacity: canQueue ? 1 : 0.5 }}
+                                />
+                            </span>
+                        </Tooltip>
+
+                        {/* Buyers */}
+                        <Tooltip title={canSend ? "Send to buyers" : "You don't have permission to send leads"}>
+                            <span>
+                                <IconButton
+                                    size="small"
+                                    color="primary"
+                                    disabled={!canSend}
+                                    onClick={() => { handleOpenBuyerModal(lead); }}
+                                >
+                                    <GroupsIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+
+                        {/* Trash */}
+                        <Tooltip title={canTrash ? "Trash lead" : "You don't have permission to trash leads"}>
+                            <span>
+                                <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={!canTrash}
+                                    onClick={() => { void handleTrashLead(lead.id); }}
+                                >
+                                    <DeleteIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+
+                        {/* Edit */}
+                        <Tooltip title="Open lead details">
+                            <IconButton
+                                size="small"
+                                onClick={() => { navigate(`/${isAdmin ? "a" : "u"}/leads/${lead.id}`); }}
+                            >
+                                <EditIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                );
+            },
         },
     ];
 
@@ -323,14 +347,9 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 columns={columns}
                 disableRowSelectionOnClick
                 hideFooter
-                onSortModelChange={(params) => {
-                    console.log("Sort model changed:", params[0]);
-                }}
-                onFilterModelChange={(params) => {
-                    console.log("Filter model changed:", params);
-                }}
+                getRowHeight={() => "auto"}
                 sx={{
-                    "& .MuiDataGrid-cell": { py: 2 },
+                    "& .MuiDataGrid-cell": { py: 1.5, alignItems: "center" },
                     "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
                 }}
             />
@@ -338,11 +357,11 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={3000}
-                onClose={handleCloseSnackbar}
+                onClose={() => { setSnackbar(p => ({ ...p, open: false })); }}
                 anchorOrigin={{ vertical: "top", horizontal: "right" }}
             >
                 <Alert
-                    onClose={handleCloseSnackbar}
+                    onClose={() => { setSnackbar(p => ({ ...p, open: false })); }}
                     severity={snackbar.severity}
                     variant="filled"
                     sx={{ width: "100%" }}
@@ -354,7 +373,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             {selectedLead && (
                 <BuyerSendModal
                     open={buyerModalOpen}
-                    onClose={handleCloseBuyerModal}
+                    onClose={() => { setBuyerModalOpen(false); setSelectedLead(null); }}
                     lead={selectedLead}
                     onRefresh={handleRefreshLead}
                 />

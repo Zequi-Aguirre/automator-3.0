@@ -90,10 +90,10 @@ const LeadsSection = () => {
 
             setLeads(response.leads);
             setLeadCount(response.count);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setSnack({
                 open: true,
-                message: err?.message || "Failed to load leads",
+                message: err instanceof Error ? err.message : "Failed to load leads",
                 severity: "error",
             });
         } finally {
@@ -110,7 +110,7 @@ const LeadsSection = () => {
     // ------------------------------
 
     const updateStatus = (newStatus: string) => {
-        setStatus(newStatus as "new" | "verified" | "sent" | "trash");
+        setStatus(newStatus as "new" | "verified" | "sent" | "sold" | "trash");
         setPage(1);
     };
 
@@ -187,6 +187,13 @@ const LeadsSection = () => {
                                     onClick={() => { updateStatus("sent"); }}
                                 >
                                     Sent
+                                </Button>
+
+                                <Button
+                                    variant={currentVariant(status === "sold")}
+                                    onClick={() => { updateStatus("sold"); }}
+                                >
+                                    Sold
                                 </Button>
 
                                 <Button

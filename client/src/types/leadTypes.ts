@@ -16,4 +16,6 @@ export type Lead = {
     investor_id: string | null;
     campaign_id: string | null;
     worker_enabled: boolean;
+    campaign_name: string | null;
+    campaign_platform: string | null;
 }

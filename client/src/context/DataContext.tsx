@@ -10,7 +10,7 @@ type LeadFilters = {
     page: number;
     limit: number;
     search: string;
-    status: "new" | "verified" | "sent" | "trash";
+    status: "new" | "verified" | "sent" | "sold" | "trash";
 };
 
 type CountyFilters = {
