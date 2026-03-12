@@ -22,7 +22,11 @@ const formatDetails = (log: ActivityLog): string | null => {
         const via = d.method === 'api' && d.source_name ? `via ${d.source_name}` : d.method === 'csv' ? 'via CSV' : '';
         return `${d.count ?? 1} lead${(d.count ?? 1) !== 1 ? 's' : ''} ${via}`.trim();
     }
-    if (log.action === 'lead_trashed' && d.reason) return d.reason.replace(/_/g, ' ');
+    if (log.action === 'lead_trashed' && d.reason) {
+        const reason = d.reason.replace(/_/g, ' ');
+        const notes = d.notes ? ` · ${d.notes.replace(/_/g, ' ')}` : '';
+        return `${reason}${notes}`;
+    }
     if (log.action === 'lead_sent' && d.buyer_name) return `→ ${d.buyer_name}`;
     if ((log.action === 'source_created' || log.action === 'buyer_created' || log.action === 'buyer_updated') && d.name) return d.name;
     if (log.action === 'campaign_manager_assigned' && d.lead_manager_id) return `manager: ${d.lead_manager_id}`;

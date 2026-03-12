@@ -13,6 +13,7 @@ export type ActivityAction =
     | 'lead_unqueued'
     | 'source_created'
     | 'source_updated'
+    | 'source_token_refreshed'
     | 'campaign_manager_assigned'
     | 'buyer_created'
     | 'buyer_updated'
@@ -55,6 +56,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     lead_unqueued: 'Lead Unqueued',
     source_created: 'Source Created',
     source_updated: 'Source Updated',
+    source_token_refreshed: 'Token Refreshed',
     campaign_manager_assigned: 'Manager Assigned',
     buyer_created: 'Buyer Created',
     buyer_updated: 'Buyer Updated',

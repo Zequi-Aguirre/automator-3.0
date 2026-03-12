@@ -161,6 +161,14 @@ export default class SourceResource {
                     token: source.token  // New token returned once
                 };
 
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'source',
+                    entity_id: id,
+                    action: 'source_token_refreshed',
+                    action_details: { name: source.name }
+                });
+
                 res.status(200).json(response);
             } catch (error) {
                 console.error('Error refreshing token:', error);

@@ -83,7 +83,7 @@ export default class LeadService {
         return updated;
     }
 
-    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null): Promise<Lead> {
+    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null, notes?: string | null): Promise<Lead> {
         try {
             const lead = await this.leadDAO.getById(leadId);
             if (!lead) {
@@ -96,7 +96,7 @@ export default class LeadService {
             }
 
             const trashed = await this.leadDAO.trashLeadWithReason(leadId, reason);
-            await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_trashed', action_details: { reason } });
+            await this.activityService.log({ user_id: userId, lead_id: leadId, action: 'lead_trashed', action_details: { reason, ...(notes ? { notes } : {}) } });
             return trashed;
 
         } catch (error) {

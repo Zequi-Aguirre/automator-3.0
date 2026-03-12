@@ -13,6 +13,7 @@ export type ActivityAction =
     | 'lead_unqueued'
     | 'source_created'
     | 'source_updated'
+    | 'source_token_refreshed'
     | 'campaign_manager_assigned'
     | 'buyer_created'
     | 'buyer_updated'
