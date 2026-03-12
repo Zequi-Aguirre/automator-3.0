@@ -8,16 +8,20 @@ interface Props {
 }
 
 const actionColor = (action: string): "default" | "success" | "error" | "warning" | "info" | "primary" => {
-    if (action.includes('trashed') || action.includes('disabled')) return 'error';
-    if (action.includes('verified') || action.includes('sent') || action.includes('imported')) return 'success';
-    if (action.includes('updated') || action.includes('assigned')) return 'warning';
-    if (action.includes('created') || action.includes('enabled')) return 'primary';
+    if (action === 'worker_disabled' || action.includes('trashed')) return 'error';
+    if (action === 'worker_enabled' || action.includes('verified') || action.includes('sent') || action.includes('imported')) return 'success';
+    if (action.includes('updated') || action.includes('assigned') || action === 'worker_settings_updated') return 'warning';
+    if (action.includes('created')) return 'primary';
     return 'default';
 };
 
 const formatDetails = (log: ActivityLog): string | null => {
     if (!log.action_details) return null;
     const d = log.action_details;
+    if (log.action === 'lead_imported') {
+        const via = d.method === 'api' && d.source_name ? `via ${d.source_name}` : d.method === 'csv' ? 'via CSV' : '';
+        return `${d.count ?? 1} lead${(d.count ?? 1) !== 1 ? 's' : ''} ${via}`.trim();
+    }
     if (log.action === 'lead_trashed' && d.reason) return d.reason.replace(/_/g, ' ');
     if (log.action === 'lead_sent' && d.buyer_name) return `→ ${d.buyer_name}`;
     if ((log.action === 'source_created' || log.action === 'buyer_created' || log.action === 'buyer_updated') && d.name) return d.name;

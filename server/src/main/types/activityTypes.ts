@@ -8,10 +8,15 @@ export type ActivityAction =
     | 'lead_sent'
     | 'worker_enabled'
     | 'worker_disabled'
+    | 'worker_settings_updated'
     | 'source_created'
+    | 'source_updated'
     | 'campaign_manager_assigned'
     | 'buyer_created'
-    | 'buyer_updated';
+    | 'buyer_updated'
+    | 'lead_manager_created'
+    | 'lead_manager_updated'
+    | 'county_updated';
 
 export type ActivityLog = {
     id: string;
@@ -37,7 +42,7 @@ export type ActivityCreateDTO = {
 export type UserActivityStats = {
     user_id: string;
     user_name: string;
-    today: number;
-    week: number;
-    month: number;
+    verified: number;
+    sent: number;
+    deleted: number;
 };

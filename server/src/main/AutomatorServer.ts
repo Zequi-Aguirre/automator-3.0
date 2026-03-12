@@ -66,7 +66,7 @@ export class AutomatorServer {
         this.app.use("/api/jobs", authFunc, cont.resolve(JobResource).routes());
         this.app.use("/api/leads", authFunc, cont.resolve(LeadResource).routes());
         this.app.use("/api/leads-intake", apiKeyFunc, cont.resolve(LeadIntakeResource).routes());
-        this.app.use("/api/leads-open", cont.resolve(LeadOpenResource).routes());
+        this.app.use("/api/leads-open", authFunc, cont.resolve(LeadOpenResource).routes());
         this.app.use("/api/leads-form-input", authFunc, cont.resolve(LeadFormInputResource).routes());
         this.app.use("/api/logs", authFunc, cont.resolve(SendLogResource).routes());
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());

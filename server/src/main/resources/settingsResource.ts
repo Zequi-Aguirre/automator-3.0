@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import SettingsService from "../services/settingsService.ts";
+import ActivityService from "../services/activityService";
 
 @injectable()
 export default class SettingsResource {
@@ -8,6 +9,7 @@ export default class SettingsResource {
 
     constructor(
         private readonly settingsService: SettingsService,
+        private readonly activityService: ActivityService
     ) {
         this.router = express.Router();
         this.initializeRoutes();
@@ -23,6 +25,11 @@ export default class SettingsResource {
         // Update settings
         this.router.patch("/admin/update", async (req: Request, res: Response) => {
             const updatedSettings = await this.settingsService.updateSettings(req.body);
+            await this.activityService.log({
+                user_id: req.user?.id,
+                action: 'worker_settings_updated',
+                action_details: req.body
+            });
             res.status(200).send(updatedSettings);
         });
     }

@@ -1,12 +1,16 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import LeadManagerService from '../services/leadManagerService';
+import ActivityService from '../services/activityService';
 
 @injectable()
 export default class LeadManagerResource {
     private readonly router: Router;
 
-    constructor(private readonly leadManagerService: LeadManagerService) {
+    constructor(
+        private readonly leadManagerService: LeadManagerService,
+        private readonly activityService: ActivityService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -54,6 +58,13 @@ export default class LeadManagerResource {
             try {
                 const { name, email, phone, notes } = req.body;
                 const manager = await this.leadManagerService.create({ name, email, phone, notes });
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'lead_manager',
+                    entity_id: manager.id,
+                    action: 'lead_manager_created',
+                    action_details: { name: manager.name }
+                });
                 res.status(201).json(manager);
             } catch (error) {
                 const status = error instanceof Error && error.message.includes('required') ? 400 : 500;
@@ -66,6 +77,13 @@ export default class LeadManagerResource {
             try {
                 const { name, email, phone, active, notes } = req.body;
                 const manager = await this.leadManagerService.update(req.params.id, { name, email, phone, active, notes });
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'lead_manager',
+                    entity_id: manager.id,
+                    action: 'lead_manager_updated',
+                    action_details: { name: manager.name }
+                });
                 res.status(200).json(manager);
             } catch (error) {
                 const status = error instanceof Error && error.message.includes('not found') ? 404 : 500;

@@ -2,6 +2,7 @@
 import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import CountyService from "../services/countyService.ts";
+import ActivityService from "../services/activityService";
 import multer from "multer";
 
 const upload = multer(); // memory storage by default
@@ -10,7 +11,10 @@ const upload = multer(); // memory storage by default
 export default class CountyResource {
     private readonly router: Router;
 
-    constructor(private readonly countyService: CountyService) {
+    constructor(
+        private readonly countyService: CountyService,
+        private readonly activityService: ActivityService
+    ) {
         this.router = express.Router();
         this.initializeRoutes();
     }
@@ -60,6 +64,13 @@ export default class CountyResource {
                 const updates = req.body;
 
                 const updated = await this.countyService.updateCounty(countyId, updates);
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'county',
+                    entity_id: countyId,
+                    action: 'county_updated',
+                    action_details: updates
+                });
                 res.status(200).send(updated);
             } catch (error) {
                 console.error("Error updating county:", error);
@@ -74,6 +85,13 @@ export default class CountyResource {
             const { countyId } = req.params;
             const { blacklisted } = req.body;
             const updated = await this.countyService.updateCountyBlacklistStatus(countyId, blacklisted);
+            await this.activityService.log({
+                user_id: req.user?.id,
+                entity_type: 'county',
+                entity_id: countyId,
+                action: 'county_updated',
+                action_details: { blacklisted }
+            });
             res.status(200).send(updated);
         });
 

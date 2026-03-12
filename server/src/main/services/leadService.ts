@@ -180,7 +180,7 @@ export default class LeadService {
         return unverified;
     }
 
-    async importLeads(csvContent: string) {
+    async importLeads(csvContent: string, userId?: string | null) {
         const { leads } = parseCsvToLeads(csvContent);
 
         // Get or create CSV_IMPORT source and campaign
@@ -285,10 +285,12 @@ export default class LeadService {
                 .map(r => r.error || "Unknown error")
         );
 
-        for (const result of insertResults) {
-            if (result.success && result.lead) {
-                await this.activityService.log({ lead_id: result.lead.id, action: 'lead_imported' });
-            }
+        if (successCount > 0) {
+            await this.activityService.log({
+                user_id: userId,
+                action: 'lead_imported',
+                action_details: { count: successCount, method: 'csv' }
+            });
         }
 
         return {
@@ -412,10 +414,16 @@ export default class LeadService {
                 .map(r => r.error || "Unknown insert error")
         );
 
-        for (const result of insertResults) {
-            if (result.success && result.lead) {
-                await this.activityService.log({ lead_id: result.lead.id, action: 'lead_imported' });
+        if (successCount > 0) {
+            let sourceName: string | null = null;
+            if (source_id) {
+                const source = await this.sourceService.getById(source_id);
+                sourceName = source?.name ?? null;
             }
+            await this.activityService.log({
+                action: 'lead_imported',
+                action_details: { count: successCount, method: 'api', source_name: sourceName }
+            });
         }
 
         return {

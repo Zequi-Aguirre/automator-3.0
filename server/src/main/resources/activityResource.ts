@@ -21,9 +21,10 @@ export default class ActivityResource {
             }
         });
 
-        this.router.get('/stats', async (_req: Request, res: Response) => {
+        this.router.get('/stats', async (req: Request, res: Response) => {
             try {
-                const stats = await this.activityService.getUserStats();
+                const days = req.query.days ? Number(req.query.days) : undefined;
+                const stats = await this.activityService.getUserStats(days);
                 return res.status(200).send({ stats });
             } catch (err) {
                 return res.status(500).send({ message: 'Failed to fetch stats' });

@@ -8,10 +8,15 @@ export type ActivityAction =
     | 'lead_sent'
     | 'worker_enabled'
     | 'worker_disabled'
+    | 'worker_settings_updated'
     | 'source_created'
+    | 'source_updated'
     | 'campaign_manager_assigned'
     | 'buyer_created'
-    | 'buyer_updated';
+    | 'buyer_updated'
+    | 'lead_manager_created'
+    | 'lead_manager_updated'
+    | 'county_updated';
 
 export type ActivityLog = {
     id: string;
@@ -28,9 +33,9 @@ export type ActivityLog = {
 export type UserActivityStats = {
     user_id: string;
     user_name: string;
-    today: number;
-    week: number;
-    month: number;
+    verified: number;
+    sent: number;
+    deleted: number;
 };
 
 export const ACTION_LABELS: Record<ActivityAction, string> = {
@@ -41,10 +46,15 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     lead_trashed: 'Lead Trashed',
     lead_downloaded: 'Lead Downloaded',
     lead_sent: 'Lead Sent',
-    worker_enabled: 'Worker Enabled',
-    worker_disabled: 'Worker Disabled',
+    worker_enabled: 'Worker ON',
+    worker_disabled: 'Worker OFF',
+    worker_settings_updated: 'Settings Updated',
     source_created: 'Source Created',
+    source_updated: 'Source Updated',
     campaign_manager_assigned: 'Manager Assigned',
     buyer_created: 'Buyer Created',
     buyer_updated: 'Buyer Updated',
+    lead_manager_created: 'Manager Created',
+    lead_manager_updated: 'Manager Updated',
+    county_updated: 'County Updated',
 };

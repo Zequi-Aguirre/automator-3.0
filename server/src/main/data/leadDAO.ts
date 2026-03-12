@@ -89,7 +89,7 @@ export default class LeadDAO {
     async trashExpiredLeads(
         expireHours: number,
         reason: string
-    ): Promise<number> {
+    ): Promise<string[]> {
         const query = `
             UPDATE leads
             SET
@@ -107,7 +107,7 @@ export default class LeadDAO {
             reason
         });
 
-        return rows.length;
+        return rows.map(r => r.id);
     }
 
     private async getUpdatedLeadFields(

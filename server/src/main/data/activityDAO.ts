@@ -61,18 +61,21 @@ export default class ActivityDAO {
         );
     }
 
-    async getUserStats(): Promise<UserActivityStats[]> {
+    async getUserStats(days: number = 30): Promise<UserActivityStats[]> {
         return this.db.manyOrNone(
             `SELECT
                 u.id as user_id,
                 u.name as user_name,
-                COUNT(a.id) FILTER (WHERE a.created >= NOW() - INTERVAL '1 day')   as today,
-                COUNT(a.id) FILTER (WHERE a.created >= NOW() - INTERVAL '7 days')  as week,
-                COUNT(a.id) FILTER (WHERE a.created >= NOW() - INTERVAL '30 days') as month
+                COUNT(a.id) FILTER (WHERE a.action = 'lead_verified')  as verified,
+                COUNT(a.id) FILTER (WHERE a.action = 'lead_sent')      as sent,
+                COUNT(a.id) FILTER (WHERE a.action = 'lead_trashed')   as deleted
              FROM users u
-             LEFT JOIN activity_log a ON a.user_id = u.id
+             LEFT JOIN activity_log a
+               ON a.user_id = u.id
+              AND a.created >= NOW() - ($[days] * INTERVAL '1 day')
              GROUP BY u.id, u.name
-             ORDER BY month DESC NULLS LAST`
+             ORDER BY verified DESC NULLS LAST`,
+            { days }
         );
     }
 }

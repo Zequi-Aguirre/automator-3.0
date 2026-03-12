@@ -27,7 +27,7 @@ export default class ActivityService {
         return this.activityDAO.getRecent();
     }
 
-    async getUserStats() {
-        return this.activityDAO.getUserStats();
+    async getUserStats(days?: number) {
+        return this.activityDAO.getUserStats(days);
     }
 }

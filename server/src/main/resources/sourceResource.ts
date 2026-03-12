@@ -130,6 +130,14 @@ export default class SourceResource {
 
                 const source = await this.sourceService.update(id, updateDTO);
 
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: 'source',
+                    entity_id: id,
+                    action: 'source_updated',
+                    action_details: updateDTO
+                });
+
                 // Mask token in response
                 res.status(200).json(this.maskToken(source));
             } catch (error) {

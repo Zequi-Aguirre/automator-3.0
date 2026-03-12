@@ -9,8 +9,8 @@ class ActivityService {
         return res.data.logs;
     }
 
-    async getStats(): Promise<UserActivityStats[]> {
-        const res = await this.api.getApi().get("/api/activity/stats");
+    async getStats(days: number = 30): Promise<UserActivityStats[]> {
+        const res = await this.api.getApi().get("/api/activity/stats", { params: { days } });
         return res.data.stats;
     }
 
