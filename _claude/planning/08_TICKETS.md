@@ -17,11 +17,11 @@
 | **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
 | **Backlog** | ⬜ TODO | #39-41 | 0/3 (0%) |
 
-**Overall Progress:** 38/41 core tickets (93%) + 2 additional features (BUG-001, TICKET-046)
-**Remaining:** 3 enhancement tickets (documentation & UX improvements)
+**Overall Progress:** 39/41 core tickets (95%) + 2 additional features (BUG-001, TICKET-046)
+**Remaining:** 2 enhancement tickets
 
-**Current Status:** All core functionality complete - TICKET-046 merged to develop
-**Next Up:** QA session and user feedback
+**Current Status:** TICKET-051 (activity tracking) complete — PR #10 open, awaiting merge
+**Next Up:** TICKET-053, TICKET-048, TICKET-052
 
 **Sprint 4 Summary:**
 - ✅ TICKET-021: Refactored WorkerService to use processAllBuyers()
@@ -1780,6 +1780,7 @@ CREATE TRIGGER update_lead_managers_modified
 **Estimate**: 6 hours
 **Sprint**: 8 (Foundation)
 **Date Created**: 2026-03-06
+**Status**: ✅ COMPLETE — PR #10 merged to develop (2026-03-12)
 
 **Background**:
 VAs and managers need visibility into who is actually working (verifying leads, updating data). Currently, there's no tracking of which user performed which actions.
@@ -1789,23 +1790,24 @@ VAs and managers need visibility into who is actually working (verifying leads, 
 **Goal**:
 Track everything. Every action that touches a lead or a system entity should be logged. No exceptions.
 
-**Actions to Track**:
+**Actions Tracked** (implemented):
 
 Lead lifecycle:
-1. `lead_imported` — lead created via CSV upload or API intake (include source, campaign, platform)
+1. `lead_imported` — batch event: N leads imported via CSV (user) or API (source name)
 2. `lead_verified` — lead marked verified (who + when)
-3. `lead_updated` — lead fields edited (who + what changed)
-4. `lead_trashed` — lead deleted (who + reason)
-5. `lead_downloaded` — lead exported/downloaded (who)
-6. `lead_sent` — lead dispatched to a buyer manually (who + which buyer)
-7. `worker_enabled` — lead added to worker queue (who)
-8. `worker_disabled` — lead removed from worker queue (who)
+3. `lead_unverified` — lead unmarked verified (who)
+4. `lead_updated` — lead fields edited (who)
+5. `lead_trashed` — lead deleted (who + reason); includes worker expiration trashes (source: worker)
+6. `lead_sent` — lead dispatched to buyer; covers manual, auto-send on API import, and worker sends (source field distinguishes)
 
 System / admin actions:
-9. `source_created` — new source added (who)
-10. `campaign_manager_assigned` — lead_manager_id set or changed on a campaign (who + campaign + manager)
-11. `buyer_created` — new buyer added (who)
-12. `buyer_updated` — buyer settings changed (who + what changed)
+7. `worker_enabled` / `worker_disabled` — who turned worker on/off
+8. `worker_settings_updated` — settings page changes (who + what fields)
+9. `source_created` / `source_updated` — source add/edit (who)
+10. `campaign_manager_assigned` — manager assigned to campaign (who)
+11. `buyer_created` / `buyer_updated` — buyer add/edit (who)
+12. `lead_manager_created` / `lead_manager_updated` — lead manager add/edit (who)
+13. `county_updated` — county field edits and blacklist toggle (who)
 
 **Database Changes**:
 ```sql
