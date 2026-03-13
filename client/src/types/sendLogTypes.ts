@@ -21,6 +21,7 @@ export interface SendLog {
     lead_county?: string | null;
     campaign_name?: string | null;
     campaign_platform?: string | null;
+    buyer_name?: string | null;
 }
 
 export interface SendLogInsert {

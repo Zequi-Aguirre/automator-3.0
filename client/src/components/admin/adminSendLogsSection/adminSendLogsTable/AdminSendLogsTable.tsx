@@ -114,6 +114,15 @@ const AdminSendLogsTable = ({ logs }: Props) => {
             },
         },
         {
+            field: "buyer_name",
+            headerName: "Buyer",
+            minWidth: 160,
+            flex: 1,
+            renderCell: (params) => (
+                <Typography variant="body2">{(params.row as SendLog).buyer_name ?? "—"}</Typography>
+            ),
+        },
+        {
             field: "created",
             headerName: "Created",
             width: 180,
@@ -188,6 +197,7 @@ const AdminSendLogsTable = ({ logs }: Props) => {
                                         label="Campaign"
                                         value={formatCampaign(selectedLog.campaign_platform, selectedLog.campaign_name)}
                                     />
+                                    <DetailField label="Buyer" value={selectedLog.buyer_name ?? "—"} />
                                     <DetailField label="Created" value={formatDate(selectedLog.created)} />
                                     <DetailField label="Lead ID" value={selectedLog.lead_id} />
                                 </Box>
