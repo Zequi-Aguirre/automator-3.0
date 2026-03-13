@@ -1,6 +1,8 @@
 import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
 import SendLogService from "../services/sendLogService.ts";
+import { requirePermission } from "../middleware/requirePermission.ts";
+import { DisputePermission } from "../types/permissionTypes.ts";
 
 @injectable()
 export default class SendLogResource {
@@ -40,6 +42,31 @@ export default class SendLogResource {
             const updates = req.body;
             const updated = await this.sendLogService.updateLog(logId, updates);
             res.status(200).send(updated);
+        });
+
+        this.router.patch("/:logId/dispute", requirePermission(DisputePermission.CREATE), async (req: Request, res: Response) => {
+            try {
+                const { logId } = req.params;
+                const { reason, buyer_name } = req.body;
+                if (!reason || String(reason).trim().length === 0) {
+                    return res.status(400).send({ message: 'reason is required' });
+                }
+                const buyerName = buyer_name ? String(buyer_name).trim() : null;
+                const log = await this.sendLogService.disputeLog(logId, String(reason).trim(), buyerName, req.user?.id ?? null);
+                return res.status(200).send(log);
+            } catch (error) {
+                return res.status(500).send({ message: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
+        this.router.patch("/:logId/undispute", requirePermission(DisputePermission.CREATE), async (req: Request, res: Response) => {
+            try {
+                const { logId } = req.params;
+                const log = await this.sendLogService.undisputeLog(logId, req.user?.id ?? null);
+                return res.status(200).send(log);
+            } catch (error) {
+                return res.status(500).send({ message: error instanceof Error ? error.message : 'Unknown error' });
+            }
         });
     }
 
