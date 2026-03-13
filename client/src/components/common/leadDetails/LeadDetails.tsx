@@ -49,7 +49,6 @@ const LeadDetails = () => {
     const isAdmin = role.includes('admin');
     const { can } = usePermissions();
     const canEdit = can(Permission.LEADS_EDIT);
-    const canVerify = can(Permission.LEADS_VERIFY);
     const canTrash = can(Permission.LEADS_TRASH);
     const canUntrash = can(Permission.LEADS_UNTRASH);
 
@@ -424,8 +423,6 @@ const LeadDetails = () => {
                         lead={lead}
                         refreshLead={fetchLead}
                         refreshActivity={fetchActivity}
-                        canEdit={canEdit && !isLocked}
-                        canVerify={canVerify}
                     />
                 </Box>
             </Box>

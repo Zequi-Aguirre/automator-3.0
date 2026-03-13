@@ -121,7 +121,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         setEnablingWorker(true);
         setError(null);
         try {
-            await leadsService.enableWorker(lead.id);
+            await leadsService.queueLead(lead.id);
             if (onRefresh) onRefresh();
             onClose();
         } catch (err: unknown) {
