@@ -26,6 +26,16 @@ class SendLogService {
         const res = await this.api.getApi().patch(`/api/logs/admin/update/${logId}`, updates);
         return res.data;
     }
+
+    async disputeLog(logId: string, reason: string, buyerName?: string): Promise<SendLog> {
+        const res = await this.api.getApi().patch(`/api/logs/${logId}/dispute`, { reason, buyer_name: buyerName ?? null });
+        return res.data;
+    }
+
+    async undisputeLog(logId: string): Promise<SendLog> {
+        const res = await this.api.getApi().patch(`/api/logs/${logId}/undispute`);
+        return res.data;
+    }
 }
 
 const sendLogService = new SendLogService(authProvider);

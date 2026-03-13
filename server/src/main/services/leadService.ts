@@ -86,7 +86,7 @@ export default class LeadService {
         return updated;
     }
 
-    async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null, notes?: string | null): Promise<Lead> {
+    async trashLead(leadId: string, systemReason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null, userReason?: string | null): Promise<Lead> {
         try {
             const lead = await this.leadDAO.getById(leadId);
             if (!lead) {
@@ -98,8 +98,10 @@ export default class LeadService {
                 throw new Error("Lead already sent");
             }
 
-            const trashed = await this.leadDAO.trashLeadWithReason(leadId, reason);
-            await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.TRASHED, action_details: { reason, ...(notes ? { notes } : {}) } });
+            // Store the user-selected reason label if provided, otherwise the system reason
+            const storedReason = userReason ?? systemReason;
+            const trashed = await this.leadDAO.trashLeadWithReason(leadId, storedReason);
+            await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.TRASHED, action_details: { reason: storedReason } });
             return trashed;
 
         } catch (error) {

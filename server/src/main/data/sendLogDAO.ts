@@ -287,4 +287,22 @@ export default class SendLogDAO {
         `;
         return await this.db.manyOrNone<SendLog>(query, { buyerIds });
     }
+
+    async disputeLog(id: string, reason: string, buyerName: string | null, disputedBy: string | null): Promise<SendLog> {
+        return this.db.one<SendLog>(`
+            UPDATE send_log
+            SET disputed = true, dispute_reason = $[reason], dispute_buyer_name = $[buyerName], disputed_at = NOW(), disputed_by = $[disputedBy], modified = NOW()
+            WHERE id = $[id] AND deleted IS NULL
+            RETURNING *;
+        `, { id, reason, buyerName, disputedBy });
+    }
+
+    async undisputeLog(id: string): Promise<SendLog> {
+        return this.db.one<SendLog>(`
+            UPDATE send_log
+            SET disputed = false, dispute_reason = NULL, disputed_at = NULL, disputed_by = NULL, modified = NOW()
+            WHERE id = $[id] AND deleted IS NULL
+            RETURNING *;
+        `, { id });
+    }
 }

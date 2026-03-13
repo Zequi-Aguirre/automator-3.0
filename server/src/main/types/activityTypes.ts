@@ -66,6 +66,17 @@ export enum UserAction {
     PERMISSIONS_CHANGED = 'user_permissions_changed',
 }
 
+export enum TrashReasonAction {
+    CREATED = 'trash_reason_created',
+    ACTIVATED = 'trash_reason_activated',
+    DEACTIVATED = 'trash_reason_deactivated',
+}
+
+export enum DisputeAction {
+    CREATED = 'dispute_created',
+    REMOVED = 'dispute_removed',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -76,7 +87,9 @@ export type ActivityAction =
     | LeadManagerAction
     | CountyAction
     | AuthAction
-    | UserAction;
+    | UserAction
+    | TrashReasonAction
+    | DisputeAction;
 
 export type ActivityLog = {
     id: string;
