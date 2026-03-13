@@ -27,6 +27,8 @@ import { LeadFormInput } from "../../../../types/leadFormInputTypes.ts";
 import { Lead } from "../../../../types/leadTypes";
 import leadFormInputService from "../../../../services/leadFormInput.service.tsx";
 import leadsService from "../../../../services/lead.service";
+import { usePermissions } from "../../../../hooks/usePermissions.ts";
+import { Permission } from "../../../../types/userTypes.ts";
 
 import {
     TYPE_OF_HOUSE_OPTIONS,
@@ -49,12 +51,13 @@ interface Props {
     lead: Lead;
     refreshLead: () => Promise<void> | void;
     refreshActivity?: () => void;
-    canEdit?: boolean;
-    canVerify?: boolean;
-    canQueue?: boolean;
 }
 
-const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = true, canVerify = true, canQueue = false }: Props) => {
+const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => {
+    const { can } = usePermissions();
+    const canEdit = can(Permission.LEADS_EDIT) && !lead.verified && !lead.sent;
+    const canVerify = can(Permission.LEADS_VERIFY);
+    const canQueue = can(Permission.LEADS_QUEUE);
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
