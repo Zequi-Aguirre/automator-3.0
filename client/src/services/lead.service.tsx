@@ -109,13 +109,13 @@ class LeadService {
     }
 
     // Queue lead for worker
-    async enableWorker(leadId: string): Promise<Lead> {
+    async queueLead(leadId: string): Promise<Lead> {
         const response = await this.api.getApi().post(`/api/leads/${leadId}/queue`);
         return response.data;
     }
 
     // Unqueue lead from worker
-    async disableWorker(leadId: string): Promise<Lead> {
+    async unqueueLead(leadId: string): Promise<Lead> {
         const response = await this.api.getApi().post(`/api/leads/${leadId}/unqueue`);
         return response.data;
     }

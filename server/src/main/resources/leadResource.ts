@@ -196,7 +196,7 @@ export default class LeadResource {
         this.router.post("/:leadId/unqueue", requirePermission(LeadPermission.QUEUE), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const lead = await this.leadService.disableWorker(leadId, req.user?.id);
+                const lead = await this.leadService.unqueueLead(leadId, req.user?.id);
                 return res.status(200).send(lead);
             } catch (error) {
                 return res.status(500).send({ message: error instanceof Error ? error.message : 'Unknown error' });
@@ -207,7 +207,7 @@ export default class LeadResource {
         this.router.post("/:leadId/queue", requirePermission(LeadPermission.QUEUE), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const lead = await this.leadService.enableWorker(leadId, req.user?.id);
+                const lead = await this.leadService.queueLead(leadId, req.user?.id);
                 return res.status(200).send(lead);
             } catch (error) {
                 console.error('Error enabling worker:', error);

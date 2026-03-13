@@ -528,8 +528,8 @@ export default class LeadService {
         return history;
     }
 
-    async disableWorker(leadId: string, userId?: string | null): Promise<Lead> {
-        const lead = await this.leadDAO.disableWorker(leadId);
+    async unqueueLead(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.unqueueLead(leadId);
         await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UNQUEUED });
         return lead;
     }
@@ -538,8 +538,8 @@ export default class LeadService {
      * Enable worker processing for a lead
      * Sets worker_enabled=true so worker can process this lead
      */
-    async enableWorker(leadId: string, userId?: string | null): Promise<Lead> {
-        const lead = await this.leadDAO.enableWorker(leadId);
+    async queueLead(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.queueLead(leadId);
         await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.QUEUED });
         return lead;
     }

@@ -545,7 +545,7 @@ export default class LeadDAO {
         );
     }
 
-    async enableWorker(id: string): Promise<Lead> {
+    async queueLead(id: string): Promise<Lead> {
         const query = `
             UPDATE leads
             SET worker_enabled = true,
@@ -563,7 +563,7 @@ export default class LeadDAO {
         return result;
     }
 
-    async disableWorker(id: string): Promise<Lead> {
+    async unqueueLead(id: string): Promise<Lead> {
         const query = `
             UPDATE leads
             SET worker_enabled = false,

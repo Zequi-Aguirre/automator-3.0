@@ -236,9 +236,9 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = tr
         try {
             setError(null);
             if (lead.worker_enabled) {
-                await leadsService.disableWorker(lead.id);
+                await leadsService.unqueueLead(lead.id);
             } else {
-                await leadsService.enableWorker(lead.id);
+                await leadsService.queueLead(lead.id);
             }
             await Promise.resolve(refreshLead());
             refreshActivity?.();

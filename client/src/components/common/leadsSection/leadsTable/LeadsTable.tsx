@@ -91,11 +91,11 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     const handleQueueToggle = async (lead: Lead) => {
         try {
             if (lead.worker_enabled) {
-                const updated = await leadsService.disableWorker(lead.id);
+                const updated = await leadsService.unqueueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
                 showNotification("Lead removed from queue", "success");
             } else {
-                const updated = await leadsService.enableWorker(lead.id);
+                const updated = await leadsService.queueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
                 showNotification("Lead queued for worker", "success");
             }
