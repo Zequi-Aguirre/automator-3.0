@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+    Autocomplete,
     Box,
     Button,
     Card,
@@ -28,6 +29,7 @@ import activityService from '../../../services/activity.service';
 import { ActivityLog } from '../../../types/activityTypes';
 import { ArrowBack, Edit, Save, Cancel, RestoreFromTrash } from '@mui/icons-material';
 import leadsService from '../../../services/lead.service';
+import trashReasonService, { TrashReason } from '../../../services/trashReason.service';
 import { Lead } from '../../../types/leadTypes';
 import { DateTime } from 'luxon';
 import {
@@ -57,6 +59,8 @@ const LeadDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [trashReasons, setTrashReasons] = useState<TrashReason[]>([]);
+    const [selectedTrashReason, setSelectedTrashReason] = useState<TrashReason | null>(null);
     const [editedContact, setEditedContact] = useState({
         first_name: '',
         last_name: '',
@@ -147,10 +151,21 @@ const LeadDetails = () => {
         setEditMode(true);
     };
 
+    const handleOpenTrashDialog = async () => {
+        setSelectedTrashReason(null);
+        setConfirmDialogOpen(true);
+        try {
+            const reasons = await trashReasonService.getActive();
+            setTrashReasons(reasons);
+        } catch {
+            setTrashReasons([]);
+        }
+    };
+
     const handleTrashLead = async () => {
         try {
             if (!id) return;
-            await leadsService.trashLead(id);
+            await leadsService.trashLead(id, selectedTrashReason?.label);
             navigate(isAdmin ? '/a/leads' : '/u/leads');
         } catch {
             showNotification('Failed to trash lead', 'error');
@@ -294,7 +309,7 @@ const LeadDetails = () => {
                                     )}
                                     {!isTrashed && !editMode && canTrash && (
                                         <Tooltip title="Trash lead">
-                                            <IconButton size="small" color="error" onClick={() => { setConfirmDialogOpen(true); }} disabled={lead.sent}>
+                                            <IconButton size="small" color="error" onClick={() => { void handleOpenTrashDialog(); }} disabled={lead.sent}>
                                                 <Cancel fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
@@ -428,12 +443,22 @@ const LeadDetails = () => {
             </Box>
 
             {/* Trash confirm dialog */}
-            <Dialog open={confirmDialogOpen} onClose={() => { setConfirmDialogOpen(false); }}>
+            <Dialog open={confirmDialogOpen} onClose={() => { setConfirmDialogOpen(false); }} maxWidth="xs" fullWidth>
                 <DialogTitle>Move to Trash?</DialogTitle>
                 <DialogContent>
-                    <DialogContentText>
+                    <DialogContentText sx={{ mb: 2 }}>
                         Are you sure you want to move this lead to trash? You can restore it later.
                     </DialogContentText>
+                    <Autocomplete
+                        options={trashReasons}
+                        getOptionLabel={(o) => o.label}
+                        value={selectedTrashReason}
+                        onChange={(_, val) => { setSelectedTrashReason(val); }}
+                        renderInput={(params) => (
+                            <TextField {...params} label="Reason (optional)" size="small" fullWidth />
+                        )}
+                        size="small"
+                    />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => { setConfirmDialogOpen(false); }}>Cancel</Button>
