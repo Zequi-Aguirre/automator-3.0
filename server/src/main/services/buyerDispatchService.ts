@@ -63,7 +63,7 @@ export default class BuyerDispatchService {
         }
 
         // Build payload (map lead fields to buyer's expected format)
-        const payload = this.buildPayload(lead);
+        const payload = this.buildPayload(lead, buyer);
 
         // Send to actual webhook (Make.com URLs configured per environment)
         const response: BuyerWebhookResponse = await this.buyerWebhookAdapter.sendToBuyer(
@@ -464,26 +464,33 @@ export default class BuyerDispatchService {
      * @param lead - Lead to transform
      * @returns Payload object ready for webhook
      */
-    private buildPayload(lead: Lead): Record<string, any> {
-        return {
-            // Lead identifiers
-            lead_id: lead.id,
+    private buildPayload(lead: Lead, buyer: Buyer): Record<string, unknown> {
+        if (buyer.payload_format === 'northstar') {
+            return {
+                name: `${lead.first_name} ${lead.last_name}`.trim(),
+                email: lead.email,
+                phone: lead.phone,
+                address: lead.address,
+                city: lead.city,
+                state: lead.state,
+                zip_code: lead.zipcode,
+                county: lead.county ?? '',
+            };
+        }
 
-            // Contact info
+        // Default format
+        return {
+            lead_id: lead.id,
             first_name: lead.first_name,
             last_name: lead.last_name,
             email: lead.email,
             phone: lead.phone,
-
-            // Address
             address: lead.address,
             city: lead.city,
             state: lead.state,
             county: lead.county,
             zipcode: lead.zipcode,
-
-            // Metadata
-            verified: lead.verified
+            verified: lead.verified,
         };
     }
 }

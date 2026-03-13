@@ -88,12 +88,14 @@ const AdminSendLogsTable = ({ logs }: Props) => {
             renderCell: (params) => {
                 const row = params.row as SendLog;
                 const name = [row.lead_first_name, row.lead_last_name].filter(Boolean).join(" ") || "—";
-                const county = row.lead_county ?? null;
+                const countyState = row.lead_county && row.lead_state
+                    ? `${row.lead_county}, ${row.lead_state}`
+                    : (row.lead_county ?? null);
                 return (
                     <Stack spacing={0} sx={{ lineHeight: 1.2 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>{name}</Typography>
-                        {county && (
-                            <Typography variant="caption" color="text.secondary">{county}</Typography>
+                        {countyState && (
+                            <Typography variant="caption" color="text.secondary">{countyState}</Typography>
                         )}
                     </Stack>
                 );
@@ -182,7 +184,12 @@ const AdminSendLogsTable = ({ logs }: Props) => {
                                         label="Lead"
                                         value={[selectedLog.lead_first_name, selectedLog.lead_last_name].filter(Boolean).join(" ") || "—"}
                                     />
-                                    <DetailField label="County" value={selectedLog.lead_county ?? "—"} />
+                                    <DetailField
+                                        label="County"
+                                        value={selectedLog.lead_county && selectedLog.lead_state
+                                            ? `${selectedLog.lead_county}, ${selectedLog.lead_state}`
+                                            : (selectedLog.lead_county ?? "—")}
+                                    />
                                     <DetailField label="Response Code" value={selectedLog.response_code?.toString() ?? "—"} />
                                     <DetailField
                                         label="Campaign"

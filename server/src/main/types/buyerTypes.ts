@@ -21,6 +21,7 @@ export type Buyer = {
     delay_same_state: number; // Hours to wait before sending another lead from same state
     enforce_county_cooldown: boolean; // Toggle for county cooldown enforcement
     enforce_state_cooldown: boolean; // Toggle for state cooldown enforcement
+    payload_format: 'default' | 'northstar'; // Webhook payload field mapping
     created: string;
     modified: string;
     deleted: string | null;
@@ -45,6 +46,7 @@ export type BuyerCreateDTO = {
     delay_same_state?: number;
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
+    payload_format?: 'default' | 'northstar';
 };
 
 export type BuyerUpdateDTO = {
@@ -67,6 +69,7 @@ export type BuyerUpdateDTO = {
     delay_same_state?: number;
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
+    payload_format?: 'default' | 'northstar';
 };
 
 export type BuyerTimingUpdate = {

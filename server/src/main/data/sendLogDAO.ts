@@ -86,6 +86,7 @@ export default class SendLogDAO {
                 l.first_name  AS lead_first_name,
                 l.last_name   AS lead_last_name,
                 l.county      AS lead_county,
+                l.state       AS lead_state,
                 c.name        AS campaign_name,
                 c.platform    AS campaign_platform
             FROM send_log sl
