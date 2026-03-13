@@ -77,10 +77,10 @@ class LeadService {
     // ========================================
 
     // Send lead to specific buyer (manual send)
-    async sendLeadToBuyer(leadId: string, buyerId: string): Promise<unknown> {
+    async sendLeadToBuyer(leadId: string, buyerId: string, force: boolean = false): Promise<unknown> {
         const response = await this.api.getApi().post(
             `/api/leads/${leadId}/send-to-buyer`,
-            { buyer_id: buyerId }
+            { buyer_id: buyerId, force }
         );
         return response.data;
     }

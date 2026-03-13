@@ -37,11 +37,17 @@ export default class BuyerDispatchService {
      * @param isWorkerSend - If true, updates buyer timing (worker randomization). Default: false (manual/auto-send)
      * @returns SendLog record with response details
      */
-    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false, userId?: string | null): Promise<SendLog> {
+    async sendLeadToBuyer(lead: Lead, buyer: Buyer, isWorkerSend: boolean = false, userId?: string | null, force: boolean = false): Promise<SendLog> {
         // Validation: Can we send this lead to this buyer?
         const canSend = await this.canSendToBuyer(lead, buyer);
         if (!canSend.allowed) {
-            throw new Error(`Cannot send lead to buyer: ${canSend.reason}`);
+            if (canSend.already_sent && force) {
+                // Force resend — intentionally bypassing duplicate check
+            } else if (canSend.already_sent) {
+                throw new Error('ALREADY_SENT');
+            } else {
+                throw new Error(`Cannot send lead to buyer: ${canSend.reason}`);
+            }
         }
 
         // Get source_id from campaign if available
@@ -121,7 +127,7 @@ export default class BuyerDispatchService {
     async canSendToBuyer(
         lead: Lead,
         buyer: Buyer
-    ): Promise<{ allowed: boolean; reason?: string }> {
+    ): Promise<{ allowed: boolean; reason?: string; already_sent?: boolean }> {
         // Rule 1: Lead must require validation if buyer requires_validation=true
         if (buyer.requires_validation && !lead.verified) {
             return { allowed: false, reason: "Buyer requires validation, but lead is not validated" };
@@ -150,7 +156,7 @@ export default class BuyerDispatchService {
         // Rule 4: Lead must not have been successfully sent to this buyer already
         const alreadySent = await this.sendLogDAO.wasSuccessfullySentToBuyer(lead.id, buyer.id);
         if (alreadySent) {
-            return { allowed: false, reason: "Lead already successfully sent to this buyer" };
+            return { allowed: false, reason: "Lead already successfully sent to this buyer", already_sent: true };
         }
 
         return { allowed: true };
