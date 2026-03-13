@@ -1,35 +1,70 @@
-import { Typography, Chip } from "@mui/material";
+import { useState } from "react";
+import {
+    Typography,
+    Chip,
+    Box,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    IconButton,
+    Tooltip,
+    Stack,
+    Divider,
+} from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import {SendLog} from "../../../../types/sendLogTypes.ts";
+import { SendLog } from "../../../../types/sendLogTypes.ts";
 
 interface Props {
     logs: SendLog[];
     setLogs: (fn: (prev: SendLog[]) => SendLog[]) => void;
 }
 
-const shortenId = (id: string | null) => {
-    if (!id) return "—";
-    return `${id.slice(0, 8)}...${id.slice(-4)}`;
-};
-
 const formatDate = (iso: string) => {
     if (!iso) return "—";
-    const d = new Date(iso);
-    return d.toLocaleString();
+    return new Date(iso).toLocaleString();
 };
 
+const formatCampaign = (platform: string | null | undefined, name: string | null | undefined) => {
+    if (!name) return "—";
+    if (!platform) return name;
+    return `${platform.toUpperCase()} - ${name}`;
+};
+
+const DetailField = ({ label, value }: { label: string; value: string }) => (
+    <Box>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            {label}
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 0.25 }}>{value}</Typography>
+    </Box>
+);
+
 const AdminSendLogsTable = ({ logs }: Props) => {
+    const [selectedLog, setSelectedLog] = useState<SendLog | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        if (!selectedLog?.response_body) return;
+        void navigator.clipboard.writeText(selectedLog.response_body).then(() => {
+            setCopied(true);
+            setTimeout(() => { setCopied(false); }, 2000);
+        });
+    };
+
     const columns: GridColDef[] = [
         {
             field: "status",
             headerName: "Status",
-            minWidth: 140,
+            width: 110,
             renderCell: (params) => {
                 const s = params.row.status as SendLog["status"];
                 return (
                     <Chip
                         label={s === "sent" ? "Sent" : "Failed"}
-                        color={s === "sent" ? "success" : "error" as "success" | "error"}
+                        color={s === "sent" ? "success" : "error"}
                         size="small"
                     />
                 );
@@ -37,12 +72,43 @@ const AdminSendLogsTable = ({ logs }: Props) => {
         },
         {
             field: "response_code",
-            headerName: "Resp. Code",
-            minWidth: 120,
+            headerName: "Code",
+            width: 80,
+            renderCell: (params) => (
+                <Typography sx={{ fontWeight: 500 }}>
+                    {params.row.response_code ?? "—"}
+                </Typography>
+            ),
+        },
+        {
+            field: "lead_first_name",
+            headerName: "Lead",
+            minWidth: 180,
+            flex: 1,
             renderCell: (params) => {
+                const row = params.row as SendLog;
+                const name = [row.lead_first_name, row.lead_last_name].filter(Boolean).join(" ") || "—";
+                const county = row.lead_county ?? null;
                 return (
-                    <Typography sx={{ fontWeight: 500 }}>
-                        {params.row.response_code ?? "—"}
+                    <Stack spacing={0} sx={{ lineHeight: 1.2 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{name}</Typography>
+                        {county && (
+                            <Typography variant="caption" color="text.secondary">{county}</Typography>
+                        )}
+                    </Stack>
+                );
+            },
+        },
+        {
+            field: "campaign_name",
+            headerName: "Campaign",
+            minWidth: 200,
+            flex: 1,
+            renderCell: (params) => {
+                const row = params.row as SendLog;
+                return (
+                    <Typography variant="body2">
+                        {formatCampaign(row.campaign_platform, row.campaign_name)}
                     </Typography>
                 );
             },
@@ -50,63 +116,22 @@ const AdminSendLogsTable = ({ logs }: Props) => {
         {
             field: "created",
             headerName: "Created",
-            minWidth: 220,
-            renderCell: (params) => {
-                return (
-                    <Typography sx={{ fontWeight: 500 }}>
-                        {formatDate(params.row.created)}
-                    </Typography>
-                );
-            },
-        },
-        {
-            field: "lead_id",
-            headerName: "Lead",
-            minWidth: 160,
-            renderCell: (params) => {
-                return <Typography>{shortenId(params.row.lead_id)}</Typography>;
-            },
-        },
-        {
-            field: "affiliate_id",
-            headerName: "Affiliate",
-            minWidth: 160,
-            renderCell: (params) => {
-                return <Typography>{shortenId(params.row.affiliate_id)}</Typography>;
-            },
-        },
-        {
-            field: "campaign_id",
-            headerName: "Campaign",
-            minWidth: 160,
-            renderCell: (params) => {
-                return <Typography>{shortenId(params.row.campaign_id)}</Typography>;
-            },
-        },
-        {
-            field: "county_id",
-            headerName: "County",
-            minWidth: 160,
-            renderCell: (params) => {
-                return <Typography>{shortenId(params.row.county_id)}</Typography>;
-            },
+            width: 180,
+            renderCell: (params) => (
+                <Typography variant="body2">{formatDate(params.row.created)}</Typography>
+            ),
         },
         {
             field: "response_body",
-            headerName: "Response Body",
-            flex: 1,
-            minWidth: 280,
+            headerName: "Response",
+            flex: 2,
+            minWidth: 240,
             renderCell: (params) => {
-                const body = params.row.response_body;
+                const body: string | null = params.row.response_body;
                 return (
                     <Typography
-                        sx={{
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: "100%",
-                        }}
-                        title={body ?? ""}
+                        variant="body2"
+                        sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", color: "text.secondary" }}
                     >
                         {body ?? "—"}
                     </Typography>
@@ -116,19 +141,101 @@ const AdminSendLogsTable = ({ logs }: Props) => {
     ];
 
     return (
-        <DataGrid
-            rows={logs}
-            columns={columns}
-            disableRowSelectionOnClick
-            hideFooter
-            getRowId={(row) => {
-                return row.id;
-            }}
-            sx={{
-                "& .MuiDataGrid-cell": { py: 2 },
-                "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
-            }}
-        />
+        <>
+            <DataGrid
+                rows={logs}
+                columns={columns}
+                disableRowSelectionOnClick
+                hideFooter
+                getRowId={(row) => row.id}
+                onRowClick={(params) => { setSelectedLog(params.row as SendLog); }}
+                sx={{
+                    cursor: "pointer",
+                    "& .MuiDataGrid-row:hover": { backgroundColor: "action.hover" },
+                    "& .MuiDataGrid-cell": { py: 1 },
+                    "& .MuiDataGrid-columnHeaders": { backgroundColor: "action.hover" },
+                }}
+            />
+
+            <Dialog
+                open={selectedLog !== null}
+                onClose={() => { setSelectedLog(null); }}
+                maxWidth="md"
+                fullWidth
+            >
+                {selectedLog && (
+                    <>
+                        <DialogTitle>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                <Typography variant="h6">Log Detail</Typography>
+                                <Chip
+                                    label={selectedLog.status === "sent" ? "Sent" : "Failed"}
+                                    color={selectedLog.status === "sent" ? "success" : "error"}
+                                    size="small"
+                                />
+                            </Stack>
+                        </DialogTitle>
+                        <DialogContent dividers>
+                            <Stack spacing={2}>
+                                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
+                                    <DetailField
+                                        label="Lead"
+                                        value={[selectedLog.lead_first_name, selectedLog.lead_last_name].filter(Boolean).join(" ") || "—"}
+                                    />
+                                    <DetailField label="County" value={selectedLog.lead_county ?? "—"} />
+                                    <DetailField label="Response Code" value={selectedLog.response_code?.toString() ?? "—"} />
+                                    <DetailField
+                                        label="Campaign"
+                                        value={formatCampaign(selectedLog.campaign_platform, selectedLog.campaign_name)}
+                                    />
+                                    <DetailField label="Created" value={formatDate(selectedLog.created)} />
+                                    <DetailField label="Lead ID" value={selectedLog.lead_id} />
+                                </Box>
+
+                                <Divider />
+
+                                <Box>
+                                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                            Response Body
+                                        </Typography>
+                                        <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={handleCopy}
+                                                    disabled={!selectedLog.response_body}
+                                                >
+                                                    <ContentCopyIcon fontSize="small" />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                    </Stack>
+                                    <Box
+                                        sx={{
+                                            p: 1.5,
+                                            bgcolor: "action.hover",
+                                            borderRadius: 1,
+                                            fontFamily: "monospace",
+                                            fontSize: "0.8rem",
+                                            whiteSpace: "pre-wrap",
+                                            wordBreak: "break-all",
+                                            maxHeight: 320,
+                                            overflowY: "auto",
+                                        }}
+                                    >
+                                        {selectedLog.response_body ?? "—"}
+                                    </Box>
+                                </Box>
+                            </Stack>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => { setSelectedLog(null); }}>Close</Button>
+                        </DialogActions>
+                    </>
+                )}
+            </Dialog>
+        </>
     );
 };
 
