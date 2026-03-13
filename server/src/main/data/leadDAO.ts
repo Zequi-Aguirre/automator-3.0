@@ -290,11 +290,11 @@ export default class LeadDAO {
                         `
                           INSERT INTO leads (
                             first_name, last_name, email, phone, address, city, state, zipcode,
-                            county, county_id, private_notes, investor_id
+                            county, county_id, private_notes
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
-                            $[county], $[county_id], $[private_notes], $[investor_id]
+                            $[county], $[county_id], $[private_notes]
                           )
                           RETURNING *;
                         `,
@@ -335,14 +335,12 @@ export default class LeadDAO {
                 first_name, last_name, email, phone,
                 address, city, state, zipcode,
                 county, county_id, private_notes,
-                investor_id,
                 deleted, deleted_reason
             )
             VALUES (
                 $[first_name], $[last_name], $[email], $[phone],
                 $[address], $[city], $[state], $[zipcode],
                 $[county], $[county_id], $[private_notes],
-                $[investor_id],
                 NOW(), $[reason]
             )
             RETURNING *;

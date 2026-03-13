@@ -3,7 +3,6 @@ import { parsedLeadFromCSV } from "../types/leadTypes.ts";
 
 type ParsedCsvResult = {
     leads: parsedLeadFromCSV[];
-    investors: Set<string>;
 };
 
 export function splitName(fullName: string): { first_name: string; last_name: string } {
@@ -28,7 +27,6 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     }) as Record<string, string>[];
 
     const leads: parsedLeadFromCSV[] = [];
-    const investors = new Set<string>();
 
     for (const row of records) {
         const {
@@ -41,14 +39,11 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             'Zip Code': ZipCode,
             County,
             'Private Notes': PrivateNotes,
-            Investor
         } = row;
 
         const { first_name, last_name } = splitName(Name);
         const phone = cleanPhone(PhoneNumber || "");
         const email = EmailAddress?.toLowerCase() || "";
-
-        if (Investor) investors.add(Investor.trim());
 
         // Validation: require Address, City, State
         if (!Address || !City || !State) continue;
@@ -66,9 +61,8 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             county: County || "",
             county_id: undefined,
             private_notes: PrivateNotes || null,
-            investor_id: Investor?.trim() || null,
         });
     }
 
-    return { leads, investors };
+    return { leads };
 }

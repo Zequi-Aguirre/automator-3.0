@@ -3,8 +3,7 @@ export interface SendLog {
     lead_id: string;
     affiliate_id: string | null;
     campaign_id: string | null;
-    investor_id: string | null;
-    county_id: string | null;
+    county_id?: string | null; // joined from leads table in county log queries
 
     status: "sent" | "failed";
 
@@ -21,7 +20,6 @@ export interface SendLogInsert {
     lead_id: string;
     affiliate_id: string | null;
     campaign_id: string | null;
-    investor_id: string | null;
     status: "sent" | "failed";
 }
 
