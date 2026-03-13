@@ -51,9 +51,10 @@ interface Props {
     refreshActivity?: () => void;
     canEdit?: boolean;
     canVerify?: boolean;
+    canQueue?: boolean;
 }
 
-const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = true, canVerify = true }: Props) => {
+const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = true, canVerify = true, canQueue = false }: Props) => {
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
@@ -228,6 +229,21 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = tr
             setDirty(false);
         } catch {
             setVerifyError("Failed to unverify lead");
+        }
+    };
+
+    const handleQueueToggle = async () => {
+        try {
+            setError(null);
+            if (lead.worker_enabled) {
+                await leadsService.disableWorker(lead.id);
+            } else {
+                await leadsService.enableWorker(lead.id);
+            }
+            await Promise.resolve(refreshLead());
+            refreshActivity?.();
+        } catch {
+            setError("Failed to update queue");
         }
     };
 
@@ -521,14 +537,34 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = tr
                                             Verify
                                         </Button>
                                     )}
+                                    {canQueue && (
+                                        <Button
+                                            variant={lead.worker_enabled ? "contained" : "outlined"}
+                                            color={lead.worker_enabled ? "error" : "primary"}
+                                            onClick={() => { void handleQueueToggle(); }}
+                                        >
+                                            {lead.worker_enabled ? "Remove from Queue" : "Add to Queue"}
+                                        </Button>
+                                    )}
                                 </Stack>
                             )}
 
-                            {isVerified && !isSent && canVerify && (
+                            {isVerified && !isSent && (
                                 <Stack direction="row" spacing={2}>
-                                    <Button variant="contained" color="warning" onClick={() => { void handleUnverify(); }}>
-                                        Unverify
-                                    </Button>
+                                    {canVerify && (
+                                        <Button variant="contained" color="warning" onClick={() => { void handleUnverify(); }}>
+                                            Unverify
+                                        </Button>
+                                    )}
+                                    {canQueue && (
+                                        <Button
+                                            variant={lead.worker_enabled ? "contained" : "outlined"}
+                                            color={lead.worker_enabled ? "error" : "primary"}
+                                            onClick={() => { void handleQueueToggle(); }}
+                                        >
+                                            {lead.worker_enabled ? "Remove from Queue" : "Add to Queue"}
+                                        </Button>
+                                    )}
                                 </Stack>
                             )}
                         </Stack>

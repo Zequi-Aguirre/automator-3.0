@@ -50,6 +50,7 @@ const LeadDetails = () => {
     const { can } = usePermissions();
     const canEdit = can(Permission.LEADS_EDIT);
     const canVerify = can(Permission.LEADS_VERIFY);
+    const canQueue = can(Permission.LEADS_QUEUE);
     const canTrash = can(Permission.LEADS_TRASH);
     const canUntrash = can(Permission.LEADS_UNTRASH);
 
@@ -426,6 +427,7 @@ const LeadDetails = () => {
                         refreshActivity={fetchActivity}
                         canEdit={canEdit && !isLocked}
                         canVerify={canVerify}
+                        canQueue={canQueue}
                     />
                 </Box>
             </Box>
