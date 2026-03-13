@@ -24,10 +24,12 @@ import {
     Typography,
 } from '@mui/material';
 import { Delete, Edit } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import leadManagerService from '../../../services/leadManager.service';
 import { LeadManager, LeadManagerCreateDTO, LeadManagerUpdateDTO } from '../../../types/leadManagerTypes';
 
 const AdminLeadManagersSection = () => {
+    const navigate = useNavigate();
     const [managers, setManagers] = useState<LeadManager[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -113,7 +115,12 @@ const AdminLeadManagersSection = () => {
                                 </TableHead>
                                 <TableBody>
                                     {managers.map((m) => (
-                                        <TableRow key={m.id} hover>
+                                        <TableRow
+                                            key={m.id}
+                                            hover
+                                            onClick={() => navigate(`/a/lead-managers/${m.id}`)}
+                                            sx={{ cursor: 'pointer' }}
+                                        >
                                             <TableCell>{m.name}</TableCell>
                                             <TableCell>{m.email || '—'}</TableCell>
                                             <TableCell>{m.phone || '—'}</TableCell>
@@ -124,7 +131,7 @@ const AdminLeadManagersSection = () => {
                                                     size="small"
                                                 />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
                                                 <IconButton size="small" onClick={() => handleOpen(m)} title="Edit">
                                                     <Edit />
                                                 </IconButton>

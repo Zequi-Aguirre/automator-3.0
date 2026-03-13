@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import LeadManagerDAO from "../data/leadManagerDAO";
 import { LeadManager, LeadManagerCreateDTO, LeadManagerUpdateDTO, LeadManagerFilters } from "../types/leadManagerTypes";
+import { Source } from "../types/sourceTypes";
 
 @injectable()
 export default class LeadManagerService {
@@ -35,5 +36,9 @@ export default class LeadManagerService {
         const existing = await this.leadManagerDAO.getById(id);
         if (!existing) throw new Error(`Lead manager not found: ${id}`);
         return this.leadManagerDAO.trash(id);
+    }
+
+    async getSourcesByManager(managerId: string): Promise<(Source & { campaign_count: number })[]> {
+        return this.leadManagerDAO.getSourcesByManagerId(managerId);
     }
 }

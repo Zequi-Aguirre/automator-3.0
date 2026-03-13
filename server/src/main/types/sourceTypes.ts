@@ -14,9 +14,13 @@ export type Source = {
     id: string;
     token: string;  // 64-char hex token for Bearer auth
     name: string;
+    lead_manager_id: string | null;
     created: string;  // ISO timestamp
     modified: string;  // ISO timestamp
     deleted: string | null;  // Soft delete timestamp
+    // Joined fields (present in list queries)
+    lead_manager_name?: string | null;
+    campaign_count?: number;
 };
 
 /**
@@ -32,6 +36,7 @@ export type SourceCreateDTO = {
  */
 export type SourceUpdateDTO = {
     name?: string;
+    lead_manager_id?: string | null;
 };
 
 /**
@@ -41,6 +46,9 @@ export type SourceUpdateDTO = {
 export type SourceResponse = {
     id: string;
     name: string;
+    lead_manager_id: string | null;
+    lead_manager_name?: string | null;
+    campaign_count?: number;
     created: string;
     modified: string;
     deleted: string | null;
