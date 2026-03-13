@@ -241,7 +241,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = tr
         REQUIRED_FIELDS.includes(field as keyof LeadFormInput);
 
     // ── Compact row component ────────────────────────────────────────────────
-    const FormRow = ({ label, field, children }: {
+    const FormRow = ({ label: _label, field, children }: {
         label: string;
         field: keyof LeadFormInput;
         children: React.ReactNode;
