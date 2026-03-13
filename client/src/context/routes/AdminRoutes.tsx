@@ -13,6 +13,7 @@ import AdminBuyersView from "../../views/adminViews/AdminBuyersView.tsx";
 import AdminSourcesView from "../../views/adminViews/AdminSourcesView.tsx";
 import AdminSourceDetailsView from "../../views/adminViews/AdminSourceDetailsView.tsx";
 import AdminLeadManagersView from "../../views/adminViews/AdminLeadManagersView.tsx";
+import AdminLeadManagerDetailsView from "../../views/adminViews/AdminLeadManagerDetailsView.tsx";
 import AdminActivityView from "../../views/adminViews/AdminActivityView.tsx";
 import AdminUsersView from "../../views/adminViews/AdminUsersView.tsx";
 
@@ -53,6 +54,11 @@ const AdminRoutes = () => {
                 <Route path="/a/lead-managers" element={
                     <VerifyAdmin>
                         <AdminLeadManagersView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/lead-managers/:id" element={
+                    <VerifyAdmin>
+                        <AdminLeadManagerDetailsView/>
                     </VerifyAdmin>
                 }/>
                 <Route path="/a/counties" element={

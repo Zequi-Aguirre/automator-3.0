@@ -45,6 +45,16 @@ export default class LeadManagerResource {
             }
         });
 
+        // GET /api/lead-managers/:id/sources
+        this.router.get('/:id/sources', async (req: Request, res: Response) => {
+            try {
+                const sources = await this.leadManagerService.getSourcesByManager(req.params.id);
+                res.status(200).json(sources);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
         // GET /api/lead-managers/:id
         this.router.get('/:id', async (req: Request, res: Response) => {
             try {

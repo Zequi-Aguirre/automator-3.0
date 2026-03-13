@@ -79,27 +79,37 @@ export default class SourceDAO {
         const whereClauses: string[] = [];
 
         if (!includeDeleted) {
-            whereClauses.push('deleted IS NULL');
+            whereClauses.push('s.deleted IS NULL');
         }
 
         if (search) {
-            whereClauses.push(`name ILIKE '%' || $/search/ || '%'`);
+            whereClauses.push(`s.name ILIKE '%' || $/search/ || '%'`);
         }
 
         const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
 
+        const countWhereClauses: string[] = [];
+        if (!includeDeleted) countWhereClauses.push('deleted IS NULL');
+        if (search) countWhereClauses.push(`name ILIKE '%' || $/search/ || '%'`);
+        const countWhereSQL = countWhereClauses.length > 0 ? 'WHERE ' + countWhereClauses.join(' AND ') : '';
+
         const itemsQuery = `
-            SELECT *
-            FROM sources
+            SELECT s.*,
+                lm.name AS lead_manager_name,
+                COUNT(c.id)::int AS campaign_count
+            FROM sources s
+            LEFT JOIN lead_managers lm ON s.lead_manager_id = lm.id AND lm.deleted IS NULL
+            LEFT JOIN campaigns c ON c.source_id = s.id AND c.deleted IS NULL
             ${whereSQL}
-            ORDER BY created DESC
+            GROUP BY s.id, lm.name
+            ORDER BY s.created DESC
             LIMIT $/limit/ OFFSET $/offset/;
         `;
 
         const countQuery = `
             SELECT COUNT(*) as count
             FROM sources
-            ${whereSQL};
+            ${countWhereSQL};
         `;
 
         const [items, countResult] = await Promise.all([
@@ -143,6 +153,7 @@ export default class SourceDAO {
             SET
                 name = $[name],
                 token = $[token],
+                lead_manager_id = $[lead_manager_id],
                 modified = NOW()
             WHERE id = $[id]
                 AND deleted IS NULL
@@ -153,7 +164,8 @@ export default class SourceDAO {
         const updateData = {
             id,
             name: 'name' in data ? data.name : existing.name,
-            token: 'token' in data ? data.token : existing.token
+            token: 'token' in data ? data.token : existing.token,
+            lead_manager_id: 'lead_manager_id' in data ? (data as SourceUpdateDTO).lead_manager_id ?? null : existing.lead_manager_id ?? null
         };
 
         return await this.db.one<Source>(query, updateData);

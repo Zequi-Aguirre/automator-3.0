@@ -3,6 +3,7 @@ import { IDatabase } from "pg-promise";
 import { IClient } from "pg-promise/typescript/pg-subset";
 import { DBContainer } from "../config/DBContainer";
 import { LeadManager, LeadManagerCreateDTO, LeadManagerUpdateDTO, LeadManagerFilters } from "../types/leadManagerTypes";
+import { Source } from "../types/sourceTypes";
 
 @injectable()
 export default class LeadManagerDAO {
@@ -96,5 +97,17 @@ export default class LeadManagerDAO {
             RETURNING *;
         `;
         return this.db.one<LeadManager>(query, { id });
+    }
+
+    async getSourcesByManagerId(managerId: string): Promise<(Source & { campaign_count: number })[]> {
+        return this.db.manyOrNone<Source & { campaign_count: number }>(`
+            SELECT s.*,
+                COUNT(c.id)::int AS campaign_count
+            FROM sources s
+            LEFT JOIN campaigns c ON c.source_id = s.id AND c.deleted IS NULL
+            WHERE s.lead_manager_id = $[managerId] AND s.deleted IS NULL
+            GROUP BY s.id
+            ORDER BY s.name ASC;
+        `, { managerId }) || [];
     }
 }

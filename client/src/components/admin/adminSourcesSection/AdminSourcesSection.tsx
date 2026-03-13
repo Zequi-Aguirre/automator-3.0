@@ -21,12 +21,18 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import { Edit, Delete, Refresh, ContentCopy, CheckCircle } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 import sourceService from '../../../services/source.service';
+import leadManagerService from '../../../services/leadManager.service';
 import { Source, SourceCreateDTO, SourceUpdateDTO } from '../../../types/sourceTypes';
+import { LeadManager } from '../../../types/leadManagerTypes';
 import CustomPagination from '../../Pagination';
 
 const AdminSourcesSection = () => {
@@ -36,12 +42,14 @@ const AdminSourcesSection = () => {
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(50);
     const [loading, setLoading] = useState(true);
+    const [activeManagers, setActiveManagers] = useState<LeadManager[]>([]);
 
     // Create/Edit dialog state
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingSource, setEditingSource] = useState<Source | null>(null);
-    const [formData, setFormData] = useState<SourceCreateDTO | SourceUpdateDTO>({
-        name: ''
+    const [formData, setFormData] = useState<{ name: string; lead_manager_id: string | null }>({
+        name: '',
+        lead_manager_id: null,
     });
 
     // Token display dialog state
@@ -77,13 +85,17 @@ const AdminSourcesSection = () => {
         fetchSources();
     }, [page, limit]);
 
+    useEffect(() => {
+        leadManagerService.getActive().then(setActiveManagers).catch(() => {});
+    }, []);
+
     const handleOpenDialog = (source?: Source) => {
         if (source) {
             setEditingSource(source);
-            setFormData({ name: source.name });
+            setFormData({ name: source.name, lead_manager_id: source.lead_manager_id ?? null });
         } else {
             setEditingSource(null);
-            setFormData({ name: '' });
+            setFormData({ name: '', lead_manager_id: null });
         }
         setDialogOpen(true);
     };
@@ -96,12 +108,17 @@ const AdminSourcesSection = () => {
     const handleSave = async () => {
         try {
             if (editingSource) {
-                await sourceService.update(editingSource.id, formData);
+                const dto: SourceUpdateDTO = {
+                    name: formData.name,
+                    lead_manager_id: formData.lead_manager_id,
+                };
+                await sourceService.update(editingSource.id, dto);
                 setSnack({ open: true, message: "Source updated successfully", severity: "success" });
                 handleCloseDialog();
                 fetchSources();
             } else {
-                const newSource = await sourceService.create(formData as SourceCreateDTO);
+                const dto: SourceCreateDTO = { name: formData.name };
+                const newSource = await sourceService.create(dto);
                 setSnack({ open: true, message: "Source created successfully", severity: "success" });
                 handleCloseDialog();
                 fetchSources();
@@ -207,6 +224,8 @@ const AdminSourcesSection = () => {
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>Name</TableCell>
+                                        <TableCell>Lead Manager</TableCell>
+                                        <TableCell>Campaigns</TableCell>
                                         <TableCell>Created</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
@@ -220,6 +239,15 @@ const AdminSourcesSection = () => {
                                             sx={{ cursor: 'pointer' }}
                                         >
                                             <TableCell>{source.name}</TableCell>
+                                            <TableCell>
+                                                {source.lead_manager_name
+                                                    ? <Typography variant="body2">{source.lead_manager_name}</Typography>
+                                                    : <Typography variant="body2" color="text.disabled">—</Typography>
+                                                }
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">{source.campaign_count ?? 0}</Typography>
+                                            </TableCell>
                                             <TableCell>
                                                 {new Date(source.created).toLocaleString('en-US', {
                                                     month: 'short',
@@ -271,6 +299,19 @@ const AdminSourcesSection = () => {
                             required
                             fullWidth
                         />
+                        <FormControl fullWidth>
+                            <InputLabel>Lead Manager</InputLabel>
+                            <Select
+                                value={formData.lead_manager_id ?? ''}
+                                label="Lead Manager"
+                                onChange={(e) => setFormData({ ...formData, lead_manager_id: e.target.value || null })}
+                            >
+                                <MenuItem value="">— None —</MenuItem>
+                                {activeManagers.map((m) => (
+                                    <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </Stack>
                 </DialogContent>
                 <DialogActions>
