@@ -1,5 +1,4 @@
 import { injectable } from "tsyringe";
-import { WORKER_USER_ID } from "../constants";
 import { LeadAction } from "../types/activityTypes";
 import BuyerDAO from "../data/buyerDAO";
 import LeadDAO from "../data/leadDAO";
@@ -109,9 +108,9 @@ export default class BuyerDispatchService {
             await this.scheduleBuyerNext(buyer.id);
         }
 
-        // Log activity — always attribute to a real user (worker or human)
+        // Log activity — worker/system sends use null (no user row exists for worker)
         await this.activityService.log({
-            user_id: isWorkerSend ? WORKER_USER_ID : (userId ?? WORKER_USER_ID),
+            user_id: isWorkerSend ? null : (userId ?? null),
             lead_id: lead.id,
             action: LeadAction.SENT,
             action_details: {

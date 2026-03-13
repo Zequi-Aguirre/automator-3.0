@@ -1,5 +1,4 @@
 import { injectable } from "tsyringe";
-import { WORKER_USER_ID } from "../constants";
 import { LeadAction } from "../types/activityTypes";
 import LeadDAO from "../data/leadDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
@@ -80,7 +79,7 @@ export default class WorkerService {
 
         for (const leadId of trashedIds) {
             await this.activityService.log({
-                user_id: WORKER_USER_ID,
+                user_id: null,
                 lead_id: leadId,
                 action: LeadAction.TRASHED,
                 action_details: { reason }
