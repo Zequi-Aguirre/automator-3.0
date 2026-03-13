@@ -16,6 +16,7 @@ export enum Permission {
     SETTINGS_MANAGE = 'settings.manage',
     USERS_MANAGE = 'users.manage',
     ACTIVITY_VIEW = 'activity.view',
+    TRASH_REASONS_MANAGE = 'trash_reasons.manage',
 }
 
 export type User = {

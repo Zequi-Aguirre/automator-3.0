@@ -1,11 +1,19 @@
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import {
     Alert,
+    Autocomplete,
     Box,
+    Button,
     Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     IconButton,
     Snackbar,
     Stack,
+    TextField,
     Tooltip,
     Typography,
 } from "@mui/material";
@@ -35,6 +43,7 @@ import DataContext from "../../../../context/DataContext.tsx";
 import BuyerSendModal from "../../leadDetails/buyerSendModal/BuyerSendModal.tsx";
 import { usePermissions } from "../../../../hooks/usePermissions.ts";
 import { Permission } from "../../../../types/userTypes.ts";
+import trashReasonService, { TrashReason } from "../../../../services/trashReason.service.tsx";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -51,6 +60,10 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     });
     const [buyerModalOpen, setBuyerModalOpen] = useState(false);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+    const [trashDialogOpen, setTrashDialogOpen] = useState(false);
+    const [trashTargetId, setTrashTargetId] = useState<string | null>(null);
+    const [trashReasons, setTrashReasons] = useState<TrashReason[]>([]);
+    const [selectedTrashReason, setSelectedTrashReason] = useState<TrashReason | null>(null);
     const [now, setNow] = useState(DateTime.utc());
     const [leadExpireHours, setLeadExpireHours] = useState(18);
     const { role } = useContext(DataContext);
@@ -104,13 +117,29 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
         }
     };
 
-    const handleTrashLead = async (leadId: string) => {
+    const handleOpenTrashDialog = async (leadId: string) => {
+        setTrashTargetId(leadId);
+        setSelectedTrashReason(null);
+        setTrashDialogOpen(true);
         try {
-            const deleted = await leadsService.trashLead(leadId);
+            const reasons = await trashReasonService.getActive();
+            setTrashReasons(reasons);
+        } catch {
+            setTrashReasons([]);
+        }
+    };
+
+    const handleTrashLead = async () => {
+        if (!trashTargetId) return;
+        try {
+            const deleted = await leadsService.trashLead(trashTargetId, selectedTrashReason?.label);
             setLeads(prev => prev.filter(l => l.id !== deleted.id));
             showNotification("Lead moved to trash", "success");
         } catch {
             showNotification("Failed to trash lead", "error");
+        } finally {
+            setTrashDialogOpen(false);
+            setTrashTargetId(null);
         }
     };
 
@@ -315,7 +344,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                         </Tooltip>
                         <Tooltip title={canTrash ? "Trash lead" : "You don't have permission to trash leads"}>
                             <span>
-                                <IconButton size="small" color="error" disabled={!canTrash} onClick={() => { void handleTrashLead(lead.id); }}>
+                                <IconButton size="small" color="error" disabled={!canTrash} onClick={() => { void handleOpenTrashDialog(lead.id); }}>
                                     <DeleteIcon fontSize="small" />
                                 </IconButton>
                             </span>
@@ -371,6 +400,29 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                     onRefresh={handleRefreshLead}
                 />
             )}
+
+            <Dialog open={trashDialogOpen} onClose={() => { setTrashDialogOpen(false); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Move to Trash?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Are you sure you want to move this lead to trash? You can restore it later.
+                    </DialogContentText>
+                    <Autocomplete
+                        options={trashReasons}
+                        getOptionLabel={(o) => o.label}
+                        value={selectedTrashReason}
+                        onChange={(_, val) => { setSelectedTrashReason(val); }}
+                        renderInput={(params) => (
+                            <TextField {...params} label="Reason (optional)" size="small" fullWidth />
+                        )}
+                        size="small"
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setTrashDialogOpen(false); }}>Cancel</Button>
+                    <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained">Move to Trash</Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 };

@@ -37,6 +37,10 @@ export enum ActivityPermission {
     VIEW = 'activity.view',
 }
 
+export enum TrashReasonPermission {
+    MANAGE = 'trash_reasons.manage',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerPermission
@@ -45,7 +49,8 @@ export type Permission =
     | ManagerPermission
     | SettingsPermission
     | UserPermission
-    | ActivityPermission;
+    | ActivityPermission
+    | TrashReasonPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin';
 
@@ -68,6 +73,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         ActivityPermission.VIEW,
+        TrashReasonPermission.MANAGE,
     ],
     superadmin: [
         LeadPermission.VERIFY,
@@ -85,5 +91,6 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         SettingsPermission.MANAGE,
         UserPermission.MANAGE,
         ActivityPermission.VIEW,
+        TrashReasonPermission.MANAGE,
     ],
 };
