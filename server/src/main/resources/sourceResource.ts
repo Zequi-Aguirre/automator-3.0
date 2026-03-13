@@ -133,18 +133,34 @@ export default class SourceResource {
                     return res.status(400).json({ error: 'No fields to update' });
                 }
 
-                const source = await this.sourceService.update(id, updateDTO);
+                const existingSource = await this.sourceService.getById(id);
 
-                await this.activityService.log({
-                    user_id: req.user?.id,
-                    entity_type: EntityType.SOURCE,
-                    entity_id: id,
-                    action: SourceAction.UPDATED,
-                    action_details: updateDTO
-                });
+                await this.sourceService.update(id, updateDTO);
+
+                const source = await this.sourceService.getById(id);
+
+                if (updateDTO.name !== undefined && updateDTO.name !== existingSource?.name) {
+                    await this.activityService.log({
+                        user_id: req.user?.id,
+                        entity_type: EntityType.SOURCE,
+                        entity_id: id,
+                        action: SourceAction.UPDATED,
+                        action_details: { name: updateDTO.name }
+                    });
+                }
+
+                if ('lead_manager_id' in updateDTO && updateDTO.lead_manager_id !== existingSource?.lead_manager_id) {
+                    await this.activityService.log({
+                        user_id: req.user?.id,
+                        entity_type: EntityType.SOURCE,
+                        entity_id: id,
+                        action: SourceAction.LEAD_MANAGER_ASSIGNED,
+                        action_details: { lead_manager_name: source?.lead_manager_name ?? null }
+                    });
+                }
 
                 // Mask token in response
-                res.status(200).json(this.maskToken(source));
+                res.status(200).json(this.maskToken(source!));
             } catch (error) {
                 console.error('Error updating source:', error);
                 res.status(500).json({

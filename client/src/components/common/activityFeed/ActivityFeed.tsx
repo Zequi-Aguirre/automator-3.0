@@ -42,6 +42,7 @@ const actionColor = (action: ActivityAction): "default" | "success" | "error" | 
             return 'warning';
 
         case SourceAction.CREATED:
+        case SourceAction.LEAD_MANAGER_ASSIGNED:
         case BuyerAction.CREATED:
         case LeadManagerAction.CREATED:
         case VerificationAction.STARTED:
@@ -89,6 +90,8 @@ const formatDetails = (log: ActivityLog): string | null => {
             return d.name ?? null;
         case CampaignAction.MANAGER_ASSIGNED:
             return d.lead_manager_id ? `manager: ${d.lead_manager_id}` : null;
+        case SourceAction.LEAD_MANAGER_ASSIGNED:
+            return d.lead_manager_name ? `→ ${d.lead_manager_name}` : 'unassigned';
         case UserAction.ROLE_CHANGED:
             return d.new_role ? `→ ${d.new_role}` : null;
         case UserAction.PERMISSIONS_CHANGED:

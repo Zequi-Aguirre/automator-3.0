@@ -36,6 +36,7 @@ export enum SourceAction {
     CREATED = 'source_created',
     UPDATED = 'source_updated',
     TOKEN_REFRESHED = 'source_token_refreshed',
+    LEAD_MANAGER_ASSIGNED = 'source_lead_manager_assigned',
 }
 
 export enum BuyerAction {

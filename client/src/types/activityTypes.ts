@@ -25,6 +25,7 @@ export enum SourceAction {
     CREATED = 'source_created',
     UPDATED = 'source_updated',
     TOKEN_REFRESHED = 'source_token_refreshed',
+    LEAD_MANAGER_ASSIGNED = 'source_lead_manager_assigned',
 }
 
 export enum BuyerAction {
@@ -112,6 +113,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [SourceAction.CREATED]: 'Source Created',
     [SourceAction.UPDATED]: 'Source Updated',
     [SourceAction.TOKEN_REFRESHED]: 'Token Refreshed',
+    [SourceAction.LEAD_MANAGER_ASSIGNED]: 'Lead Manager Assigned',
 
     // Buyer
     [BuyerAction.CREATED]: 'Buyer Created',
