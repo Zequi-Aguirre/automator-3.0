@@ -20,6 +20,11 @@ export interface SendLog {
     // For joined queries
     buyer_name?: string;
     state?: string; // From leads join (for state cooldown queries)
+    lead_first_name?: string;
+    lead_last_name?: string;
+    lead_county?: string | null;
+    campaign_name?: string | null;
+    campaign_platform?: string | null;
 }
 
 export interface SendLogInsert {

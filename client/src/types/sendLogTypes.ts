@@ -1,10 +1,9 @@
 export interface SendLog {
     id: string;
     lead_id: string;
-    affiliate_id: string | null;
+    buyer_id: string | null;
+    source_id: string | null;
     campaign_id: string | null;
-    investor_id: string | null;
-    county_id: string | null;
 
     status: "sent" | "failed";
 
@@ -15,13 +14,20 @@ export interface SendLog {
     created: string;
     modified: string;
     deleted: string | null;
+
+    // Joined display fields
+    lead_first_name?: string;
+    lead_last_name?: string;
+    lead_county?: string | null;
+    campaign_name?: string | null;
+    campaign_platform?: string | null;
 }
 
 export interface SendLogInsert {
     lead_id: string;
-    affiliate_id: string | null;
+    buyer_id: string;
+    source_id: string | null;
     campaign_id: string | null;
-    investor_id: string | null;
     status: "sent" | "failed";
 }
 

@@ -81,9 +81,16 @@ export default class SendLogDAO {
         const whereClause = `WHERE ${where.join(" AND ")}`;
 
         const listQuery = `
-            SELECT sl.*
+            SELECT
+                sl.*,
+                l.first_name  AS lead_first_name,
+                l.last_name   AS lead_last_name,
+                l.county      AS lead_county,
+                c.name        AS campaign_name,
+                c.platform    AS campaign_platform
             FROM send_log sl
             JOIN leads l ON sl.lead_id = l.id
+            LEFT JOIN campaigns c ON sl.campaign_id = c.id
             ${whereClause}
             ORDER BY sl.created DESC
             LIMIT $[limit] OFFSET $[offset];
