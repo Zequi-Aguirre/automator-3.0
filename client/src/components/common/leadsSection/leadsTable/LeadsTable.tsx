@@ -132,14 +132,15 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
 
     const platformLabel = (platform: string | null): string => {
         const map: Record<string, string> = {
-            fb: "Facebook",
+            fb: "FB",
+            facebook: "FB",
             google: "Google",
             tiktok: "TikTok",
-            instagram: "Instagram",
-            youtube: "YouTube",
+            instagram: "IG",
+            youtube: "YT",
         };
         if (!platform) return "";
-        return map[platform] ?? platform;
+        return map[platform.toLowerCase()] ?? platform.toUpperCase();
     };
 
     const rows = leads.map((lead) => ({
