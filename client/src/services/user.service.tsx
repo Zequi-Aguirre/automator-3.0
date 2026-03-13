@@ -43,6 +43,11 @@ class UserService {
         const res = await this.api.getApi().get('/api/users/admin/permissions');
         return res.data;
     }
+
+    getUserById = async (id: string): Promise<User> => {
+        const res = await this.api.getApi().get(`/api/users/admin/users/${id}`);
+        return res.data;
+    }
 }
 
 const userService = new UserService(authProvider);

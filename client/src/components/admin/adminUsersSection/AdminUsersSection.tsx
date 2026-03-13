@@ -25,6 +25,7 @@ import {
     TableRow,
     Typography,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
 import { Permission, User, UserRole } from '../../../types/userTypes';
 import DataContext from '../../../context/DataContext';
@@ -40,6 +41,7 @@ const permLabel = (perm: string) =>
 
 const AdminUsersSection = () => {
     const { loggedInUser } = useContext(DataContext);
+    const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [availablePerms, setAvailablePerms] = useState<Record<string, string[]>>({});
@@ -190,13 +192,21 @@ const AdminUsersSection = () => {
                                                         />
                                                     </TableCell>
                                                     <TableCell align="right">
-                                                        <Button
-                                                            size="small"
-                                                            onClick={() => { handleOpenPermDialog(u); }}
-                                                            disabled={isSuperAdmin && !isSelf}
-                                                        >
-                                                            Edit Permissions
-                                                        </Button>
+                                                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                            <Button
+                                                                size="small"
+                                                                onClick={() => { navigate(`/a/users/${u.id}`); }}
+                                                            >
+                                                                View
+                                                            </Button>
+                                                            <Button
+                                                                size="small"
+                                                                onClick={() => { handleOpenPermDialog(u); }}
+                                                                disabled={isSuperAdmin && !isSelf}
+                                                            >
+                                                                Edit Permissions
+                                                            </Button>
+                                                        </Stack>
                                                     </TableCell>
                                                 </TableRow>
                                             );

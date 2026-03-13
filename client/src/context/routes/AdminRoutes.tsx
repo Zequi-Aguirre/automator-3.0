@@ -16,6 +16,7 @@ import AdminLeadManagersView from "../../views/adminViews/AdminLeadManagersView.
 import AdminLeadManagerDetailsView from "../../views/adminViews/AdminLeadManagerDetailsView.tsx";
 import AdminActivityView from "../../views/adminViews/AdminActivityView.tsx";
 import AdminUsersView from "../../views/adminViews/AdminUsersView.tsx";
+import AdminUserDetailsView from "../../views/adminViews/AdminUserDetailsView.tsx";
 
 const AdminRoutes = () => {
     return (
@@ -99,6 +100,11 @@ const AdminRoutes = () => {
                 <Route path="/a/users" element={
                     <VerifyAdmin>
                         <AdminUsersView/>
+                    </VerifyAdmin>
+                }/>
+                <Route path="/a/users/:id" element={
+                    <VerifyAdmin>
+                        <AdminUserDetailsView/>
                     </VerifyAdmin>
                 }/>
             </Routes>
