@@ -197,7 +197,8 @@ const AdminBuyersSection = () => {
         delay_same_county: 36,
         delay_same_state: 0,
         enforce_county_cooldown: true,
-        enforce_state_cooldown: false
+        enforce_state_cooldown: false,
+        payload_format: 'default'
     });
 
     const [snack, setSnack] = useState({
@@ -258,7 +259,8 @@ const AdminBuyersSection = () => {
                 delay_same_county: buyer.delay_same_county || 36,
                 delay_same_state: buyer.delay_same_state || 0,
                 enforce_county_cooldown: buyer.enforce_county_cooldown ?? true,
-                enforce_state_cooldown: buyer.enforce_state_cooldown ?? false
+                enforce_state_cooldown: buyer.enforce_state_cooldown ?? false,
+                payload_format: buyer.payload_format ?? 'default'
             });
         } else {
             setEditingBuyer(null);
@@ -279,7 +281,8 @@ const AdminBuyersSection = () => {
                 delay_same_county: 36,
                 delay_same_state: 0,
                 enforce_county_cooldown: true,
-                enforce_state_cooldown: false
+                enforce_state_cooldown: false,
+                payload_format: 'default'
             });
         }
         setDialogOpen(true);
@@ -509,6 +512,17 @@ const AdminBuyersSection = () => {
                                 <MenuItem value="manual">Manual</MenuItem>
                                 <MenuItem value="worker">Worker</MenuItem>
                                 <MenuItem value="both">Both</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <FormControl>
+                            <InputLabel>Payload Format</InputLabel>
+                            <Select
+                                value={formData.payload_format ?? 'default'}
+                                label="Payload Format"
+                                onChange={(e) => setFormData({ ...formData, payload_format: e.target.value as 'default' | 'northstar' })}
+                            >
+                                <MenuItem value="default">Default</MenuItem>
+                                <MenuItem value="northstar">Northstar (Compass / SellersDirect)</MenuItem>
                             </Select>
                         </FormControl>
                         <TextField
