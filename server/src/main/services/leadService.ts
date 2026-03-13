@@ -519,7 +519,11 @@ export default class LeadService {
                     id: log.id,
                     status: log.status,
                     response_code: log.response_code,
-                    created: log.created
+                    created: log.created,
+                    disputed: log.disputed,
+                    dispute_reason: log.dispute_reason,
+                    dispute_buyer_name: log.dispute_buyer_name,
+                    disputed_at: log.disputed_at,
                 })),
                 total_sends: buyerLogs.length,
                 last_sent_at: buyerLogs.length > 0 ? buyerLogs[0].created : null

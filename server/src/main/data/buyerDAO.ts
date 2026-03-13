@@ -32,30 +32,33 @@ export default class BuyerDAO {
         const { page, limit, search, dispatch_mode } = filters;
         const offset = (page - 1) * limit;
 
-        const whereClauses: string[] = ['deleted IS NULL'];
+        const whereClauses: string[] = ['b.deleted IS NULL'];
 
         if (search) {
-            whereClauses.push(`name ILIKE '%' || $/search/ || '%'`);
+            whereClauses.push(`b.name ILIKE '%' || $/search/ || '%'`);
         }
 
         if (dispatch_mode) {
-            whereClauses.push(`dispatch_mode = $/dispatch_mode/`);
+            whereClauses.push(`b.dispatch_mode = $/dispatch_mode/`);
         }
 
         const whereSQL = whereClauses.join(' AND ');
 
         const itemsQuery = `
-            SELECT *
-            FROM buyers
+            SELECT b.*,
+                   COUNT(sl.id)::int AS total_sends
+            FROM buyers b
+            LEFT JOIN send_log sl ON sl.buyer_id = b.id AND sl.deleted IS NULL
             WHERE ${whereSQL}
-            ORDER BY priority ASC
+            GROUP BY b.id
+            ORDER BY b.priority ASC
             LIMIT $/limit/
             OFFSET $/offset/;
         `;
 
         const countQuery = `
             SELECT COUNT(*)::int AS total
-            FROM buyers
+            FROM buyers b
             WHERE ${whereSQL};
         `;
 
