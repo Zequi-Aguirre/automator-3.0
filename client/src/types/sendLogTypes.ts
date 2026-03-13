@@ -11,6 +11,12 @@ export interface SendLog {
     response_body: string | null;
     payout_cents: number | null;
 
+    disputed: boolean;
+    dispute_reason: string | null;
+    dispute_buyer_name: string | null;
+    disputed_at: string | null;
+    disputed_by: string | null;
+
     created: string;
     modified: string;
     deleted: string | null;

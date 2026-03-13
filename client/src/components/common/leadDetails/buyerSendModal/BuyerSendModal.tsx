@@ -16,16 +16,20 @@ import {
     Switch,
     FormControlLabel,
     Stack,
-    Paper
+    Paper,
+    TextField
 } from '@mui/material';
 import {
     Send as SendIcon,
     Close as CloseIcon,
     CheckCircle as CheckCircleIcon,
     Error as ErrorIcon,
-    PlayArrow as PlayArrowIcon
+    PlayArrow as PlayArrowIcon,
+    Flag as FlagIcon,
+    FlagOutlined as FlagOutlinedIcon
 } from '@mui/icons-material';
 import leadsService from '../../../../services/lead.service';
+import sendLogService from '../../../../services/sendLog.service';
 import { Lead } from '../../../../types/leadTypes';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { Permission } from '../../../../types/userTypes';
@@ -49,6 +53,10 @@ interface BuyerHistory {
         status: string;
         response_code: number | null;
         created: string;
+        disputed: boolean;
+        dispute_reason: string | null;
+        dispute_buyer_name: string | null;
+        disputed_at: string | null;
     }>;
     total_sends: number;
     last_sent_at: string | null;
@@ -63,11 +71,19 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
     const { can } = usePermissions();
     const canSend = can(Permission.LEADS_SEND);
     const canQueue = can(Permission.LEADS_QUEUE);
+    const canDispute = can(Permission.DISPUTES_CREATE);
     const [loading, setLoading] = useState(false);
     const [buyerHistory, setBuyerHistory] = useState<BuyerHistory[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [sending, setSending] = useState<string | null>(null); // buyer_id currently being sent to
+    const [sending, setSending] = useState<string | null>(null);
     const [enablingWorker, setEnablingWorker] = useState(false);
+
+    // Dispute dialog state
+    const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
+    const [disputeTargetId, setDisputeTargetId] = useState<string | null>(null);
+    const [disputeReason, setDisputeReason] = useState('');
+    const [disputeBuyerName, setDisputeBuyerName] = useState('');
+    const [disputing, setDisputing] = useState(false);
 
     const loadBuyerHistory = useCallback(async () => {
         setLoading(true);
@@ -131,14 +147,43 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         }
     };
 
+    const openDisputeDialog = (sendId: string) => {
+        setDisputeTargetId(sendId);
+        setDisputeReason('');
+        setDisputeBuyerName('');
+        setDisputeDialogOpen(true);
+    };
+
+    const handleDisputeSubmit = async () => {
+        if (!disputeTargetId || !disputeReason.trim()) return;
+        setDisputing(true);
+        try {
+            await sendLogService.disputeLog(disputeTargetId, disputeReason.trim(), disputeBuyerName.trim() || undefined);
+            setDisputeDialogOpen(false);
+            await loadBuyerHistory();
+        } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Failed to dispute send'));
+        } finally {
+            setDisputing(false);
+        }
+    };
+
+    const handleUndispute = async (sendId: string) => {
+        setError(null);
+        try {
+            await sendLogService.undisputeLog(sendId);
+            await loadBuyerHistory();
+        } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Failed to remove dispute'));
+        }
+    };
+
     const handleClearError = () => { setError(null); };
 
-    // Manual buyers: dispatch_mode is 'manual' or 'both'
     const manualBuyers = buyerHistory.filter(b =>
         b.dispatch_mode === 'manual' || b.dispatch_mode === 'both'
     );
 
-    // Worker buyers: dispatch_mode is 'worker' or 'both'
     const workerBuyers = buyerHistory.filter(b =>
         b.dispatch_mode === 'worker' || b.dispatch_mode === 'both'
     );
@@ -170,30 +215,71 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                         )}
                         {latestSend && (
                             <Box mt={1}>
-                                {wasSuccessful
-                                    ? (
-                                        <Chip
-                                            icon={<CheckCircleIcon />}
-                                            label={`Success (${latestSend.response_code})`}
-                                            color="success"
-                                            size="small"
-                                        />
-                                    )
-                                    : (
-                                        <Chip
-                                            icon={<ErrorIcon />}
-                                            label={`Failed (${latestSend.response_code ?? 'Error'})`}
-                                            color="error"
-                                            size="small"
-                                        />
-                                    )
-                                }
+                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                    {wasSuccessful
+                                        ? (
+                                            <Chip
+                                                icon={<CheckCircleIcon />}
+                                                label={`Success (${latestSend.response_code})`}
+                                                color="success"
+                                                size="small"
+                                            />
+                                        )
+                                        : (
+                                            <Chip
+                                                icon={<ErrorIcon />}
+                                                label={`Failed (${latestSend.response_code ?? 'Error'})`}
+                                                color="error"
+                                                size="small"
+                                            />
+                                        )
+                                    }
+                                    {latestSend.disputed && (
+                                        <Tooltip title={
+                                            [
+                                                latestSend.dispute_buyer_name ? `Buyer: ${latestSend.dispute_buyer_name}` : null,
+                                                latestSend.dispute_reason ? `Reason: ${latestSend.dispute_reason}` : null,
+                                            ].filter(Boolean).join(' · ') || 'Disputed'
+                                        }>
+                                            <Chip
+                                                icon={<FlagIcon />}
+                                                label="Disputed"
+                                                color="warning"
+                                                size="small"
+                                            />
+                                        </Tooltip>
+                                    )}
+                                </Stack>
                             </Box>
                         )}
                     </Box>
 
                     {/* Right: Actions */}
                     <Stack direction="row" spacing={1} alignItems="center">
+                        {latestSend && canDispute && (
+                            latestSend.disputed
+                                ? (
+                                    <Button
+                                        size="small"
+                                        color="warning"
+                                        variant="outlined"
+                                        onClick={() => { void handleUndispute(latestSend.id); }}
+                                    >
+                                        Undo Dispute
+                                    </Button>
+                                )
+                                : (
+                                    <Tooltip title="Flag this send as disputed">
+                                        <IconButton
+                                            size="small"
+                                            color="default"
+                                            onClick={() => { openDisputeDialog(latestSend.id); }}
+                                        >
+                                            <FlagOutlinedIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                )
+                        )}
                         {!isWorkerBuyer && (
                             <>
                                 <Tooltip title={!buyer.has_successful_send ? 'No successful send yet' : ''}>
@@ -231,91 +317,131 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Box>
-                        <Typography variant="h6">Send Lead to Buyers</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            {lead.first_name} {lead.last_name}
-                            {lead.county ? ` · ${lead.county}, ${lead.state}` : ` · ${lead.state}`}
-                            {lead.phone ? ` · ${lead.phone}` : ''}
-                        </Typography>
-                    </Box>
-                    <IconButton onClick={onClose} size="small">
-                        <CloseIcon />
-                    </IconButton>
-                </Stack>
-            </DialogTitle>
-
-            <DialogContent>
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2 }} onClose={handleClearError}>
-                        {error}
-                    </Alert>
-                )}
-
-                {loading
-                    ? (
-                        <Box display="flex" justifyContent="center" py={4}>
-                            <CircularProgress />
+        <>
+            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Box>
+                            <Typography variant="h6">Send Lead to Buyers</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {lead.first_name} {lead.last_name}
+                                {lead.county ? ` · ${lead.county}, ${lead.state}` : ` · ${lead.state}`}
+                                {lead.phone ? ` · ${lead.phone}` : ''}
+                            </Typography>
                         </Box>
-                    )
-                    : (
-                        <>
-                            {/* Manual Buyers Section */}
-                            {manualBuyers.length > 0 && (
-                                <Box mb={3}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Manual Buyers
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" paragraph>
-                                        Send leads manually to these buyers
-                                    </Typography>
-                                    {manualBuyers.map(buyer => renderBuyerRow(buyer, false))}
-                                </Box>
-                            )}
+                        <IconButton onClick={onClose} size="small">
+                            <CloseIcon />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
 
-                            {manualBuyers.length > 0 && workerBuyers.length > 0 && <Divider sx={{ my: 3 }} />}
+                <DialogContent>
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 2 }} onClose={handleClearError}>
+                            {error}
+                        </Alert>
+                    )}
 
-                            {/* Worker Buyers Section */}
-                            {workerBuyers.length > 0 && (
-                                <Box>
-                                    <Typography variant="h6" gutterBottom>
-                                        Worker Buyers (Automated)
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" paragraph>
-                                        These buyers receive leads automatically when worker is enabled
-                                    </Typography>
-                                    {workerBuyers.map(buyer => renderBuyerRow(buyer, true))}
-                                </Box>
-                            )}
+                    {loading
+                        ? (
+                            <Box display="flex" justifyContent="center" py={4}>
+                                <CircularProgress />
+                            </Box>
+                        )
+                        : (
+                            <>
+                                {manualBuyers.length > 0 && (
+                                    <Box mb={3}>
+                                        <Typography variant="h6" gutterBottom>
+                                            Manual Buyers
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" paragraph>
+                                            Send leads manually to these buyers
+                                        </Typography>
+                                        {manualBuyers.map(buyer => renderBuyerRow(buyer, false))}
+                                    </Box>
+                                )}
 
-                            {buyerHistory.length === 0 && (
-                                <Alert severity="info">
-                                    No buyers configured. Add buyers in the admin panel.
-                                </Alert>
-                            )}
-                        </>
-                    )
-                }
-            </DialogContent>
+                                {manualBuyers.length > 0 && workerBuyers.length > 0 && <Divider sx={{ my: 3 }} />}
 
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-                {!lead.worker_enabled && (
+                                {workerBuyers.length > 0 && (
+                                    <Box>
+                                        <Typography variant="h6" gutterBottom>
+                                            Worker Buyers (Automated)
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" paragraph>
+                                            These buyers receive leads automatically when worker is enabled
+                                        </Typography>
+                                        {workerBuyers.map(buyer => renderBuyerRow(buyer, true))}
+                                    </Box>
+                                )}
+
+                                {buyerHistory.length === 0 && (
+                                    <Alert severity="info">
+                                        No buyers configured. Add buyers in the admin panel.
+                                    </Alert>
+                                )}
+                            </>
+                        )
+                    }
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    {!lead.worker_enabled && (
+                        <Button
+                            variant="outlined"
+                            startIcon={enablingWorker ? <CircularProgress size={16} /> : <PlayArrowIcon />}
+                            onClick={() => { void handleEnableWorker(); }}
+                            disabled={!canQueue || enablingWorker || sending !== null}
+                            color="primary"
+                        >
+                            {enablingWorker ? 'Queuing...' : 'Queue for Worker'}
+                        </Button>
+                    )}
+                    <Button onClick={onClose}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dispute Dialog */}
+            <Dialog open={disputeDialogOpen} onClose={() => { setDisputeDialogOpen(false); }} maxWidth="sm" fullWidth>
+                <DialogTitle>Dispute Send</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            label="Their buyer name (optional)"
+                            placeholder="e.g. John Smith"
+                            value={disputeBuyerName}
+                            onChange={(e) => { setDisputeBuyerName(e.target.value); }}
+                            size="small"
+                            fullWidth
+                        />
+                        <TextField
+                            label="Dispute reason"
+                            placeholder="Describe the dispute..."
+                            value={disputeReason}
+                            onChange={(e) => { setDisputeReason(e.target.value); }}
+                            size="small"
+                            fullWidth
+                            multiline
+                            rows={3}
+                            required
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setDisputeDialogOpen(false); }} disabled={disputing}>Cancel</Button>
                     <Button
-                        variant="outlined"
-                        startIcon={enablingWorker ? <CircularProgress size={16} /> : <PlayArrowIcon />}
-                        onClick={() => { void handleEnableWorker(); }}
-                        disabled={!canQueue || enablingWorker || sending !== null}
-                        color="primary"
+                        onClick={() => { void handleDisputeSubmit(); }}
+                        variant="contained"
+                        color="warning"
+                        disabled={disputing || !disputeReason.trim()}
+                        startIcon={disputing ? <CircularProgress size={16} /> : <FlagIcon />}
                     >
-                        {enablingWorker ? 'Queuing...' : 'Queue for Worker'}
+                        {disputing ? 'Submitting...' : 'Mark as Disputed'}
                     </Button>
-                )}
-                <Button onClick={onClose}>Close</Button>
-            </DialogActions>
-        </Dialog>
+                </DialogActions>
+            </Dialog>
+        </>
     );
 };
 

@@ -1,10 +1,15 @@
 import { injectable } from "tsyringe";
 import SendLogDAO from "../data/sendLogDAO.ts";
+import ActivityService from "./activityService.ts";
 import { SendLog, SendLogInsert, SendLogUpdate } from "../types/sendLogTypes.ts";
+import { DisputeAction } from "../types/activityTypes.ts";
 
 @injectable()
 export default class SendLogService {
-    constructor(private readonly sendLogDAO: SendLogDAO) {}
+    constructor(
+        private readonly sendLogDAO: SendLogDAO,
+        private readonly activityService: ActivityService,
+    ) {}
 
     async createLog(data: SendLogInsert): Promise<SendLog> {
         return await this.sendLogDAO.createLog(data);
@@ -40,5 +45,25 @@ export default class SendLogService {
 
     async getLatestLogsByCountyIds(countyIds: string[]): Promise<SendLog[]> {
         return await this.sendLogDAO.getLatestLogsByCountyIds(countyIds);
+    }
+
+    async disputeLog(id: string, reason: string, buyerName: string | null, userId: string | null): Promise<SendLog> {
+        const log = await this.sendLogDAO.disputeLog(id, reason, buyerName, userId);
+        await this.activityService.log({
+            user_id: userId,
+            action: DisputeAction.CREATED,
+            action_details: { send_log_id: id, reason, buyer_name: buyerName },
+        });
+        return log;
+    }
+
+    async undisputeLog(id: string, userId: string | null): Promise<SendLog> {
+        const log = await this.sendLogDAO.undisputeLog(id);
+        await this.activityService.log({
+            user_id: userId,
+            action: DisputeAction.REMOVED,
+            action_details: { send_log_id: id },
+        });
+        return log;
     }
 }

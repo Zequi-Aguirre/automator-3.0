@@ -99,6 +99,10 @@ class LeadService {
                 status: string;
                 response_code: number | null;
                 created: string;
+                disputed: boolean;
+                dispute_reason: string | null;
+                dispute_buyer_name: string | null;
+                disputed_at: string | null;
             }>;
             total_sends: number;
             last_sent_at: string | null;

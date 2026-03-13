@@ -72,6 +72,11 @@ export enum TrashReasonAction {
     DEACTIVATED = 'trash_reason_deactivated',
 }
 
+export enum DisputeAction {
+    CREATED = 'dispute_created',
+    REMOVED = 'dispute_removed',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -83,7 +88,8 @@ export type ActivityAction =
     | CountyAction
     | AuthAction
     | UserAction
-    | TrashReasonAction;
+    | TrashReasonAction
+    | DisputeAction;
 
 export type ActivityLog = {
     id: string;
