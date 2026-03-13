@@ -87,10 +87,12 @@ export default class SendLogDAO {
                 l.last_name   AS lead_last_name,
                 l.county      AS lead_county,
                 c.name        AS campaign_name,
-                c.platform    AS campaign_platform
+                c.platform    AS campaign_platform,
+                b.name        AS buyer_name
             FROM send_log sl
             JOIN leads l ON sl.lead_id = l.id
             LEFT JOIN campaigns c ON sl.campaign_id = c.id
+            LEFT JOIN buyers b ON sl.buyer_id = b.id
             ${whereClause}
             ORDER BY sl.created DESC
             LIMIT $[limit] OFFSET $[offset];
