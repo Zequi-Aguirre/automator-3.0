@@ -149,13 +149,13 @@ export default class LeadResource {
         this.router.post("/:leadId/send-to-buyer", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const { buyer_id } = req.body;
+                const { buyer_id, force } = req.body;
 
                 if (!buyer_id) {
                     return res.status(400).send({ message: 'buyer_id is required' });
                 }
 
-                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id, req.user.id);
+                const sendLog = await this.leadService.sendLeadToBuyer(leadId, buyer_id, req.user.id, force === true);
                 return res.status(200).send(sendLog);
             } catch (error) {
                 console.error('Error sending lead to buyer:', error);
@@ -164,6 +164,9 @@ export default class LeadResource {
                 if (error instanceof Error) {
                     if (error.message.includes('not found')) {
                         return res.status(404).send({ message: error.message });
+                    }
+                    if (error.message === 'ALREADY_SENT') {
+                        return res.status(409).send({ message: 'Lead already successfully sent to this buyer', already_sent: true });
                     }
                     if (error.message.includes('Cannot send lead to buyer')) {
                         return res.status(400).send({ message: error.message });

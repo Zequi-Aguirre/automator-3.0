@@ -78,6 +78,9 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
     const [sending, setSending] = useState<string | null>(null);
     const [enablingWorker, setEnablingWorker] = useState(false);
 
+    // Resend confirmation state
+    const [resendConfirmBuyerId, setResendConfirmBuyerId] = useState<string | null>(null);
+
     // Dispute dialog state
     const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
     const [disputeTargetId, setDisputeTargetId] = useState<string | null>(null);
@@ -104,15 +107,21 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         }
     }, [open, loadBuyerHistory]);
 
-    const handleSendToBuyer = async (buyerId: string) => {
+    const handleSendToBuyer = async (buyerId: string, force: boolean = false) => {
         setSending(buyerId);
         setError(null);
         try {
-            await leadsService.sendLeadToBuyer(lead.id, buyerId);
+            await leadsService.sendLeadToBuyer(lead.id, buyerId, force);
+            setResendConfirmBuyerId(null);
             await loadBuyerHistory();
             if (onRefresh) onRefresh();
         } catch (err: unknown) {
-            setError(extractErrorMessage(err, 'Failed to send lead'));
+            const axiosErr = err as { response?: { status?: number; data?: { already_sent?: boolean } } };
+            if (axiosErr?.response?.status === 409 && axiosErr?.response?.data?.already_sent) {
+                setResendConfirmBuyerId(buyerId);
+            } else {
+                setError(extractErrorMessage(err, 'Failed to send lead'));
+            }
         } finally {
             setSending(null);
         }
@@ -399,6 +408,28 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                         </Button>
                     )}
                     <Button onClick={onClose}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Resend Confirmation Dialog */}
+            <Dialog open={resendConfirmBuyerId !== null} onClose={() => { setResendConfirmBuyerId(null); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Resend Lead?</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        This lead was already successfully sent to this buyer. Send again?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setResendConfirmBuyerId(null); }}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="warning"
+                        startIcon={sending === resendConfirmBuyerId ? <CircularProgress size={16} /> : <SendIcon />}
+                        disabled={sending !== null}
+                        onClick={() => { if (resendConfirmBuyerId) void handleSendToBuyer(resendConfirmBuyerId, true); }}
+                    >
+                        Send Again
+                    </Button>
                 </DialogActions>
             </Dialog>
 

@@ -470,7 +470,7 @@ export default class LeadService {
      * Send lead to specific buyer (manual send)
      * Delegates to BuyerDispatchService for validation and dispatch
      */
-    async sendLeadToBuyer(leadId: string, buyerId: string, userId: string) {
+    async sendLeadToBuyer(leadId: string, buyerId: string, userId: string, force: boolean = false) {
         // Get lead and buyer
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
@@ -483,7 +483,7 @@ export default class LeadService {
         }
 
         // Delegate to BuyerDispatchService (activity logged inside dispatch)
-        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, userId);
+        return await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, userId, force);
     }
 
     /**
