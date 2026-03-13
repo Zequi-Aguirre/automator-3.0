@@ -32,6 +32,13 @@ export default class UserResource {
             res.status(200).json(users);
         });
 
+        // Get a single user by ID
+        this.router.get('/admin/users/:id', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+            const user = await this.userService.getUserById(req.params.id);
+            if (!user) return res.status(404).json({ message: 'User not found' });
+            res.status(200).json(user);
+        });
+
         // Update a user's role
         this.router.patch('/admin/users/:id/role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             const { role } = req.body;
