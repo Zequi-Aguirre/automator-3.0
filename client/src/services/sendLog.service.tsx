@@ -8,8 +8,7 @@ class SendLogService {
         page: number;
         limit: number;
         status?: "sent" | "failed";
-        investor_id?: string;
-        affiliate_id?: string;
+        source_id?: string;
         campaign_id?: string;
         county_id?: string;
     }): Promise<{ logs: SendLog[]; count: number }> {

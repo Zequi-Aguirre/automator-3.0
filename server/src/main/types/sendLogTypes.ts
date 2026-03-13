@@ -44,7 +44,7 @@ export interface SendLogInsert {
 
 export interface SendLogUpdate {
     response_code?: number;
-    response_body?: string;
+    response_body?: string | null;
     payout_cents: number | null;
     status?: "sent" | "failed";
 }

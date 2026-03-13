@@ -88,11 +88,20 @@ export default class BuyerDispatchService {
         });
 
         // Update log with response details
-        const updatedLog = await this.sendLogDAO.updateLog(log.id, {
-            response_code: response.statusCode,
-            response_body: JSON.stringify(response.responseBody || response.error),
-            payout_cents: null // TODO: Parse from response body if buyer provides it
-        });
+        const responseBodyStr = response.responseBody != null
+            ? JSON.stringify(response.responseBody)
+            : (response.error ?? null);
+
+        let updatedLog = log;
+        try {
+            updatedLog = await this.sendLogDAO.updateLog(log.id, {
+                response_code: response.statusCode,
+                response_body: responseBodyStr ?? undefined,
+                payout_cents: null // TODO: Parse from response body if buyer provides it
+            });
+        } catch (updateErr) {
+            console.error(`[BuyerDispatch] Failed to update send log ${log.id} with response data:`, updateErr);
+        }
 
         // Schedule buyer's next send time (randomized delay)
         // Only for worker sends - manual/auto-send should not update timing
