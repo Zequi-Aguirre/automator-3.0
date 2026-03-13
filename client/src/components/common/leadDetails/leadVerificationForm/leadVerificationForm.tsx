@@ -112,8 +112,9 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = tr
     };
 
     const handleListedNo = async () => {
-        if (isLocked || saving || exists) return;
+        if (isLocked || saving) return;
         setAskListedModalOpen(false);
+        if (exists) return;
         setSaving(true);
         setError(null);
         setVerifyError(null);
@@ -286,7 +287,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity, canEdit = tr
                 <CardHeader title="Lead Verification" titleTypographyProps={{ variant: 'subtitle1', fontWeight: 700 }} />
                 <Divider />
                 <CardContent sx={{ pt: 1.5 }}>
-                    {!exists && (
+                    {!isVerified && (
                         <Box sx={{ textAlign: "center", py: 3 }}>
                             <Button
                                 variant="contained"
