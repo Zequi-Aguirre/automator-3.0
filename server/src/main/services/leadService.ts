@@ -1,5 +1,4 @@
 import { injectable } from "tsyringe";
-import { WORKER_USER_ID } from "../constants";
 import { LeadAction } from "../types/activityTypes";
 import LeadDAO from "../data/leadDAO";
 import { Lead, LeadFilters, parsedLeadFromCSV } from "../types/leadTypes";
@@ -297,11 +296,15 @@ export default class LeadService {
         });
 
         if (successCount > 0) {
-            await this.activityService.log({
-                user_id: userId,
-                action: LeadAction.IMPORTED,
-                action_details: { count: successCount, method: 'csv' }
-            });
+            // Log per-lead so each lead's activity feed shows the import event
+            for (const result of insertResults.filter(r => r.success && r.lead)) {
+                await this.activityService.log({
+                    user_id: userId,
+                    lead_id: result.lead!.id,
+                    action: LeadAction.IMPORTED,
+                    action_details: { method: 'csv' }
+                });
+            }
         }
 
         return {
@@ -405,7 +408,7 @@ export default class LeadService {
             for (const lead of successfulLeads) {
                 for (const buyer of autoSendBuyers) {
                     try {
-                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, WORKER_USER_ID);
+                        await this.buyerDispatchService.sendLeadToBuyer(lead, buyer, false, null);
                     } catch (e) {
                         // Log auto-send errors but don't fail the import
                         console.error(`Auto-send failed for lead ${lead.id} to buyer ${buyer.name}:`, e);
@@ -432,10 +435,14 @@ export default class LeadService {
                 const source = await this.sourceService.getById(source_id);
                 sourceName = source?.name ?? null;
             }
-            await this.activityService.log({
-                action: LeadAction.IMPORTED,
-                action_details: { count: successCount, method: 'api', source_name: sourceName }
-            });
+            // Log per-lead so each lead's activity feed shows the import event
+            for (const result of insertResults.filter(r => r.success && r.lead)) {
+                await this.activityService.log({
+                    lead_id: result.lead!.id,
+                    action: LeadAction.IMPORTED,
+                    action_details: { method: 'api', source_name: sourceName }
+                });
+            }
         }
 
         return {
