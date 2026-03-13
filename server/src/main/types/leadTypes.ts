@@ -15,7 +15,6 @@ export type Lead = {
     verified: boolean;
     sent_date: string;
     private_notes: string | null;
-    investor_id: string | null;
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -101,5 +100,4 @@ export type parsedLeadFromCSV = {
     county: string;
     county_id?: string;
     private_notes?: string | null;
-    investor_id?: string | null;
 };

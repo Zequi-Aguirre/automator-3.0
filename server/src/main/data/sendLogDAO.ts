@@ -18,14 +18,12 @@ export default class SendLogDAO {
                 lead_id,
                 affiliate_id,
                 campaign_id,
-                investor_id,
                 status
             )
             VALUES (
                 $[lead_id],
                 $[affiliate_id],
                 $[campaign_id],
-                $[investor_id],
                 $[status]
             )
             RETURNING *;
@@ -37,16 +35,14 @@ export default class SendLogDAO {
         page: number;
         limit: number;
         status?: string;
-        investor_id?: string;
         affiliate_id?: string;
         campaign_id?: string;
-        county_id?: string; // <-- new
+        county_id?: string;
     }): Promise<{ logs: SendLog[]; count: number }> {
         const {
             page,
             limit,
             status,
-            investor_id,
             affiliate_id,
             campaign_id,
             county_id,
@@ -60,10 +56,6 @@ export default class SendLogDAO {
         if (status !== undefined) {
             where.push("sl.status = $[status]");
             params.status = status;
-        }
-        if (investor_id !== undefined) {
-            where.push("sl.investor_id = $[investor_id]");
-            params.investor_id = investor_id;
         }
         if (affiliate_id !== undefined) {
             where.push("sl.affiliate_id = $[affiliate_id]");
@@ -136,18 +128,6 @@ export default class SendLogDAO {
         return await this.db.one<SendLog>(query, { id, ...updates });
     }
 
-    async getLatestLogsByInvestorIds(investorIds: string[]): Promise<SendLog[]> {
-        const query = `
-            SELECT DISTINCT ON (sl.investor_id)
-                sl.*
-            FROM send_log sl
-            WHERE sl.investor_id = ANY($[investorIds]::uuid[])
-              AND sl.deleted IS NULL
-            ORDER BY sl.investor_id, sl.created DESC;
-        `;
-        return await this.db.manyOrNone<SendLog>(query, { investorIds });
-    }
-
     async getLatestLogsByCountyIds(countyIds: string[]): Promise<SendLog[]> {
         const query = `
             SELECT DISTINCT ON (l.county_id)
@@ -160,18 +140,6 @@ export default class SendLogDAO {
             ORDER BY l.county_id, sl.created DESC;
         `;
         return await this.db.manyOrNone<SendLog>(query, { countyIds });
-    }
-
-    async getLastByInvestor(investorId: string): Promise<SendLog | null> {
-        const query = `
-            SELECT *
-            FROM send_log
-            WHERE investor_id = $[investorId]
-              AND deleted IS NULL
-            ORDER BY created DESC
-            LIMIT 1;
-        `;
-        return await this.db.oneOrNone<SendLog>(query, { investorId });
     }
 
     async getLastByCounty(countyId: string): Promise<SendLog | null> {

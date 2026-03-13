@@ -4,9 +4,7 @@ import LeadService from "../services/leadService";
 import CountyService from "../services/countyService";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import SendLogDAO from "../data/sendLogDAO";
-import InvestorService from "../services/investorService";
 import { Lead } from "../types/leadTypes";
-import { Investor } from "../types/investorTypes";
 import { County } from "../types/countyTypes";
 
 @injectable()
@@ -17,8 +15,7 @@ export default class WorkerService {
         private readonly leadService: LeadService,
         private readonly countyService: CountyService,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
-        private readonly sendLogDAO: SendLogDAO,
-        private readonly investorService: InvestorService
+        private readonly sendLogDAO: SendLogDAO
     ) {}
 
     async isTimeToSend(): Promise<boolean> {
@@ -71,37 +68,16 @@ export default class WorkerService {
 
         const settings = await this.workerSettingsDAO.getCurrentSettings();
 
-        const delayInvestorMs =
-            (settings.delay_same_investor || 0) * 60 * 60 * 1000;
-
         const delayCountyMs =
             (settings.delay_same_county || 36) * 60 * 60 * 1000;
 
         const businessStart = settings.business_hours_start;
         const businessEnd = settings.business_hours_end;
 
-        // Unique IDs - investor is now optional
-        const investorIds = [...new Set(
-            leads
-                .filter(l => l.investor_id)
-                .map(l => l.investor_id!)
-        )];
         const countyIds = [...new Set(leads.map(l => l.county_id))];
 
         // Cooldown logs
-        const [investorLogs, countyLogs] = await Promise.all([
-            investorIds.length > 0
-                ? this.sendLogDAO.getLatestLogsByInvestorIds(investorIds)
-                : [],
-            this.sendLogDAO.getLatestLogsByCountyIds(countyIds)
-        ]);
-
-        const investorLogMap = new Map<string, any>();
-        investorLogs.forEach(log => {
-            if (log.investor_id) {
-                investorLogMap.set(log.investor_id, log);
-            }
-        });
+        const countyLogs = await this.sendLogDAO.getLatestLogsByCountyIds(countyIds);
 
         const countyLogMap = new Map<string, any>();
         countyLogs.forEach(log => {
@@ -110,17 +86,10 @@ export default class WorkerService {
             }
         });
 
-        // Load entities - only investors and counties
-        const investors = investorIds.length > 0
-            ? await this.investorService.getManyByIds(investorIds)
-            : [];
         const counties = await this.countyService.getManyByIds(countyIds);
 
         // Build lookup maps
-        const investorsById = new Map<string, Investor>();
         const countiesById = new Map<string, County>();
-
-        investors.forEach(i => investorsById.set(i.id, i));
         counties.forEach(c => countiesById.set(c.id, c));
 
         // Precompute current local time per timezone
@@ -141,7 +110,6 @@ export default class WorkerService {
         const final: Lead[] = [];
 
         for (const lead of leads) {
-            const investor = lead.investor_id ? investorsById.get(lead.investor_id) : null;
             const county = countiesById.get(lead.county_id);
 
             // County is required
@@ -149,22 +117,10 @@ export default class WorkerService {
                 continue;
             }
 
-            // 1. Blacklist checks (only county and investor now)
+            // 1. Blacklist check
             if (county.blacklisted) continue;
-            if (investor && investor.blacklisted) continue;
 
-            // 2. Investor cooldown (only if investor exists)
-            if (investor && !investor.whitelisted && delayInvestorMs > 0) {
-                const log = investorLogMap.get(lead.investor_id!);
-                if (log) {
-                    const lastSend = new Date(log.created).getTime();
-                    if (Date.now() - lastSend <= delayInvestorMs) {
-                        continue;
-                    }
-                }
-            }
-
-            // 3. County cooldown
+            // 2. County cooldown
             if (!county.whitelisted && delayCountyMs > 0) {
                 const log = countyLogMap.get(lead.county_id);
                 if (log) {
