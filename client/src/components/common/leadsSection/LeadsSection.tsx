@@ -16,9 +16,12 @@ import {
 import { Lead } from "../../../types/leadTypes.ts";
 import ImportLeadsDialog from "./importLeadsDialog/importLeadsDialog.tsx";
 import DataContext from "../../../context/DataContext";
+import { usePermissions } from "../../../hooks/usePermissions";
+import { Permission } from "../../../types/userTypes";
 
 const LeadsSection = () => {
     const { leadFilters, setLeadFilters, role } = useContext(DataContext);
+    const { can } = usePermissions();
 
     // ------------------------------
     // LOCAL FILTER STATE (UI-driven)
@@ -159,9 +162,11 @@ const LeadsSection = () => {
                     <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                         Leads
                     </Typography>
-                    <Button variant="contained" onClick={() => { setImportOpen(true); }}>
-                        Import leads
-                    </Button>
+                    {can(Permission.LEADS_IMPORT) && (
+                        <Button variant="contained" onClick={() => { setImportOpen(true); }}>
+                            Import leads
+                        </Button>
+                    )}
                 </Box>
 
                 {/* FILTERS */}
