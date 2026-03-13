@@ -154,7 +154,8 @@ export default class BuyerDAO {
                 delay_same_county,
                 delay_same_state,
                 enforce_county_cooldown,
-                enforce_state_cooldown
+                enforce_state_cooldown,
+                payload_format
             )
             VALUES (
                 $[name],
@@ -174,7 +175,8 @@ export default class BuyerDAO {
                 $[delay_same_county],
                 $[delay_same_state],
                 $[enforce_county_cooldown],
-                $[enforce_state_cooldown]
+                $[enforce_state_cooldown],
+                $[payload_format]
             )
             RETURNING *;
         `;
@@ -197,7 +199,8 @@ export default class BuyerDAO {
             delay_same_county: dto.delay_same_county ?? 36,
             delay_same_state: dto.delay_same_state ?? 0,
             enforce_county_cooldown: dto.enforce_county_cooldown ?? true,
-            enforce_state_cooldown: dto.enforce_state_cooldown ?? false
+            enforce_state_cooldown: dto.enforce_state_cooldown ?? false,
+            payload_format: dto.payload_format ?? 'default'
         });
     }
 
@@ -237,6 +240,7 @@ export default class BuyerDAO {
                 delay_same_state = $[delay_same_state],
                 enforce_county_cooldown = $[enforce_county_cooldown],
                 enforce_state_cooldown = $[enforce_state_cooldown],
+                payload_format = $[payload_format],
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL
@@ -263,7 +267,8 @@ export default class BuyerDAO {
             delay_same_county: dto.delay_same_county ?? existing.delay_same_county,
             delay_same_state: dto.delay_same_state ?? existing.delay_same_state,
             enforce_county_cooldown: dto.enforce_county_cooldown ?? existing.enforce_county_cooldown,
-            enforce_state_cooldown: dto.enforce_state_cooldown ?? existing.enforce_state_cooldown
+            enforce_state_cooldown: dto.enforce_state_cooldown ?? existing.enforce_state_cooldown,
+            payload_format: dto.payload_format ?? existing.payload_format
         });
 
         if (!result) {

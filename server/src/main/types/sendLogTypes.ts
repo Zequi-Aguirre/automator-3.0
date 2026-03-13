@@ -23,6 +23,7 @@ export interface SendLog {
     lead_first_name?: string;
     lead_last_name?: string;
     lead_county?: string | null;
+    lead_state?: string | null;
     campaign_name?: string | null;
     campaign_platform?: string | null;
 }
