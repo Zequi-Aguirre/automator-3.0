@@ -84,10 +84,10 @@ const AdminUsersSection = () => {
         roleService.getAll().then(setRoles).catch(() => {});
     }, []);
 
-    const handleRoleChange = async (userId: string, role: 'user' | 'admin') => {
+    const handleRoleChange = async (userId: string, roleId: string) => {
         try {
-            await userService.updateRole(userId, role);
-            setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role } : u)));
+            const updated = await userService.assignRole(userId, roleId);
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updated } : u));
             setSnack({ open: true, message: 'Role updated', severity: 'success' });
         } catch {
             setSnack({ open: true, message: 'Failed to update role', severity: 'error' });
@@ -175,19 +175,22 @@ const AdminUsersSection = () => {
                                                             )
                                                             : (
                                                                 <Select
-                                                                    value={u.role}
+                                                                    value={u.permission_role_id ?? ''}
                                                                     size="small"
                                                                     variant="standard"
                                                                     disableUnderline
-                                                                    onChange={(e) => { void handleRoleChange(u.id, e.target.value as 'user' | 'admin'); }}
-                                                                    sx={{ fontSize: 'inherit' }}
+                                                                    displayEmpty
+                                                                    onChange={(e) => { void handleRoleChange(u.id, e.target.value); }}
+                                                                    sx={{ fontSize: 'inherit', minWidth: 100 }}
                                                                 >
-                                                                    <MenuItem value="user">
-                                                                        <Chip label="user" color={ROLE_COLORS.user} size="small" />
-                                                                    </MenuItem>
-                                                                    <MenuItem value="admin">
-                                                                        <Chip label="admin" color={ROLE_COLORS.admin} size="small" />
-                                                                    </MenuItem>
+                                                                    {u.permission_role_id === null || u.permission_role_id === undefined ? (
+                                                                        <MenuItem value="" disabled>
+                                                                            <Typography variant="body2" color="text.disabled">— no role —</Typography>
+                                                                        </MenuItem>
+                                                                    ) : null}
+                                                                    {roles.map(r => (
+                                                                        <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                                                                    ))}
                                                                 </Select>
                                                             )
                                                         }

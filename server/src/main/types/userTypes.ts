@@ -5,6 +5,8 @@ export type User = {
     name: string;
     email: string;
     role: 'user' | 'admin' | 'superadmin';
+    permission_role_id?: string | null;
+    permission_role_name?: string | null;
     permissions?: Permission[];
 };
 

@@ -77,6 +77,22 @@ export default class UserResource {
             res.status(200).json({ success: true });
         });
 
+        // Assign a permission role to a user (sets role + applies its permissions atomically)
+        this.router.patch('/admin/users/:id/assign-role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+            const { role_id } = req.body;
+            if (!role_id) return res.status(400).json({ message: 'role_id is required' });
+            const updated = await this.userService.assignRole(req.params.id, role_id);
+            if (!updated) return res.status(404).json({ message: 'User or role not found' });
+            await this.activityService.log({
+                user_id: req.user.id,
+                entity_type: EntityType.USER,
+                entity_id: req.params.id,
+                action: UserAction.ROLE_CHANGED,
+                action_details: { permission_role_id: role_id, target_user_id: req.params.id },
+            });
+            res.status(200).json(updated);
+        });
+
         // Get all available permissions grouped by entity (for the UI checkboxes)
         this.router.get('/admin/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
             res.status(200).json({
