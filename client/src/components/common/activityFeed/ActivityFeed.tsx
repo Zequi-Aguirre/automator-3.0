@@ -17,6 +17,7 @@ const actionColor = (log: ActivityLog): "default" | "success" | "error" | "warni
     }
     switch (log.action) {
         case WorkerAction.STOPPED:
+        case WorkerAction.LEADS_EXPIRED:
         case LeadAction.UNQUEUED:
         case LeadAction.TRASHED:
         case AuthAction.LOGIN_FAILED:
@@ -67,6 +68,10 @@ const formatDetails = (log: ActivityLog): string | null => {
         case LeadAction.IMPORTED: {
             const via = d.method === 'api' && d.source_name ? `via ${d.source_name}` : d.method === 'csv' ? 'via CSV' : '';
             return `${d.count ?? 1} lead${(d.count ?? 1) !== 1 ? 's' : ''} ${via}`.trim();
+        }
+        case WorkerAction.LEADS_EXPIRED: {
+            const n = d.count as number;
+            return `${n} lead${n !== 1 ? 's' : ''} · expired after ${d.expire_hours}h`;
         }
         case LeadAction.TRASHED: {
             const reason = d.reason ? d.reason.replace(/_/g, ' ') : '';

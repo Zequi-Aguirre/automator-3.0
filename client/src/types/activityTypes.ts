@@ -19,6 +19,7 @@ export enum WorkerAction {
     STARTED = 'worker_started',
     STOPPED = 'worker_stopped',
     SETTINGS_UPDATED = 'worker_settings_updated',
+    LEADS_EXPIRED = 'worker_leads_expired',
 }
 
 export enum SourceAction {
@@ -108,6 +109,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [WorkerAction.STARTED]: 'Worker Started',
     [WorkerAction.STOPPED]: 'Worker Stopped',
     [WorkerAction.SETTINGS_UPDATED]: 'Settings Updated',
+    [WorkerAction.LEADS_EXPIRED]: 'Leads Expired',
 
     // Source
     [SourceAction.CREATED]: 'Source Created',

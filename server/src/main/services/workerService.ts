@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { LeadAction } from "../types/activityTypes";
+import { WorkerAction } from "../types/activityTypes";
 import LeadDAO from "../data/leadDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
 import BuyerDAO from "../data/buyerDAO";
@@ -77,12 +77,10 @@ export default class WorkerService {
 
         const trashedIds = await this.leadDAO.trashExpiredLeads(expireHours, reason);
 
-        for (const leadId of trashedIds) {
+        if (trashedIds.length > 0) {
             await this.activityService.log({
-                user_id: null,
-                lead_id: leadId,
-                action: LeadAction.TRASHED,
-                action_details: { reason }
+                action: WorkerAction.LEADS_EXPIRED,
+                action_details: { count: trashedIds.length, expire_hours: expireHours }
             });
         }
 
