@@ -7,7 +7,6 @@ import {
     Chip,
     CircularProgress,
     Container,
-    Divider,
     Paper,
     Stack,
     Typography,
@@ -88,66 +87,75 @@ const AdminUserDetailsSection = () => {
     }
 
     return (
-        <Container maxWidth={false} sx={{ p: 4 }}>
+        <Container maxWidth={false} disableGutters sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+            <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
                 <Button startIcon={<ArrowBack />} onClick={() => navigate('/a/users')} variant="outlined" size="small">
                     Users
                 </Button>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                     {user.name}
                 </Typography>
                 <Chip label={user.role} color={ROLE_COLORS[user.role]} size="small" />
             </Box>
 
-            <Stack spacing={3}>
-                {/* Info card */}
-                <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Info</Typography>
-                    <Stack direction="row" spacing={6}>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Email</Typography>
-                            <Typography variant="body1">{user.email}</Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Role</Typography>
-                            <Box sx={{ mt: 0.5 }}>
-                                <Chip label={user.role} color={ROLE_COLORS[user.role]} size="small" />
+            {/* 2-column body */}
+            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+                {/* Left: Info + Permissions */}
+                <Box sx={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider', overflow: 'auto', p: 3, gap: 3 }}>
+                    {/* Info card */}
+                    <Paper sx={{ p: 3 }}>
+                        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Info</Typography>
+                        <Stack spacing={2}>
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Email</Typography>
+                                <Typography variant="body1">{user.email}</Typography>
                             </Box>
-                        </Box>
-                    </Stack>
-                </Paper>
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Role</Typography>
+                                <Box sx={{ mt: 0.5 }}>
+                                    <Chip label={user.role} color={ROLE_COLORS[user.role]} size="small" />
+                                </Box>
+                            </Box>
+                        </Stack>
+                    </Paper>
 
-                {/* Permissions card */}
-                <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                        Permissions
-                        <Chip
-                            label={`${(user.permissions ?? []).length} granted`}
-                            size="small"
-                            variant="outlined"
-                            sx={{ ml: 1.5 }}
-                        />
-                    </Typography>
-                    {(user.permissions ?? []).length === 0
-                        ? <Typography variant="body2" color="text.secondary">No permissions granted.</Typography>
-                        : (
-                            <Stack direction="row" flexWrap="wrap" gap={1}>
-                                {(user.permissions ?? []).map(perm => (
-                                    <Chip key={perm} label={permLabel(perm)} size="small" variant="outlined" />
-                                ))}
-                            </Stack>
-                        )
-                    }
-                </Paper>
+                    {/* Permissions card */}
+                    <Paper sx={{ p: 3 }}>
+                        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                            Permissions
+                            <Chip
+                                label={`${(user.permissions ?? []).length} granted`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ ml: 1.5 }}
+                            />
+                        </Typography>
+                        {(user.permissions ?? []).length === 0
+                            ? <Typography variant="body2" color="text.secondary">No permissions granted.</Typography>
+                            : (
+                                <Stack direction="row" flexWrap="wrap" gap={1}>
+                                    {(user.permissions ?? []).map(perm => (
+                                        <Chip key={perm} label={permLabel(perm)} size="small" variant="outlined" />
+                                    ))}
+                                </Stack>
+                            )
+                        }
+                    </Paper>
+                </Box>
 
-                {/* Activity card */}
-                <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Activity</Typography>
-                    <Divider sx={{ mb: 1 }} />
-                    <ActivityFeed logs={activityLogs} loading={activityLoading} />
-                </Paper>
-            </Stack>
+                {/* Right: Activity feed (scrollable) */}
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+                        <Typography variant="subtitle2" fontWeight={700}>Activity</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, overflow: 'auto' }}>
+                        <ActivityFeed logs={activityLogs} loading={activityLoading} />
+                    </Box>
+                </Box>
+
+            </Box>
         </Container>
     );
 };

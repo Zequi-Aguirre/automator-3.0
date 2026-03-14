@@ -30,6 +30,7 @@ export enum WorkerAction {
     STARTED = 'worker_started',
     STOPPED = 'worker_stopped',
     SETTINGS_UPDATED = 'worker_settings_updated',
+    LEADS_EXPIRED = 'worker_leads_expired',
 }
 
 export enum SourceAction {

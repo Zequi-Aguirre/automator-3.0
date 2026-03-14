@@ -398,6 +398,29 @@ export default class LeadService {
             }
         }
 
+        const successCount = insertResults.filter(r => r.success).length;
+        errors.push(
+            ...insertResults
+                .filter(r => !r.success)
+                .map(r => r.error || "Unknown insert error")
+        );
+
+        // Log IMPORTED first so it has an earlier timestamp than any auto-send entries
+        if (successCount > 0) {
+            let sourceName: string | null = null;
+            if (source_id) {
+                const source = await this.sourceService.getById(source_id);
+                sourceName = source?.name ?? null;
+            }
+            for (const result of insertResults.filter(r => r.success && r.lead)) {
+                await this.activityService.log({
+                    lead_id: result.lead!.id,
+                    action: LeadAction.IMPORTED,
+                    action_details: { method: 'api', source_name: sourceName }
+                });
+            }
+        }
+
         // Auto-send to buyers with auto_send=true
         const autoSendBuyers = await this.buyerDAO.getAutoSendBuyers();
         if (autoSendBuyers.length > 0) {
@@ -419,29 +442,6 @@ export default class LeadService {
                         );
                     }
                 }
-            }
-        }
-
-        const successCount = insertResults.filter(r => r.success).length;
-        errors.push(
-            ...insertResults
-                .filter(r => !r.success)
-                .map(r => r.error || "Unknown insert error")
-        );
-
-        if (successCount > 0) {
-            let sourceName: string | null = null;
-            if (source_id) {
-                const source = await this.sourceService.getById(source_id);
-                sourceName = source?.name ?? null;
-            }
-            // Log per-lead so each lead's activity feed shows the import event
-            for (const result of insertResults.filter(r => r.success && r.lead)) {
-                await this.activityService.log({
-                    lead_id: result.lead!.id,
-                    action: LeadAction.IMPORTED,
-                    action_details: { method: 'api', source_name: sourceName }
-                });
             }
         }
 

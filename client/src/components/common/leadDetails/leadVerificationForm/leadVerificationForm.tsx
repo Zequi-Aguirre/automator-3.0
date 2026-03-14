@@ -118,33 +118,38 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     const handleListedNo = async () => {
         if (isLocked || saving) return;
         setAskListedModalOpen(false);
-        if (exists) return;
         setSaving(true);
         setError(null);
         setVerifyError(null);
         setVerifySuccess(null);
         try {
-            const emptyPayload: LeadFormInput = {
-                lead_id: lead.id,
-                form_multifamily: "",
-                form_repairs: "",
-                form_occupied: "",
-                form_sell_fast: "",
-                form_goal: "",
-                form_owner: "",
-                form_owned_years: "",
-                form_listed: LISTED_OPTIONS[1],
-                form_square: "",
-                form_year: "",
-                form_garage: "",
-                form_bedrooms: "",
-                form_bathrooms: ""
-            };
-            const data = await leadFormInputService.create(emptyPayload);
-            setExists(true);
-            setForm(data);
+            if (exists && form) {
+                // Form already exists (e.g. API-imported lead) — update the listed field
+                const updated = await leadFormInputService.update(lead.id, { ...form, form_listed: LISTED_OPTIONS[1] });
+                setForm(updated);
+            } else {
+                // No form yet — create one with listed pre-filled
+                const emptyPayload: LeadFormInput = {
+                    lead_id: lead.id,
+                    form_multifamily: "",
+                    form_repairs: "",
+                    form_occupied: "",
+                    form_sell_fast: "",
+                    form_goal: "",
+                    form_owner: "",
+                    form_owned_years: "",
+                    form_listed: LISTED_OPTIONS[1],
+                    form_square: "",
+                    form_year: "",
+                    form_garage: "",
+                    form_bedrooms: "",
+                    form_bathrooms: ""
+                };
+                const data = await leadFormInputService.create(emptyPayload);
+                setExists(true);
+                setForm(data);
+            }
             setDirty(false);
-            setError(null);
             refreshActivity?.();
         } catch {
             setError("Failed to start verification");
