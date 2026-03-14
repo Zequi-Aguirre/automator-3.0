@@ -2,7 +2,7 @@ import { Box, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/ma
 import {
     ActivityLog, ACTION_LABELS,
     LeadAction, VerificationAction, WorkerAction, SourceAction,
-    BuyerAction, CampaignAction, LeadManagerAction, CountyAction, AuthAction, UserAction
+    BuyerAction, CampaignAction, LeadManagerAction, CountyAction, AuthAction, UserAction, RoleAction
 } from "../../../types/activityTypes";
 import { DateTime } from "luxon";
 
@@ -49,7 +49,11 @@ const actionColor = (log: ActivityLog): "default" | "success" | "error" | "warni
         case BuyerAction.CREATED:
         case LeadManagerAction.CREATED:
         case VerificationAction.STARTED:
+        case RoleAction.CREATED:
             return 'primary';
+
+        case RoleAction.DELETED:
+            return 'error';
 
         case UserAction.ROLE_CHANGED:
         case UserAction.PERMISSIONS_CHANGED:
@@ -101,6 +105,10 @@ const formatDetails = (log: ActivityLog): string | null => {
             return d.lead_manager_id ? `manager: ${d.lead_manager_id}` : null;
         case SourceAction.LEAD_MANAGER_ASSIGNED:
             return d.lead_manager_name ? `→ ${d.lead_manager_name}` : 'unassigned';
+        case RoleAction.CREATED:
+        case RoleAction.UPDATED:
+        case RoleAction.DELETED:
+            return d.name ? `${d.name}${d.permission_count !== undefined ? ` · ${d.permission_count} permissions` : ''}` : null;
         case UserAction.ROLE_CHANGED:
             return d.new_role ? `→ ${d.new_role}` : null;
         case UserAction.PERMISSIONS_CHANGED:

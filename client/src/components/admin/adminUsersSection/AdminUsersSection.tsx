@@ -27,7 +27,9 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
+import roleService from '../../../services/role.service';
 import { Permission, User, UserRole } from '../../../types/userTypes';
+import { PermissionRole } from '../../../types/roleTypes';
 import DataContext from '../../../context/DataContext';
 
 const ROLE_COLORS: Record<UserRole, 'default' | 'primary' | 'warning'> = {
@@ -47,6 +49,7 @@ const AdminUsersSection = () => {
     const [availablePerms, setAvailablePerms] = useState<Record<string, string[]>>({});
     const [permDialogUser, setPermDialogUser] = useState<User | null>(null);
     const [selectedPerms, setSelectedPerms] = useState<Permission[]>([]);
+    const [roles, setRoles] = useState<PermissionRole[]>([]);
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
@@ -74,6 +77,7 @@ const AdminUsersSection = () => {
     useEffect(() => {
         void fetchUsers();
         void fetchAvailablePerms();
+        roleService.getAll().then(setRoles).catch(() => {});
     }, []);
 
     const handleRoleChange = async (userId: string, role: 'user' | 'admin') => {
@@ -234,6 +238,25 @@ const AdminUsersSection = () => {
                         ? <CircularProgress size={20} />
                         : (
                             <Stack spacing={2} sx={{ mt: 1 }}>
+                                {roles.length > 0 && (
+                                    <Box>
+                                        <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                                            Apply role template
+                                        </Typography>
+                                        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 0.5 }}>
+                                            {roles.map(role => (
+                                                <Chip
+                                                    key={role.id}
+                                                    label={role.name}
+                                                    size="small"
+                                                    variant="outlined"
+                                                    clickable
+                                                    onClick={() => setSelectedPerms(role.permissions)}
+                                                />
+                                            ))}
+                                        </Stack>
+                                    </Box>
+                                )}
                                 {Object.entries(availablePerms).map(([group, perms]) => (
                                     <Box key={group}>
                                         <Typography

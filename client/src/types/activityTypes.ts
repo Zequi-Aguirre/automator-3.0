@@ -57,6 +57,12 @@ export enum UserAction {
     PERMISSIONS_CHANGED = 'user_permissions_changed',
 }
 
+export enum RoleAction {
+    CREATED = 'role_created',
+    UPDATED = 'role_updated',
+    DELETED = 'role_deleted',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -67,7 +73,8 @@ export type ActivityAction =
     | LeadManagerAction
     | CountyAction
     | AuthAction
-    | UserAction;
+    | UserAction
+    | RoleAction;
 
 export type ActivityLog = {
     id: string;
@@ -138,4 +145,9 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     // User management
     [UserAction.ROLE_CHANGED]: 'Role Changed',
     [UserAction.PERMISSIONS_CHANGED]: 'Permissions Changed',
+
+    // Permission roles
+    [RoleAction.CREATED]: 'Role Created',
+    [RoleAction.UPDATED]: 'Role Updated',
+    [RoleAction.DELETED]: 'Role Deleted',
 };
