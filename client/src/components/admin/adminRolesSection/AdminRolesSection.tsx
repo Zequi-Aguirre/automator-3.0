@@ -195,10 +195,20 @@ const AdminRolesSection = () => {
             </Box>
 
             {/* Create / Edit dialog */}
-            <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>{editRole ? `Edit — ${editRole.name}` : 'New Role'}</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
+            <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <span>{editRole ? `Edit — ${editRole.name}` : 'New Role'}</span>
+                        <Chip
+                            label={`${form.permissions.length} permissions selected`}
+                            size="small"
+                            color={form.permissions.length > 0 ? 'primary' : 'default'}
+                            variant="outlined"
+                        />
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers sx={{ maxHeight: 520 }}>
+                    <Stack spacing={0.5} sx={{ mb: 2 }}>
                         <TextField
                             label="Role name"
                             value={form.name}
@@ -207,34 +217,56 @@ const AdminRolesSection = () => {
                             fullWidth
                             autoFocus
                         />
+                    </Stack>
 
-                        {Object.keys(availablePerms).length === 0
-                            ? <CircularProgress size={20} />
-                            : Object.entries(availablePerms).map(([group, perms]) => (
-                                <Box key={group}>
-                                    <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                                        {group.replace(/_/g, ' ')}
-                                    </Typography>
-                                    <Stack direction="row" flexWrap="wrap" gap={0}>
-                                        {perms.map(perm => (
+                    {Object.keys(availablePerms).length === 0
+                        ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>
+                        : Object.entries(availablePerms).map(([group, perms]) => {
+                            const groupPerms = perms as Permission[];
+                            const allSelected = groupPerms.every(p => form.permissions.includes(p));
+                            const someSelected = groupPerms.some(p => form.permissions.includes(p));
+                            const toggleGroup = () => {
+                                setForm(prev => ({
+                                    ...prev,
+                                    permissions: allSelected
+                                        ? prev.permissions.filter(p => !groupPerms.includes(p))
+                                        : [...new Set([...prev.permissions, ...groupPerms])],
+                                }));
+                            };
+                            return (
+                                <Box key={group} sx={{ mb: 1.5 }}>
+                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                                        <Checkbox
+                                            size="small"
+                                            checked={allSelected}
+                                            indeterminate={someSelected && !allSelected}
+                                            onChange={toggleGroup}
+                                            sx={{ p: 0.5 }}
+                                        />
+                                        <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', lineHeight: 1 }}>
+                                            {group.replace(/_/g, ' ')}
+                                        </Typography>
+                                    </Stack>
+                                    <Stack direction="row" flexWrap="wrap" gap={0} sx={{ pl: 3 }}>
+                                        {groupPerms.map(perm => (
                                             <FormControlLabel
                                                 key={perm}
                                                 label={permLabel(perm)}
                                                 control={
                                                     <Checkbox
                                                         size="small"
-                                                        checked={form.permissions.includes(perm as Permission)}
-                                                        onChange={() => handleTogglePerm(perm as Permission)}
+                                                        checked={form.permissions.includes(perm)}
+                                                        onChange={() => handleTogglePerm(perm)}
                                                     />
                                                 }
-                                                sx={{ minWidth: 160 }}
+                                                sx={{ minWidth: 150 }}
                                             />
                                         ))}
                                     </Stack>
                                 </Box>
-                            ))
-                        }
-                    </Stack>
+                            );
+                        })
+                    }
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={closeDialog}>Cancel</Button>
