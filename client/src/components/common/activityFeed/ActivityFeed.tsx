@@ -1,6 +1,6 @@
 import { Box, Chip, CircularProgress, Divider, Stack, Typography } from "@mui/material";
 import {
-    ActivityLog, ActivityAction, ACTION_LABELS,
+    ActivityLog, ACTION_LABELS,
     LeadAction, VerificationAction, WorkerAction, SourceAction,
     BuyerAction, CampaignAction, LeadManagerAction, CountyAction, AuthAction, UserAction
 } from "../../../types/activityTypes";
@@ -11,8 +11,11 @@ interface Props {
     loading?: boolean;
 }
 
-const actionColor = (action: ActivityAction): "default" | "success" | "error" | "warning" | "info" | "primary" => {
-    switch (action) {
+const actionColor = (log: ActivityLog): "default" | "success" | "error" | "warning" | "info" | "primary" => {
+    if (log.action === LeadAction.SENT) {
+        return log.action_details?.status === 'failed' ? 'error' : 'success';
+    }
+    switch (log.action) {
         case WorkerAction.STOPPED:
         case LeadAction.UNQUEUED:
         case LeadAction.TRASHED:
@@ -25,7 +28,6 @@ const actionColor = (action: ActivityAction): "default" | "success" | "error" | 
         case WorkerAction.STARTED:
         case LeadAction.QUEUED:
         case LeadAction.VERIFIED:
-        case LeadAction.SENT:
         case LeadAction.IMPORTED:
             return 'success';
 
@@ -82,8 +84,10 @@ const formatDetails = (log: ActivityLog): string | null => {
             const fields = Object.keys(d).map(k => k.replace('form_', '').replace(/_/g, ' ')).join(', ');
             return fields || null;
         }
-        case LeadAction.SENT:
-            return d.buyer_name ? `→ ${d.buyer_name}` : null;
+        case LeadAction.SENT: {
+            const status = d.status === 'failed' ? 'failed' : 'sent';
+            return d.buyer_name ? `→ ${d.buyer_name} · ${status}` : status;
+        }
         case SourceAction.CREATED:
         case BuyerAction.CREATED:
         case BuyerAction.UPDATED:
@@ -131,7 +135,7 @@ export default function ActivityFeed({ logs, loading }: Props) {
                             <Chip
                                 label={label}
                                 size="small"
-                                color={actionColor(log.action)}
+                                color={actionColor(log)}
                                 variant="outlined"
                                 sx={{ fontWeight: 600 }}
                             />
