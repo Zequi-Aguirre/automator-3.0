@@ -49,7 +49,10 @@ export default function NavBar() {
     const pages = useMemo(() => {
         if (!isAdmin) return userPages;
         const base = [...adminPages];
-        if (can(Permission.USERS_MANAGE)) base.push("Users");
+        if (can(Permission.USERS_MANAGE)) {
+            base.push("Roles");
+            base.push("Users");
+        }
         return base;
     }, [isAdmin, can]);
 
@@ -85,6 +88,9 @@ export default function NavBar() {
                 break;
             case "Worker Jobs":
                 navigate("/a/worker-jobs");
+                break;
+            case "Roles":
+                navigate("/a/roles");
                 break;
             case "Users":
                 navigate("/a/users");
@@ -139,6 +145,9 @@ export default function NavBar() {
                 break;
             case path.includes("/worker-jobs"):
                 setCurrentPage("Worker Jobs");
+                break;
+            case path.includes("/roles"):
+                setCurrentPage("Roles");
                 break;
             case path.includes("/users"):
                 setCurrentPage("Users");

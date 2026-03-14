@@ -79,6 +79,12 @@ export enum DisputeAction {
     REMOVED = 'dispute_removed',
 }
 
+export enum RoleAction {
+    CREATED = 'role_created',
+    UPDATED = 'role_updated',
+    DELETED = 'role_deleted',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -91,7 +97,8 @@ export type ActivityAction =
     | AuthAction
     | UserAction
     | TrashReasonAction
-    | DisputeAction;
+    | DisputeAction
+    | RoleAction;
 
 export type ActivityLog = {
     id: string;

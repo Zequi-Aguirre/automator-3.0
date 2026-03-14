@@ -27,6 +27,7 @@ import SourceResource from "./resources/sourceResource";
 import LeadManagerResource from "./resources/leadManagerResource";
 import ActivityResource from "./resources/activityResource";
 import TrashReasonResource from "./resources/trashReasonResource.ts";
+import RoleResource from "./resources/roleResource";
 
 dotenv.config();
 
@@ -70,6 +71,7 @@ export class AutomatorServer {
         this.app.use("/api/leads-open", authFunc, cont.resolve(LeadOpenResource).routes());
         this.app.use("/api/leads-form-input", authFunc, cont.resolve(LeadFormInputResource).routes());
         this.app.use("/api/logs", authFunc, cont.resolve(SendLogResource).routes());
+        this.app.use("/api/roles", authFunc, cont.resolve(RoleResource).routes());
         this.app.use("/api/trash-reasons", authFunc, cont.resolve(TrashReasonResource).routes());
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
         this.app.use("/api/settings", authFunc,cont.resolve(SettingsResource).routes());
