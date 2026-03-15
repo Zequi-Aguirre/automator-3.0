@@ -314,7 +314,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                                 </Button>
                             </>
                         )}
-                        {isWorkerBuyer && !lead.worker_enabled && (
+                        {isWorkerBuyer && !lead.queued && (
                             <Tooltip title="Lead must be queued for worker to send to this buyer">
                                 <Chip label="Worker Only" color="warning" size="small" />
                             </Tooltip>
@@ -396,7 +396,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                 </DialogContent>
 
                 <DialogActions sx={{ px: 3, pb: 2 }}>
-                    {!lead.worker_enabled && (
+                    {!lead.queued && (
                         <Button
                             variant="outlined"
                             startIcon={enablingWorker ? <CircularProgress size={16} /> : <PlayArrowIcon />}

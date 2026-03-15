@@ -288,7 +288,7 @@ export default class LeadDAO {
             ? `
                 SELECT l.*
                 FROM leads l
-                WHERE l.worker_enabled = TRUE
+                WHERE l.queued = TRUE
                 AND l.deleted IS NULL
                 -- Exclude leads already successfully sent to THIS buyer
                 AND NOT EXISTS (
@@ -317,7 +317,7 @@ export default class LeadDAO {
             : `
                 SELECT *
                 FROM leads
-                WHERE worker_enabled = TRUE
+                WHERE queued = TRUE
                 AND deleted IS NULL
                 ORDER BY created ASC
                 LIMIT 100
@@ -334,7 +334,7 @@ export default class LeadDAO {
             ? `
                 SELECT l.*
                 FROM leads l
-                WHERE l.worker_enabled = TRUE
+                WHERE l.queued = TRUE
                 AND l.verified = TRUE
                 AND l.deleted IS NULL
                 -- Exclude leads already successfully sent to THIS buyer
@@ -364,7 +364,7 @@ export default class LeadDAO {
             : `
                 SELECT *
                 FROM leads
-                WHERE worker_enabled = TRUE
+                WHERE queued = TRUE
                 AND verified = TRUE
                 AND deleted IS NULL
                 ORDER BY created ASC
@@ -382,7 +382,7 @@ export default class LeadDAO {
             ? `
                 SELECT l.*
                 FROM leads l
-                WHERE l.worker_enabled = TRUE
+                WHERE l.queued = TRUE
                 AND l.verified = FALSE
                 AND l.deleted IS NULL
                 -- Exclude leads already successfully sent to THIS buyer
@@ -412,7 +412,7 @@ export default class LeadDAO {
             : `
                 SELECT *
                 FROM leads
-                WHERE worker_enabled = TRUE
+                WHERE queued = TRUE
                 AND verified = FALSE
                 AND deleted IS NULL
                 ORDER BY created ASC
@@ -548,7 +548,7 @@ export default class LeadDAO {
     async queueLead(id: string): Promise<Lead> {
         const query = `
             UPDATE leads
-            SET worker_enabled = true,
+            SET queued = true,
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL
@@ -566,7 +566,7 @@ export default class LeadDAO {
     async unqueueLead(id: string): Promise<Lead> {
         const query = `
             UPDATE leads
-            SET worker_enabled = false,
+            SET queued = false,
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL

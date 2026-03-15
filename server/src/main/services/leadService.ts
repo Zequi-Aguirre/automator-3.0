@@ -168,7 +168,7 @@ export default class LeadService {
 
         // Auto-queue if enabled in settings and not already queued
         const settings = await this.workerSettingsDAO.getCurrentSettings();
-        if (settings.auto_queue_on_verify && !verified.worker_enabled) {
+        if (settings.auto_queue_on_verify && !verified.queued) {
             const queued = await this.leadDAO.queueLead(leadId);
             await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.AUTO_QUEUED });
             return queued;
@@ -559,7 +559,7 @@ export default class LeadService {
 
     /**
      * Enable worker processing for a lead
-     * Sets worker_enabled=true so worker can process this lead
+     * Sets queued=true so worker can process this lead
      */
     async queueLead(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.queueLead(leadId);

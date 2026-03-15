@@ -103,7 +103,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
 
     const handleQueueToggle = async (lead: Lead) => {
         try {
-            if (lead.worker_enabled) {
+            if (lead.queued) {
                 const updated = await leadsService.unqueueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
                 showNotification("Lead removed from queue", "success");
@@ -303,14 +303,14 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                         <Tooltip title={
                             !canQueue
                                 ? "You don't have permission to queue leads"
-                                : lead.worker_enabled ? "Click to remove from queue" : "Click to queue for worker"
+                                : lead.queued ? "Click to remove from queue" : "Click to queue for worker"
                         }>
                             <span>
                                 <Chip
-                                    icon={lead.worker_enabled ? <StopIcon /> : <PlayArrowIcon />}
-                                    label={lead.worker_enabled ? "Queued" : "Queue"}
-                                    color={lead.worker_enabled ? "success" : "default"}
-                                    variant={lead.worker_enabled ? "filled" : "outlined"}
+                                    icon={lead.queued ? <StopIcon /> : <PlayArrowIcon />}
+                                    label={lead.queued ? "Queued" : "Queue"}
+                                    color={lead.queued ? "success" : "default"}
+                                    variant={lead.queued ? "filled" : "outlined"}
                                     size="small"
                                     onClick={canQueue ? () => { void handleQueueToggle(lead); } : undefined}
                                     sx={{ cursor: canQueue ? "pointer" : "default", opacity: canQueue ? 1 : 0.5 }}
