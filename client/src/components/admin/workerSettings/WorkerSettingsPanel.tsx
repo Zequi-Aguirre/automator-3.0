@@ -1,13 +1,11 @@
-import {useCallback, useEffect, useState} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
     Box,
     Button,
     Card,
     CardContent,
-    CardHeader,
     CircularProgress,
-    Container,
     Divider,
     FormControlLabel,
     Snackbar,
@@ -17,7 +15,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Cancel, Edit, Save } from '@mui/icons-material';
-import {EditableWorkerSettings, WorkerSettings} from '../../../types/settingsTypes';
+import { EditableWorkerSettings, WorkerSettings } from '../../../types/settingsTypes';
 import workerSettingsService from '../../../services/settings.service.tsx';
 
 type SnackbarState = {
@@ -27,27 +25,27 @@ type SnackbarState = {
 };
 
 const formatDateTimeReadable = (value?: string | Date | null): string => {
-    if (!value) return '';
+    if (!value) return '—';
     const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
+    if (Number.isNaN(date.getTime())) return '—';
     return date.toLocaleString();
 };
 
 const hhmmToMinutes = (value: string): number => {
     if (!value) return 0;
-    const [h, m] = value.split(":").map(Number);
+    const [h, m] = value.split(':').map(Number);
     return h * 60 + m;
 };
 
 const minutesToHHMM = (value: number): string => {
-    if (value == null || Number.isNaN(value)) return "";
+    if (value == null || Number.isNaN(value)) return '';
     const hours = Math.floor(value / 60);
     const minutes = value % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
 const buildEditableFromSettings = (settings: WorkerSettings): EditableWorkerSettings => ({
-    name: settings.name ?? "",
+    name: settings.name ?? '',
     business_hours_start: minutesToHHMM(settings.business_hours_start),
     business_hours_end: minutesToHHMM(settings.business_hours_end),
     expire_after_hours: settings.expire_after_hours ?? 0,
@@ -111,72 +109,168 @@ const WorkerSettingsPanel = () => {
             });
             setEditMode(false);
             await fetchSettings();
-            setSnackbar({ open: true, message: 'Settings updated successfully', severity: 'success' });
+            setSnackbar({ open: true, message: 'Settings updated', severity: 'success' });
         } catch {
             setSnackbar({ open: true, message: 'Failed to update settings', severity: 'error' });
         }
     };
 
+    const handleCancel = () => {
+        setEditMode(false);
+        if (settings) setEditedSettings(buildEditableFromSettings(settings));
+    };
+
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}>
                 <CircularProgress />
             </Box>
         );
     }
 
     if (error ?? !settings) {
-        return <Box sx={{ p: 3 }}><Alert severity="error">{error ?? 'Settings not found'}</Alert></Box>;
+        return <Box sx={{ p: 4 }}><Alert severity="error">{error ?? 'Settings not found'}</Alert></Box>;
     }
 
+    const enforceExpiration = editMode ? editedSettings.enforce_expiration : settings.enforce_expiration;
+
     return (
-        <Container maxWidth="md">
-            <Box sx={{ py: 4 }}>
-                <Stack spacing={3}>
-                    <Typography variant="h5" fontWeight={600}>Worker Settings</Typography>
-                    <Card>
-                        <CardHeader
-                            title="Configuration"
-                            action={
-                                editMode ? (
-                                    <Stack direction="row" spacing={1}>
-                                        <Button startIcon={<Save />} variant="contained" onClick={handleSave}>Save</Button>
-                                        <Button startIcon={<Cancel />} variant="outlined" onClick={() => { setEditMode(false); setEditedSettings(buildEditableFromSettings(settings)); }}>Cancel</Button>
-                                    </Stack>
-                                ) : (
-                                    <Button startIcon={<Edit />} variant="contained" onClick={() => setEditMode(true)}>Edit</Button>
-                                )
-                            }
-                        />
-                        <Divider />
-                        <CardContent>
-                            <Stack spacing={3}>
-                                <TextField fullWidth label="Name" name="name" value={editMode ? editedSettings.name : settings.name} onChange={handleInputChange} disabled={!editMode} />
-                                <TextField fullWidth label="Business Hours Start" name="business_hours_start" type="time" value={editMode ? editedSettings.business_hours_start : minutesToHHMM(settings.business_hours_start)} onChange={handleInputChange} disabled={!editMode} InputLabelProps={{ shrink: true }} />
-                                <TextField fullWidth label="Business Hours End" name="business_hours_end" type="time" value={editMode ? editedSettings.business_hours_end : minutesToHHMM(settings.business_hours_end)} onChange={handleInputChange} disabled={!editMode} InputLabelProps={{ shrink: true }} />
-                                <FormControlLabel
-                                    control={<Switch checked={editMode ? editedSettings.enforce_expiration : settings.enforce_expiration} onChange={handleInputChange} name="enforce_expiration" disabled={!editMode} />}
-                                    label="Enforce Expiration"
-                                />
-                                {(editMode ? editedSettings.enforce_expiration : settings.enforce_expiration) && (
-                                    <TextField fullWidth label="Expire After (hours)" name="expire_after_hours" type="number" value={editMode ? editedSettings.expire_after_hours : settings.expire_after_hours} onChange={handleInputChange} disabled={!editMode} helperText="Leads older than this will be trashed" />
-                                )}
-                                <FormControlLabel
-                                    control={<Switch checked={editMode ? editedSettings.auto_queue_on_verify : settings.auto_queue_on_verify} onChange={handleInputChange} name="auto_queue_on_verify" disabled={!editMode} />}
-                                    label="Auto-Queue on Verify"
-                                />
-                                <TextField fullWidth label="Worker Enabled" value={settings.worker_enabled ? 'Yes' : 'No'} disabled />
-                                <TextField fullWidth label="Last Worker Run" value={formatDateTimeReadable(settings.last_worker_run ?? null)} disabled />
-                                <TextField fullWidth label="Last Modified" value={formatDateTimeReadable(settings.modified ?? null)} disabled />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 4 }}>
+            {/* Editable config */}
+            <Card variant="outlined">
+                <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={600}>Configuration</Typography>
+                        {editMode ? (
+                            <Stack direction="row" spacing={1}>
+                                <Button size="small" variant="contained" startIcon={<Save />} onClick={handleSave}>Save</Button>
+                                <Button size="small" variant="outlined" startIcon={<Cancel />} onClick={handleCancel}>Cancel</Button>
                             </Stack>
-                        </CardContent>
-                    </Card>
-                </Stack>
-            </Box>
-            <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(p => ({ ...p, open: false }))} anchorOrigin={{ vertical: 'top', horizontal: 'right' }}>
-                <Alert onClose={() => setSnackbar(p => ({ ...p, open: false }))} severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
+                        ) : (
+                            <Button size="small" variant="outlined" startIcon={<Edit />} onClick={() => setEditMode(true)}>Edit</Button>
+                        )}
+                    </Box>
+
+                    <Stack spacing={2}>
+                        <TextField
+                            size="small"
+                            fullWidth
+                            label="Name"
+                            name="name"
+                            value={editMode ? editedSettings.name : settings.name}
+                            onChange={handleInputChange}
+                            disabled={!editMode}
+                        />
+
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <TextField
+                                size="small"
+                                fullWidth
+                                label="Business Hours Start"
+                                name="business_hours_start"
+                                type="time"
+                                value={editMode ? editedSettings.business_hours_start : minutesToHHMM(settings.business_hours_start)}
+                                onChange={handleInputChange}
+                                disabled={!editMode}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                            <TextField
+                                size="small"
+                                fullWidth
+                                label="Business Hours End"
+                                name="business_hours_end"
+                                type="time"
+                                value={editMode ? editedSettings.business_hours_end : minutesToHHMM(settings.business_hours_end)}
+                                onChange={handleInputChange}
+                                disabled={!editMode}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                            <FormControlLabel
+                                sx={{ m: 0 }}
+                                control={
+                                    <Switch
+                                        size="small"
+                                        checked={enforceExpiration}
+                                        onChange={handleInputChange}
+                                        name="enforce_expiration"
+                                        disabled={!editMode}
+                                    />
+                                }
+                                label={<Typography variant="body2">Enforce Expiration</Typography>}
+                            />
+                            {enforceExpiration && (
+                                <TextField
+                                    size="small"
+                                    label="Expire After (hours)"
+                                    name="expire_after_hours"
+                                    type="number"
+                                    value={editMode ? editedSettings.expire_after_hours : settings.expire_after_hours}
+                                    onChange={handleInputChange}
+                                    disabled={!editMode}
+                                    helperText="Leads older than this will be trashed"
+                                    sx={{ width: 220 }}
+                                    inputProps={{ min: 1 }}
+                                />
+                            )}
+                        </Box>
+
+                        <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={editMode ? editedSettings.auto_queue_on_verify : settings.auto_queue_on_verify}
+                                    onChange={handleInputChange}
+                                    name="auto_queue_on_verify"
+                                    disabled={!editMode}
+                                />
+                            }
+                            label={<Typography variant="body2">Auto-Queue on Verify</Typography>}
+                        />
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Read-only status */}
+            <Card variant="outlined">
+                <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>Status</Typography>
+                    <Divider sx={{ mb: 1.5 }} />
+                    <Stack direction="row" spacing={4} flexWrap="wrap">
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Worker Enabled</Typography>
+                            <Typography variant="body2">{settings.worker_enabled ? 'Yes' : 'No'}</Typography>
+                        </Box>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Last Worker Run</Typography>
+                            <Typography variant="body2">{formatDateTimeReadable(settings.last_worker_run)}</Typography>
+                        </Box>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">Last Modified</Typography>
+                            <Typography variant="body2">{formatDateTimeReadable(settings.modified)}</Typography>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar(p => ({ ...p, open: false }))}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={() => setSnackbar(p => ({ ...p, open: false }))}
+                    severity={snackbar.severity}
+                    variant="filled"
+                >
+                    {snackbar.message}
+                </Alert>
             </Snackbar>
-        </Container>
+        </Box>
     );
 };
 
