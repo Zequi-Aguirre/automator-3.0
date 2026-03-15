@@ -95,6 +95,40 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 
 **Types:** feat, fix, docs, refactor, test, chore
 
+## 🔐 CRITICAL: Permissions + Activity Logging — Every Action, No Exceptions
+
+**Every new action must have all three of the following. There are no exceptions.**
+
+### 1. Permission enum entry
+- Add to the correct enum in **`server/src/main/types/permissionTypes.ts`**
+- Mirror it in **`client/src/types/userTypes.ts`** flat `Permission` enum (same string value)
+- Add it to `ROLE_DEFAULT_PERMISSIONS` for the roles that should have it by default
+- Add it to the `/permissions` grouped response in `userResource.ts` so it appears in the Roles modal UI
+
+**Enum conventions:**
+- Server: domain-grouped enums — `LeadPermission`, `WorkerSettingsPermission`, `SourcePermission`, etc.
+- **`WorkerPermission` and `SettingsPermission` are permanently merged into `WorkerSettingsPermission`** — same page, same concern
+- Permission strings: `domain.action` format (e.g. `worker.toggle`, `settings.manage`, `leads.send`)
+- Client flat enum naming: `Permission.DOMAIN_ACTION` (e.g. `Permission.WORKER_SETTINGS_TOGGLE`)
+
+### 2. Permission gate
+- **Frontend:** Wrap UI elements with `can(Permission.SOMETHING)` from `usePermissions()`. If the user can't do it, don't render the button/section.
+- **Backend:** Every mutating route must call `requirePermission(SomePermission.ACTION)` middleware. Read-only routes tied to a permission-gated section should also be gated.
+
+### 3. Activity log entry
+- **User-triggered actions:** Log in the route handler via `activityService.log(...)` after the action succeeds.
+- **Automated/worker actions:** Log inside the worker or service layer when the system makes a decision (e.g. lead trashed by expiration, worker cycle started/stopped, auto-queue triggered). `user_id` may be `undefined` for system actions.
+- Use the correct `EntityType` and `UserAction`/`WorkerAction` from `activityTypes.ts`.
+
+### Checklist for every new action
+- [ ] Permission value added to server enum + client enum + `ROLE_DEFAULT_PERMISSIONS` + `/permissions` endpoint
+- [ ] Backend route gated with `requirePermission(...)`
+- [ ] Frontend UI gated with `can(Permission....)`
+- [ ] Activity logged on success (route handler for user actions; service/worker for automated actions)
+- [ ] If new enum created: add to `Permission` union type in `permissionTypes.ts`
+
+---
+
 ## Project Overview
 
 Automator 2.0 is a Node.js + TypeScript lead automation platform for real estate. It ingests leads via CSV, validates them, applies business rules (blacklists, cooldowns), and dispatches them to external buyers via webhooks. The system includes a background worker/scheduler with per-buyer timing control, admin dashboard, and multi-buyer support with flexible routing (manual, worker, or both).
