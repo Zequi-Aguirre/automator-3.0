@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { IDatabase } from "pg-promise";
 import { DBContainer } from "../config/DBContainer";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import { County } from "../types/countyTypes.ts";
+import { County, CountyBuyerFilterMode } from "../types/countyTypes.ts";
 
 @injectable()
 export default class CountyDAO {
@@ -169,6 +169,20 @@ export default class CountyDAO {
             WHERE id IN ($[ids:csv]) AND deleted IS NULL;
         `;
         return this.db.any<County>(query, { ids });
+    }
+
+    async updateBuyerFilter(id: string, mode: CountyBuyerFilterMode | null, buyerIds: string[]): Promise<County> {
+        const query = `
+            UPDATE counties
+            SET
+                buyer_filter_mode = $[mode],
+                buyer_filter_buyer_ids = $[buyerIds]::uuid[],
+                modified = NOW()
+            WHERE id = $[id]
+                AND deleted IS NULL
+            RETURNING *;
+        `;
+        return await this.db.one<County>(query, { id, mode, buyerIds });
     }
 
     /**

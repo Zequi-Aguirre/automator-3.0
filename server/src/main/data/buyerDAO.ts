@@ -29,17 +29,13 @@ export default class BuyerDAO {
      * Get all buyers with pagination and filters
      */
     async getAll(filters: BuyerFilters): Promise<{ items: Buyer[]; count: number }> {
-        const { page, limit, search, dispatch_mode } = filters;
+        const { page, limit, search } = filters;
         const offset = (page - 1) * limit;
 
         const whereClauses: string[] = ['b.deleted IS NULL'];
 
         if (search) {
             whereClauses.push(`b.name ILIKE '%' || $/search/ || '%'`);
-        }
-
-        if (dispatch_mode) {
-            whereClauses.push(`b.dispatch_mode = $/dispatch_mode/`);
         }
 
         const whereSQL = whereClauses.join(' AND ');
@@ -65,13 +61,11 @@ export default class BuyerDAO {
         const items = await this.db.manyOrNone<Buyer>(itemsQuery, {
             limit,
             offset,
-            search,
-            dispatch_mode
+            search
         });
 
         const { total } = await this.db.one<{ total: number }>(countQuery, {
-            search,
-            dispatch_mode
+            search
         });
 
         return { items, count: total };
@@ -119,14 +113,14 @@ export default class BuyerDAO {
     }
 
     /**
-     * Get worker buyers (dispatch_mode IN ('worker', 'both'))
+     * Get worker buyers (worker_send = true)
      */
     async getWorkerBuyers(): Promise<Buyer[]> {
         const query = `
             SELECT *
             FROM buyers
             WHERE deleted IS NULL
-            AND dispatch_mode IN ('worker', 'both')
+            AND worker_send = true
             ORDER BY priority ASC;
         `;
         return await this.db.manyOrNone<Buyer>(query);
@@ -142,7 +136,8 @@ export default class BuyerDAO {
             INSERT INTO buyers (
                 name,
                 webhook_url,
-                dispatch_mode,
+                manual_send,
+                worker_send,
                 priority,
                 auto_send,
                 allow_resell,
@@ -163,7 +158,8 @@ export default class BuyerDAO {
             VALUES (
                 $[name],
                 $[webhook_url],
-                $[dispatch_mode],
+                $[manual_send],
+                $[worker_send],
                 $[priority],
                 $[auto_send],
                 $[allow_resell],
@@ -187,7 +183,8 @@ export default class BuyerDAO {
         return await this.db.one<Buyer>(query, {
             name: dto.name,
             webhook_url: dto.webhook_url,
-            dispatch_mode: dto.dispatch_mode || 'manual',
+            manual_send: dto.manual_send ?? true,
+            worker_send: dto.worker_send ?? true,
             priority: dto.priority,
             auto_send: dto.auto_send || false,
             allow_resell: dto.allow_resell !== undefined ? dto.allow_resell : true,
@@ -226,7 +223,8 @@ export default class BuyerDAO {
             SET
                 name = $[name],
                 webhook_url = $[webhook_url],
-                dispatch_mode = $[dispatch_mode],
+                manual_send = $[manual_send],
+                worker_send = $[worker_send],
                 priority = $[priority],
                 auto_send = $[auto_send],
                 allow_resell = $[allow_resell],
@@ -254,7 +252,8 @@ export default class BuyerDAO {
             id,
             name: dto.name ?? existing.name,
             webhook_url: dto.webhook_url ?? existing.webhook_url,
-            dispatch_mode: dto.dispatch_mode ?? existing.dispatch_mode,
+            manual_send: dto.manual_send ?? existing.manual_send,
+            worker_send: dto.worker_send ?? existing.worker_send,
             priority: dto.priority ?? existing.priority,
             auto_send: dto.auto_send ?? existing.auto_send,
             allow_resell: dto.allow_resell ?? existing.allow_resell,

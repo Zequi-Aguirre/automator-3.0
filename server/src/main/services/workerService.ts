@@ -24,11 +24,9 @@ export default class WorkerService {
      * @returns Count of successful sends
      */
     async processAllBuyers(): Promise<number> {
-        // Get all buyers with dispatch_mode 'worker' or 'both'
+        // Get all buyers with worker_send = true
         const allBuyers = await this.buyerDAO.getByPriority();
-        const workerBuyers = allBuyers.filter(b =>
-            b.dispatch_mode === 'worker' || b.dispatch_mode === 'both'
-        );
+        const workerBuyers = allBuyers.filter(b => b.worker_send === true);
 
         if (workerBuyers.length === 0) {
             console.log('[Worker] No worker buyers configured');

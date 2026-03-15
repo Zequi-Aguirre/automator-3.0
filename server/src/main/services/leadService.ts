@@ -530,7 +530,8 @@ export default class LeadService {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,
                 buyer_priority: buyer.priority,
-                dispatch_mode: buyer.dispatch_mode,
+                manual_send: buyer.manual_send,
+                worker_send: buyer.worker_send,
                 sold: outcome?.status === 'sold',
                 has_successful_send: hasSuccessfulSend,
                 sends: buyerLogs.map(log => ({

@@ -26,8 +26,7 @@ export default class BuyerResource {
                 const filters = {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 50,
-                    search: req.query.search as string | undefined,
-                    dispatch_mode: req.query.dispatch_mode as 'manual' | 'worker' | 'both' | undefined
+                    search: req.query.search as string | undefined
                 };
 
                 const result = await this.buyerService.getAll(filters);

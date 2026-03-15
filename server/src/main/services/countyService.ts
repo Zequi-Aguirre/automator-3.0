@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import CountyDAO from "../data/countyDAO";
-import { County } from "../types/countyTypes.ts";
+import { County, CountyBuyerFilterMode } from "../types/countyTypes.ts";
 import { parseCsvToCounties } from "../middleware/parseCsvToCounties.ts";
 import { parsedLeadFromCSV } from "../types/leadTypes.ts";
 import { CountiesSingletonFactory, normalizeCountyName } from "../data/countiesSingleton.ts";
@@ -237,5 +237,9 @@ export default class CountyService {
 
     async getById(id: string): Promise<County | null> {
         return await this.countyDAO.getById(id);
+    }
+
+    async updateBuyerFilter(id: string, mode: CountyBuyerFilterMode | null, buyerIds: string[]): Promise<County> {
+        return await this.countyDAO.updateBuyerFilter(id, mode, buyerIds);
     }
 }

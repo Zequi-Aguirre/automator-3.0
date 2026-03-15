@@ -2,7 +2,8 @@ export type Buyer = {
     id: string;
     name: string;
     webhook_url: string;
-    dispatch_mode: 'manual' | 'worker' | 'both';
+    manual_send: boolean;
+    worker_send: boolean;
     priority: number;
     auto_send: boolean;
     allow_resell: boolean;
@@ -15,13 +16,13 @@ export type Buyer = {
     auth_header_name: string;
     auth_header_prefix: string | null;
     auth_token_encrypted: string | null;
-    blocked_affiliate_ids: string[]; // Array of affiliate IDs to block
-    states_on_hold: string[]; // Array of state codes this buyer won't accept
-    delay_same_county: number; // Hours to wait before sending another lead from same county
-    delay_same_state: number; // Hours to wait before sending another lead from same state
-    enforce_county_cooldown: boolean; // Toggle for county cooldown enforcement
-    enforce_state_cooldown: boolean; // Toggle for state cooldown enforcement
-    payload_format: 'default' | 'northstar'; // Webhook payload field mapping
+    blocked_affiliate_ids: string[];
+    states_on_hold: string[];
+    delay_same_county: number;
+    delay_same_state: number;
+    enforce_county_cooldown: boolean;
+    enforce_state_cooldown: boolean;
+    payload_format: 'default' | 'northstar';
     created: string;
     modified: string;
     deleted: string | null;
@@ -30,7 +31,8 @@ export type Buyer = {
 export type BuyerCreateDTO = {
     name: string;
     webhook_url: string;
-    dispatch_mode?: 'manual' | 'worker' | 'both';
+    manual_send?: boolean;
+    worker_send?: boolean;
     priority: number;
     auto_send?: boolean;
     allow_resell?: boolean;
@@ -39,9 +41,9 @@ export type BuyerCreateDTO = {
     max_minutes_between_sends?: number;
     auth_header_name?: string;
     auth_header_prefix?: string | null;
-    auth_token?: string | null; // Plain text token (will be encrypted)
-    blocked_affiliate_ids?: string[]; // Array of affiliate IDs to block
-    states_on_hold?: string[]; // Array of state codes to block
+    auth_token?: string | null;
+    blocked_affiliate_ids?: string[];
+    states_on_hold?: string[];
     delay_same_county?: number;
     delay_same_state?: number;
     enforce_county_cooldown?: boolean;
@@ -52,19 +54,20 @@ export type BuyerCreateDTO = {
 export type BuyerUpdateDTO = {
     name?: string;
     webhook_url?: string;
-    dispatch_mode?: 'manual' | 'worker' | 'both';
+    manual_send?: boolean;
+    worker_send?: boolean;
     priority?: number;
     auto_send?: boolean;
     allow_resell?: boolean;
     requires_validation?: boolean;
     min_minutes_between_sends?: number;
     max_minutes_between_sends?: number;
-    next_send_at?: string; // ISO datetime string for manual scheduling override
+    next_send_at?: string;
     auth_header_name?: string;
     auth_header_prefix?: string | null;
-    auth_token?: string | null; // Plain text token (will be encrypted)
-    blocked_affiliate_ids?: string[]; // Array of affiliate IDs to block
-    states_on_hold?: string[]; // Array of state codes to block
+    auth_token?: string | null;
+    blocked_affiliate_ids?: string[];
+    states_on_hold?: string[];
     delay_same_county?: number;
     delay_same_state?: number;
     enforce_county_cooldown?: boolean;
@@ -82,7 +85,6 @@ export type BuyerFilters = {
     page: number;
     limit: number;
     search?: string;
-    dispatch_mode?: 'manual' | 'worker' | 'both';
 };
 
 export type BuyerAuthConfig = {

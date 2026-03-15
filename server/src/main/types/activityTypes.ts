@@ -58,6 +58,7 @@ export enum LeadManagerAction {
 
 export enum CountyAction {
     UPDATED = 'county_updated',
+    BUYER_FILTER_UPDATED = 'county_buyer_filter_updated',
 }
 
 export enum AuthAction {
