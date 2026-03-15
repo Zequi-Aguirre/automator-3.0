@@ -376,6 +376,30 @@ export default class BuyerDispatchService {
         const countiesById = new Map<string, County>();
         counties.forEach(c => countiesById.set(c.id, c));
 
+        // Pre-fetch source filter config for all leads that have a campaign
+        // Avoids per-lead DB calls and lets us silently skip filtered leads
+        const sourceFilterByLeadId = new Map<string, { mode: string; buyerIds: string[] } | null>();
+        const campaignIds = [...new Set(leads.map(l => l.campaign_id).filter(Boolean))] as string[];
+        for (const campaignId of campaignIds) {
+            try {
+                const campaign = await this.campaignDAO.getById(campaignId);
+                if (campaign?.source_id) {
+                    const source = await this.sourceDAO.getById(campaign.source_id);
+                    const filter = source?.buyer_filter_mode
+                        ? { mode: source.buyer_filter_mode, buyerIds: source.buyer_filter_buyer_ids ?? [] }
+                        : null;
+                    // Store by campaign_id so per-lead lookup is O(1)
+                    for (const lead of leads) {
+                        if (lead.campaign_id === campaignId) {
+                            sourceFilterByLeadId.set(lead.id, filter);
+                        }
+                    }
+                }
+            } catch {
+                // If we can't fetch the source, allow the lead through
+            }
+        }
+
         // Precompute current local time per timezone
         const timezoneLocalMinute = new Map<string, number>();
         const now = new Date();
@@ -407,6 +431,19 @@ export default class BuyerDispatchService {
             if (!county) {
                 console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: County not found`);
                 continue;
+            }
+
+            // 0. Source buyer filter (pre-fetched above)
+            const sourceFilter = sourceFilterByLeadId.get(lead.id);
+            if (sourceFilter) {
+                if (sourceFilter.mode === 'include' && !sourceFilter.buyerIds.includes(buyer.id)) {
+                    console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: Source does not allow this buyer`);
+                    continue;
+                }
+                if (sourceFilter.mode === 'exclude' && sourceFilter.buyerIds.includes(buyer.id)) {
+                    console.log(`[BuyerDispatch][${buyer.name}] Lead ${lead.id} - BLOCKED: Source has blocked this buyer`);
+                    continue;
+                }
             }
 
             // 1. County blacklist check removed - will be per-buyer in future
