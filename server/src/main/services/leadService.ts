@@ -14,6 +14,7 @@ import BuyerDAO from "../data/buyerDAO.ts";
 import BuyerDispatchService from "./buyerDispatchService.ts";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
 import ActivityService from "./activityService.ts";
+import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
@@ -34,7 +35,8 @@ export default class LeadService {
         private readonly buyerDAO: BuyerDAO,
         private readonly buyerDispatchService: BuyerDispatchService,
         private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO,
-        private readonly activityService: ActivityService
+        private readonly activityService: ActivityService,
+        private readonly workerSettingsDAO: WorkerSettingsDAO
     ) {}
 
     // CSV Import Source Management
@@ -163,6 +165,15 @@ export default class LeadService {
 
         const verified = await this.leadDAO.verifyLead(leadId);
         await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.VERIFIED });
+
+        // Auto-queue if enabled in settings and not already queued
+        const settings = await this.workerSettingsDAO.getCurrentSettings();
+        if (settings.auto_queue_on_verify && !verified.queued) {
+            const queued = await this.leadDAO.queueLead(leadId);
+            await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.AUTO_QUEUED });
+            return queued;
+        }
+
         return verified;
     }
 
@@ -548,7 +559,7 @@ export default class LeadService {
 
     /**
      * Enable worker processing for a lead
-     * Sets worker_enabled=true so worker can process this lead
+     * Sets queued=true so worker can process this lead
      */
     async queueLead(leadId: string, userId?: string | null): Promise<Lead> {
         const lead = await this.leadDAO.queueLead(leadId);

@@ -10,6 +10,7 @@ export type WorkerSettings = {
     cron_schedule: string;
     expire_after_hours: number;
     enforce_expiration: boolean;
+    auto_queue_on_verify: boolean;
     created: Date;
     modified: Date;
     deleted: Date | null;
@@ -23,6 +24,7 @@ export type WorkerSettingsUpdateAllowedFieldsType = {
     cron_schedule: string | null;
     expire_after_hours: number | null;
     enforce_expiration: boolean | null;
+    auto_queue_on_verify: boolean | null;
 };
 
 export type EnvSettings = {

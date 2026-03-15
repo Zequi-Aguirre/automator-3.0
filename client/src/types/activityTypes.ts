@@ -7,6 +7,7 @@ export enum LeadAction {
     DOWNLOADED = 'lead_downloaded',
     SENT = 'lead_sent',
     QUEUED = 'lead_queued',
+    AUTO_QUEUED = 'lead_auto_queued',
     UNQUEUED = 'lead_unqueued',
 }
 
@@ -106,6 +107,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [LeadAction.DOWNLOADED]: 'Lead Downloaded',
     [LeadAction.SENT]: 'Lead Sent',
     [LeadAction.QUEUED]: 'Lead Queued',
+    [LeadAction.AUTO_QUEUED]: 'Lead Auto-Queued on Verify',
     [LeadAction.UNQUEUED]: 'Lead Unqueued',
 
     // Verification

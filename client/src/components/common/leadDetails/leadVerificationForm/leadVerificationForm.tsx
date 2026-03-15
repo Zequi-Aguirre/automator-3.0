@@ -243,7 +243,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     const handleQueueToggle = async () => {
         try {
             setError(null);
-            if (lead.worker_enabled) {
+            if (lead.queued) {
                 await leadsService.unqueueLead(lead.id);
             } else {
                 await leadsService.queueLead(lead.id);
@@ -547,11 +547,11 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                                     )}
                                     {canQueue && (
                                         <Button
-                                            variant={lead.worker_enabled ? "contained" : "outlined"}
-                                            color={lead.worker_enabled ? "error" : "primary"}
+                                            variant={lead.queued ? "contained" : "outlined"}
+                                            color={lead.queued ? "error" : "primary"}
                                             onClick={() => { void handleQueueToggle(); }}
                                         >
-                                            {lead.worker_enabled ? "Remove from Queue" : "Add to Queue"}
+                                            {lead.queued ? "Remove from Queue" : "Add to Queue"}
                                         </Button>
                                     )}
                                 </Stack>
@@ -566,11 +566,11 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                                     )}
                                     {canQueue && (
                                         <Button
-                                            variant={lead.worker_enabled ? "contained" : "outlined"}
-                                            color={lead.worker_enabled ? "error" : "primary"}
+                                            variant={lead.queued ? "contained" : "outlined"}
+                                            color={lead.queued ? "error" : "primary"}
                                             onClick={() => { void handleQueueToggle(); }}
                                         >
-                                            {lead.worker_enabled ? "Remove from Queue" : "Add to Queue"}
+                                            {lead.queued ? "Remove from Queue" : "Add to Queue"}
                                         </Button>
                                     )}
                                 </Stack>
