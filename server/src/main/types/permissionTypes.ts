@@ -10,8 +10,9 @@ export enum LeadPermission {
     UNTRASH = 'leads.untrash',
 }
 
-export enum WorkerPermission {
+export enum WorkerSettingsPermission {
     TOGGLE = 'worker.toggle',
+    MANAGE = 'settings.manage',
 }
 
 export enum SourcePermission {
@@ -34,10 +35,6 @@ export enum LogPermission {
     VIEW = 'logs.view',
 }
 
-export enum SettingsPermission {
-    MANAGE = 'settings.manage',
-}
-
 export enum UserPermission {
     MANAGE = 'users.manage',
 }
@@ -56,13 +53,12 @@ export enum DisputePermission {
 
 export type Permission =
     | LeadPermission
-    | WorkerPermission
+    | WorkerSettingsPermission
     | SourcePermission
     | BuyerPermission
     | ManagerPermission
     | CountyPermission
     | LogPermission
-    | SettingsPermission
     | UserPermission
     | ActivityPermission
     | TrashReasonPermission
@@ -112,8 +108,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         BuyerPermission.MANAGE,
         CountyPermission.MANAGE,
         LogPermission.VIEW,
-        WorkerPermission.TOGGLE,
-        SettingsPermission.MANAGE,
+        WorkerSettingsPermission.TOGGLE,
+        WorkerSettingsPermission.MANAGE,
         UserPermission.MANAGE,
         ActivityPermission.VIEW,
         TrashReasonPermission.MANAGE,

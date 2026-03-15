@@ -4,8 +4,6 @@ import AdminLeadsView from "../../views/adminViews/AdminLeadsView.tsx";
 import AdminLeadDetailsView from "../../views/adminViews/AdminLeadDetailsView.tsx";
 import AdminCampaignsView from "../../views/adminViews/AdminCampaignsView.tsx";
 import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanelView.tsx";
-import AdminJobsSection from "../../views/adminViews/AdminWorkerJobsView.tsx";
-import AdminJobDetailsView from "../../views/adminViews/AdminJobDetailsView.tsx";
 import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
 import AdminCountyDetailsView from "../../views/adminViews/AdminCountyDetailsView.tsx";
 import AdminLogsView from "../../views/adminViews/AdminLogsView.tsx";
@@ -34,8 +32,6 @@ const AppRoutes = () => {
             <Route path="/counties/:id" element={<RequireAuth><AdminCountyDetailsView /></RequireAuth>} />
             <Route path="/logs" element={<RequireAuth><AdminLogsView /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><WorkerSettingsPanel /></RequireAuth>} />
-            <Route path="/worker-jobs" element={<RequireAuth><AdminJobsSection /></RequireAuth>} />
-            <Route path="/worker-jobs/:id" element={<RequireAuth><AdminJobDetailsView /></RequireAuth>} />
             <Route path="/activity" element={<RequireAuth><AdminActivityView /></RequireAuth>} />
             <Route path="/roles" element={<RequireAuth><AdminRolesView /></RequireAuth>} />
             <Route path="/users" element={<RequireAuth><AdminUsersView /></RequireAuth>} />

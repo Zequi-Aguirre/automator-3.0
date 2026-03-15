@@ -3,7 +3,7 @@ import { injectable } from "tsyringe";
 import UserService from "../services/userService.ts";
 import ActivityService from "../services/activityService";
 import { requirePermission } from '../middleware/requirePermission';
-import { Permission, UserRole, LeadPermission, WorkerPermission, SourcePermission, BuyerPermission, ManagerPermission, CountyPermission, LogPermission, SettingsPermission, UserPermission, ActivityPermission, TrashReasonPermission, DisputePermission } from '../types/permissionTypes';
+import { Permission, UserRole, LeadPermission, WorkerSettingsPermission, SourcePermission, BuyerPermission, ManagerPermission, CountyPermission, LogPermission, UserPermission, ActivityPermission, TrashReasonPermission, DisputePermission } from '../types/permissionTypes';
 import { EntityType, UserAction } from '../types/activityTypes';
 
 @injectable()
@@ -97,13 +97,12 @@ export default class UserResource {
         this.router.get('/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
             res.status(200).json({
                 leads: Object.values(LeadPermission),
-                worker: Object.values(WorkerPermission),
                 sources: Object.values(SourcePermission),
                 buyers: Object.values(BuyerPermission),
                 managers: Object.values(ManagerPermission),
                 counties: Object.values(CountyPermission),
                 logs: Object.values(LogPermission),
-                settings: Object.values(SettingsPermission),
+                worker_settings: Object.values(WorkerSettingsPermission),
                 users: Object.values(UserPermission),
                 activity: Object.values(ActivityPermission),
                 trash_reasons: Object.values(TrashReasonPermission),
