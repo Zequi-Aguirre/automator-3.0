@@ -72,6 +72,7 @@ export enum UserAction {
     USER_CREATED = 'user_created',
     USER_ACCOUNT_REQUESTED = 'user_account_requested',
     USER_ACCOUNT_APPROVED = 'user_account_approved',
+    USER_ACCOUNT_DENIED = 'user_account_denied',
     PASSWORD_RESET = 'user_password_reset',
     PASSWORD_CHANGED = 'user_password_changed',
 }

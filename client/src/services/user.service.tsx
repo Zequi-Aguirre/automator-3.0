@@ -76,6 +76,10 @@ class UserService {
         await this.api.getApi(false).post('/api/authenticate/request-account', dto);
     }
 
+    denyAccount = async (userId: string): Promise<void> => {
+        await this.api.getApi().post(`/api/users/users/${userId}/deny`);
+    }
+
     approveAccount = async (userId: string, roleId: string): Promise<User> => {
         const res = await this.api.getApi().post(`/api/users/users/${userId}/approve`, { role_id: roleId });
         return res.data;

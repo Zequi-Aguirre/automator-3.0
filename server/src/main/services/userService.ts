@@ -88,12 +88,13 @@ export default class UserService {
         return { user, tempPassword };
     }
 
-    async requestAccount(dto: AccountRequestDTO): Promise<User> {
+    async requestAccount(dto: AccountRequestDTO): Promise<{ user: User; priorDenials: number }> {
         const email = dto.email.toLowerCase().trim();
 
         const exists = await this.userDAO.emailExists(email);
         if (exists) throw new Error('An account with this email already exists or is pending.');
 
+        const priorDenials = await this.userDAO.countPriorDenials(email);
         const user = await this.userDAO.createPending(email, dto.name);
 
         // Notify all users with users.approve permission
@@ -102,6 +103,7 @@ export default class UserService {
             const { subject, html } = accountRequestEmail({
                 requesterName: dto.name,
                 requesterEmail: email,
+                priorDenials,
             });
             try {
                 await this.emailService.send({ to: approver.email, subject, html });
@@ -110,7 +112,7 @@ export default class UserService {
             }
         }));
 
-        return user;
+        return { user, priorDenials };
     }
 
     async approveAccount(targetId: string, roleId: string): Promise<User | null> {
@@ -154,6 +156,10 @@ export default class UserService {
     async changePassword(userId: string, newPassword: string): Promise<void> {
         const hashedPassword = await this.authUtils.hashPassword(newPassword);
         await this.userDAO.updatePassword(userId, hashedPassword, false);
+    }
+
+    async denyAccount(targetId: string): Promise<boolean> {
+        return this.userDAO.denyPending(targetId);
     }
 
     async updateNavbarOpen(userId: string, value: boolean): Promise<void> {

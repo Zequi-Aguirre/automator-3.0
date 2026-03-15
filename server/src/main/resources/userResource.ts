@@ -190,6 +190,20 @@ export default class UserResource {
             }
         });
 
+        // Deny a pending account request — soft deletes the pending user
+        this.router.post('/users/:id/deny', requirePermission(UserPermission.APPROVE), async (req: Request, res: Response) => {
+            const ok = await this.userService.denyAccount(req.params.id);
+            if (!ok) return res.status(404).json({ message: 'Pending user not found' });
+            await this.activityService.log({
+                user_id: req.user.id,
+                entity_type: EntityType.USER,
+                entity_id: req.params.id,
+                action: UserAction.USER_ACCOUNT_DENIED,
+                action_details: { denied_by: req.user.id },
+            });
+            return res.status(200).json({ success: true });
+        });
+
         // Update current user's navbar preference
         this.router.patch('/me/navbar', async (req: Request, res: Response) => {
             const { navbar_open } = req.body;

@@ -3,16 +3,28 @@ import { baseLayout } from './baseLayout';
 export type AccountRequestEmailData = {
     requesterName: string;
     requesterEmail: string;
+    priorDenials?: number;
     appUrl?: string;
 };
 
 export function accountRequestEmail(data: AccountRequestEmailData): { subject: string; html: string } {
-    const { requesterName, requesterEmail, appUrl } = data;
+    const { requesterName, requesterEmail, priorDenials, appUrl } = data;
     const usersUrl = `${appUrl ?? 'https://app.automator.io'}/users`;
+
+    const priorNote = priorDenials && priorDenials > 0
+        ? `<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border:1px solid #fca5a5;border-radius:6px;margin-bottom:20px;">
+             <tr><td style="padding:12px 18px;">
+               <p style="margin:0;color:#991b1b;font-size:13px;">
+                 <strong>Note:</strong> This email has been denied ${priorDenials} previous time${priorDenials > 1 ? 's' : ''}.
+               </p>
+             </td></tr>
+           </table>`
+        : '';
 
     const content = `
       <h2 style="margin:0 0 8px;color:#111827;font-size:22px;font-weight:700;">New Account Request</h2>
-      <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Someone has requested access to Automator. Review and approve their account from the Users page.</p>
+      <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">Someone has requested access to Automator. Review and approve their account from the Users page.</p>
+      ${priorNote}
 
       <!-- Requester info box -->
       <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:28px;">

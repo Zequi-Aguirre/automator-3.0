@@ -36,6 +36,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EditIcon from '@mui/icons-material/Edit';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
 import roleService from '../../../services/role.service';
@@ -219,6 +220,17 @@ const AdminUsersSection = () => {
         }
     };
 
+    // Deny account handler
+    const handleDenyAccount = async (user: User) => {
+        try {
+            await userService.denyAccount(user.id);
+            setUsers(prev => prev.filter(u => u.id !== user.id));
+            setSnack({ open: true, message: `Account request from ${user.email} denied`, severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to deny account', severity: 'error' });
+        }
+    };
+
     // Reset password handler
     const handleResetPassword = async (user: User) => {
         try {
@@ -328,18 +340,29 @@ const AdminUsersSection = () => {
                                                                 ? (
                                                                     <>
                                                                         {can(Permission.USERS_APPROVE) && (
-                                                                            <Tooltip title="Approve account">
-                                                                                <IconButton
-                                                                                    size="small"
-                                                                                    color="success"
-                                                                                    onClick={() => {
-                                                                                        setApproveUser(u);
-                                                                                        setApproveRoleId('');
-                                                                                    }}
-                                                                                >
-                                                                                    <CheckCircleOutlineIcon fontSize="small" />
-                                                                                </IconButton>
-                                                                            </Tooltip>
+                                                                            <>
+                                                                                <Tooltip title="Approve account">
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        color="success"
+                                                                                        onClick={() => {
+                                                                                            setApproveUser(u);
+                                                                                            setApproveRoleId('');
+                                                                                        }}
+                                                                                    >
+                                                                                        <CheckCircleOutlineIcon fontSize="small" />
+                                                                                    </IconButton>
+                                                                                </Tooltip>
+                                                                                <Tooltip title="Deny request">
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        color="error"
+                                                                                        onClick={() => { void handleDenyAccount(u); }}
+                                                                                    >
+                                                                                        <CancelOutlinedIcon fontSize="small" />
+                                                                                    </IconButton>
+                                                                                </Tooltip>
+                                                                            </>
                                                                         )}
                                                                     </>
                                                                 )

@@ -51,12 +51,12 @@ export default class AuthenticateResource {
                 if (!email || !name) {
                     return res.status(400).json({ message: 'email and name are required' });
                 }
-                const user = await this.userService.requestAccount({ email, name });
+                const { user, priorDenials } = await this.userService.requestAccount({ email, name });
                 await this.activityService.log({
                     entity_type: EntityType.USER,
                     entity_id: user.id,
                     action: UserAction.USER_ACCOUNT_REQUESTED,
-                    action_details: { name, email },
+                    action_details: { name, email, prior_denials: priorDenials },
                 });
                 return res.status(201).json({ success: true });
             } catch (error) {

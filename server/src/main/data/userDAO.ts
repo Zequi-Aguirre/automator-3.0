@@ -170,11 +170,27 @@ export default class UserDAO {
         );
     }
 
+    async denyPending(userId: string): Promise<boolean> {
+        const result = await this.db.result(
+            `UPDATE users SET deleted = NOW(), modified = NOW() WHERE id = $[userId] AND status = 'pending'`,
+            { userId }
+        );
+        return result.rowCount > 0;
+    }
+
     async emailExists(email: string): Promise<boolean> {
         const row = await this.db.oneOrNone<{ count: string }>(
             `SELECT COUNT(*) AS count FROM users WHERE email = $[email] AND deleted IS NULL`,
             { email }
         );
         return parseInt(row?.count ?? '0', 10) > 0;
+    }
+
+    async countPriorDenials(email: string): Promise<number> {
+        const row = await this.db.oneOrNone<{ count: string }>(
+            `SELECT COUNT(*) AS count FROM users WHERE email = $[email] AND deleted IS NOT NULL AND status = 'pending'`,
+            { email }
+        );
+        return parseInt(row?.count ?? '0', 10);
     }
 }
