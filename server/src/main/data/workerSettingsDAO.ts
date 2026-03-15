@@ -84,6 +84,7 @@ export default class WorkerSettingsDAO {
                 worker_enabled = $[worker_enabled],
                 expire_after_hours = $[expire_after_hours],
                 enforce_expiration = $[enforce_expiration],
+                auto_queue_on_verify = $[auto_queue_on_verify],
                 modified = NOW()
             WHERE deleted IS NULL
             RETURNING *;
@@ -114,7 +115,8 @@ export default class WorkerSettingsDAO {
             cron_schedule: updates.cron_schedule ?? existingSettings.cron_schedule,
             worker_enabled: updates.worker_enabled ?? existingSettings.worker_enabled,
             expire_after_hours: updates.expire_after_hours ?? existingSettings.expire_after_hours,
-            enforce_expiration: updates.enforce_expiration ?? existingSettings.enforce_expiration
+            enforce_expiration: updates.enforce_expiration ?? existingSettings.enforce_expiration,
+            auto_queue_on_verify: updates.auto_queue_on_verify ?? existingSettings.auto_queue_on_verify
         };
     }
 

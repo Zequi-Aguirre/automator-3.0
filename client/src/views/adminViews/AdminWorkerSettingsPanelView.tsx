@@ -64,6 +64,7 @@ const buildEditableFromSettings = (settings: WorkerSettings): EditableWorkerSett
         business_hours_end: minutesToHHMM(settings.business_hours_end),
         expire_after_hours: settings.expire_after_hours ?? 0,
         enforce_expiration: settings.enforce_expiration ?? true,
+        auto_queue_on_verify: settings.auto_queue_on_verify ?? false,
     };
 };
 
@@ -75,6 +76,7 @@ const WorkerSettingsPanel = () => {
         business_hours_end: '',
         expire_after_hours: 0,
         enforce_expiration: true,
+        auto_queue_on_verify: false,
     });
     const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -158,6 +160,7 @@ const WorkerSettingsPanel = () => {
                 business_hours_end: hhmmToMinutes(editedSettings.business_hours_end),
                 expire_after_hours: editedSettings.expire_after_hours,
                 enforce_expiration: editedSettings.enforce_expiration,
+                auto_queue_on_verify: editedSettings.auto_queue_on_verify,
             });
 
             setEditMode(false);
@@ -302,6 +305,23 @@ const WorkerSettingsPanel = () => {
                                         helperText="Leads older than this will be trashed"
                                     />
                                 )}
+
+                                {/* Auto-queue on verify */}
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={
+                                                editMode
+                                                    ? editedSettings.auto_queue_on_verify
+                                                    : settings.auto_queue_on_verify
+                                            }
+                                            onChange={handleInputChange}
+                                            name="auto_queue_on_verify"
+                                            disabled={!editMode}
+                                        />
+                                    }
+                                    label="Auto-Queue on Verify"
+                                />
 
                                 {/* Read-only info */}
                                 <TextField

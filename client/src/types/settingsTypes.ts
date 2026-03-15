@@ -7,6 +7,7 @@ export type WorkerSettings = {
     max_delay: number;
     expire_after_hours: number;
     enforce_expiration: boolean;
+    auto_queue_on_verify: boolean;
     last_worker_run: string;
     worker_enabled: boolean;
     cron_schedule: string;
@@ -22,4 +23,5 @@ export type EditableWorkerSettings = {
     business_hours_end: string;
     expire_after_hours: number;
     enforce_expiration: boolean;
+    auto_queue_on_verify: boolean;
 };
