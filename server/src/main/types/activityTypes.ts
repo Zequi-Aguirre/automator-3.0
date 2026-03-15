@@ -69,6 +69,9 @@ export enum AuthAction {
 export enum UserAction {
     ROLE_CHANGED = 'user_role_changed',
     PERMISSIONS_CHANGED = 'user_permissions_changed',
+    USER_CREATED = 'user_created',
+    PASSWORD_RESET = 'user_password_reset',
+    PASSWORD_CHANGED = 'user_password_changed',
 }
 
 export enum TrashReasonAction {

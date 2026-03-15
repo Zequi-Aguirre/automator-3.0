@@ -31,6 +31,18 @@ export type User = {
     permission_role_id?: string | null;
     permission_role_name?: string | null;
     permissions?: Permission[];
+    must_change_password?: boolean;
+};
+
+export type UserCreateDTO = {
+    email: string;
+    name: string;
+    role: UserRole;
+};
+
+export type UserUpdateDTO = {
+    name?: string;
+    email?: string;
 };
 
 export type Session = {

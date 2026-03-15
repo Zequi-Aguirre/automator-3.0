@@ -15,6 +15,7 @@ import {
     DialogContent,
     DialogTitle,
     FormControlLabel,
+    IconButton,
     MenuItem,
     Paper,
     Select,
@@ -26,13 +27,18 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import EditIcon from '@mui/icons-material/Edit';
+import LockResetIcon from '@mui/icons-material/LockReset';
 import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
 import roleService from '../../../services/role.service';
-import { Permission, User, UserRole } from '../../../types/userTypes';
+import { Permission, User, UserCreateDTO, UserRole, UserUpdateDTO } from '../../../types/userTypes';
 import { PermissionRole } from '../../../types/roleTypes';
 import DataContext from '../../../context/DataContext';
 
@@ -56,6 +62,18 @@ const AdminUsersSection = () => {
     const [roles, setRoles] = useState<PermissionRole[]>([]);
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+
+    // Create user dialog
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createForm, setCreateForm] = useState<UserCreateDTO>({ email: '', name: '', role: 'user' });
+    const [createError, setCreateError] = useState<string | null>(null);
+    const [creating, setCreating] = useState(false);
+
+    // Edit user dialog (name/email only)
+    const [editUser, setEditUser] = useState<User | null>(null);
+    const [editForm, setEditForm] = useState<UserUpdateDTO>({});
+    const [editError, setEditError] = useState<string | null>(null);
+    const [editing, setEditing] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -126,6 +144,66 @@ const AdminUsersSection = () => {
         }
     };
 
+    // Create user handlers
+    const handleOpenCreate = () => {
+        setCreateForm({ email: '', name: '', role: 'user' });
+        setCreateError(null);
+        setCreateOpen(true);
+    };
+
+    const handleCreateUser = async () => {
+        setCreateError(null);
+        if (!createForm.email || !createForm.name) {
+            setCreateError('Email and name are required.');
+            return;
+        }
+        setCreating(true);
+        try {
+            const newUser = await userService.createUser(createForm);
+            setUsers(prev => [...prev, newUser]);
+            setCreateOpen(false);
+            setSnack({ open: true, message: `User "${newUser.name}" created — invite email sent.`, severity: 'success' });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Failed to create user';
+            setCreateError(msg);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    // Edit user handlers
+    const handleOpenEdit = (user: User) => {
+        setEditUser(user);
+        setEditForm({ name: user.name, email: user.email });
+        setEditError(null);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editUser) return;
+        setEditError(null);
+        setEditing(true);
+        try {
+            const updated = await userService.updateUser(editUser.id, editForm);
+            setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...updated } : u));
+            setEditUser(null);
+            setSnack({ open: true, message: 'User updated', severity: 'success' });
+        } catch {
+            setEditError('Failed to update user.');
+        } finally {
+            setEditing(false);
+        }
+    };
+
+    // Reset password handler
+    const handleResetPassword = async (user: User) => {
+        try {
+            await userService.resetPassword(user.id);
+            setSnack({ open: true, message: `Password reset — new credentials sent to ${user.email}`, severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to reset password', severity: 'error' });
+        }
+    };
+
     const closeSnack = () => { setSnack(p => ({ ...p, open: false })); };
     const closePermDialog = () => { setPermDialogUser(null); };
 
@@ -134,6 +212,14 @@ const AdminUsersSection = () => {
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Users</Typography>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<PersonAddIcon />}
+                        onClick={handleOpenCreate}
+                    >
+                        Create User
+                    </Button>
                 </Box>
 
                 {loading
@@ -143,7 +229,7 @@ const AdminUsersSection = () => {
                     : (
                         <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
                             <TableContainer component={Paper} sx={{ height: '100%' }}>
-                                <Table stickyHeader>
+                                <Table stickyHeader size="small">
                                     <TableHead>
                                         <TableRow>
                                             <TableCell>Name</TableCell>
@@ -165,6 +251,9 @@ const AdminUsersSection = () => {
                                                             {isSelf && (
                                                                 <Chip label="you" size="small" variant="outlined" />
                                                             )}
+                                                            {u.must_change_password && (
+                                                                <Chip label="must change password" size="small" color="warning" variant="outlined" />
+                                                            )}
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell>{u.email}</TableCell>
@@ -183,11 +272,13 @@ const AdminUsersSection = () => {
                                                                     onChange={(e) => { void handleRoleChange(u.id, e.target.value); }}
                                                                     sx={{ fontSize: 'inherit', minWidth: 100 }}
                                                                 >
-                                                                    {u.permission_role_id === null || u.permission_role_id === undefined ? (
-                                                                        <MenuItem value="" disabled>
-                                                                            <Typography variant="body2" color="text.disabled">— no role —</Typography>
-                                                                        </MenuItem>
-                                                                    ) : null}
+                                                                    {(u.permission_role_id === null || u.permission_role_id === undefined)
+                                                                        ? (
+                                                                            <MenuItem value="" disabled>
+                                                                                <Typography variant="body2" color="text.disabled">— no role —</Typography>
+                                                                            </MenuItem>
+                                                                        )
+                                                                        : null}
                                                                     {roles.map(r => (
                                                                         <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
                                                                     ))}
@@ -203,19 +294,33 @@ const AdminUsersSection = () => {
                                                         />
                                                     </TableCell>
                                                     <TableCell align="right">
-                                                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                                                             <Button
                                                                 size="small"
                                                                 onClick={() => { navigate(`/users/${u.id}`); }}
                                                             >
                                                                 View
                                                             </Button>
+                                                            <Tooltip title="Edit name / email">
+                                                                <IconButton size="small" onClick={() => { handleOpenEdit(u); }}>
+                                                                    <EditIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Reset password">
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => { void handleResetPassword(u); }}
+                                                                    disabled={isSelf}
+                                                                >
+                                                                    <LockResetIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
                                                             <Button
                                                                 size="small"
                                                                 onClick={() => { handleOpenPermDialog(u); }}
                                                                 disabled={isSuperAdmin && !isSelf}
                                                             >
-                                                                Edit Permissions
+                                                                Permissions
                                                             </Button>
                                                         </Stack>
                                                     </TableCell>
@@ -234,6 +339,79 @@ const AdminUsersSection = () => {
                     )
                 }
             </Box>
+
+            {/* Create User Dialog */}
+            <Dialog open={createOpen} onClose={() => { setCreateOpen(false); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Create User</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Name"
+                        size="small"
+                        fullWidth
+                        value={createForm.name}
+                        onChange={e => { setCreateForm(p => ({ ...p, name: e.target.value })); }}
+                        autoFocus
+                    />
+                    <TextField
+                        label="Email"
+                        size="small"
+                        fullWidth
+                        type="email"
+                        value={createForm.email}
+                        onChange={e => { setCreateForm(p => ({ ...p, email: e.target.value })); }}
+                    />
+                    <Select
+                        size="small"
+                        value={createForm.role}
+                        onChange={e => { setCreateForm(p => ({ ...p, role: e.target.value as UserCreateDTO['role'] })); }}
+                        fullWidth
+                    >
+                        <MenuItem value="user">user</MenuItem>
+                        <MenuItem value="admin">admin</MenuItem>
+                        <MenuItem value="superadmin">superadmin</MenuItem>
+                    </Select>
+                    {createError && <Alert severity="error">{createError}</Alert>}
+                    <Typography variant="caption" color="text.secondary">
+                        A temporary password will be generated and emailed to the user.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setCreateOpen(false); }}>Cancel</Button>
+                    <Button onClick={() => { void handleCreateUser(); }} variant="contained" disabled={creating}>
+                        {creating ? 'Creating…' : 'Create'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Edit User Dialog */}
+            <Dialog open={!!editUser} onClose={() => { setEditUser(null); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Edit User — {editUser?.name}</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Name"
+                        size="small"
+                        fullWidth
+                        value={editForm.name ?? ''}
+                        onChange={e => { setEditForm(p => ({ ...p, name: e.target.value })); }}
+                        autoFocus
+                    />
+                    <TextField
+                        label="Email"
+                        size="small"
+                        fullWidth
+                        type="email"
+                        value={editForm.email ?? ''}
+                        onChange={e => { setEditForm(p => ({ ...p, email: e.target.value })); }}
+                    />
+                    {editError && <Alert severity="error">{editError}</Alert>}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setEditUser(null); }}>Cancel</Button>
+                    <Button onClick={() => { void handleSaveEdit(); }} variant="contained" disabled={editing}>
+                        {editing ? 'Saving…' : 'Save'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Permissions Dialog */}
             <Dialog open={!!permDialogUser} onClose={closePermDialog} maxWidth="md" fullWidth>
@@ -266,7 +444,7 @@ const AdminUsersSection = () => {
                                                     size="small"
                                                     variant="outlined"
                                                     clickable
-                                                    onClick={() => setSelectedPerms(role.permissions)}
+                                                    onClick={() => { setSelectedPerms(role.permissions); }}
                                                 />
                                             ))}
                                         </Stack>
@@ -293,7 +471,7 @@ const AdminUsersSection = () => {
                                                         checked={allSelected}
                                                         indeterminate={someSelected}
                                                         onChange={e => { e.stopPropagation(); toggleGroup(); }}
-                                                        onClick={e => e.stopPropagation()}
+                                                        onClick={e => { e.stopPropagation(); }}
                                                         sx={{ p: 0.5 }}
                                                     />
                                                     <Typography variant="subtitle2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>

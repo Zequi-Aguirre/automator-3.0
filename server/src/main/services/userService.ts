@@ -1,9 +1,11 @@
 import UserDAO from '../data/userDAO';
 import RoleDAO from '../data/roleDAO';
 import { injectable } from "tsyringe";
-import { AuthTokenResponse, User, UserWithPermissions } from "../types/userTypes.ts";
+import { AuthTokenResponse, User, UserCreateDTO, UserUpdateDTO, UserWithPermissions } from "../types/userTypes.ts";
 import { AuthUtils } from "../middleware/tokenGenerator";
 import { Permission, UserRole, ROLE_DEFAULT_PERMISSIONS } from '../types/permissionTypes';
+import { EnvConfig } from '../config/envConfig';
+import axios from 'axios';
 
 @injectable()
 export default class UserService {
@@ -12,6 +14,7 @@ export default class UserService {
         private readonly userDAO: UserDAO,
         private readonly roleDAO: RoleDAO,
         private readonly authUtils: AuthUtils,
+        private readonly config: EnvConfig,
     ) {}
 
     async authenticate(email: string, password: string): Promise<AuthTokenResponse | null> {
@@ -63,5 +66,73 @@ export default class UserService {
         if (!role) return null;
         await this.userDAO.assignRole(targetId, roleId, role.permissions);
         return this.userDAO.getOneById(targetId);
+    }
+
+    async createUser(dto: UserCreateDTO): Promise<{ user: User; tempPassword: string }> {
+        const email = dto.email.toLowerCase().trim();
+        const tempPassword = this.generateTempPassword();
+        const hashedPassword = await this.authUtils.hashPassword(tempPassword);
+
+        const user = await this.userDAO.create(email, dto.name, dto.role, hashedPassword);
+
+        // Assign default permissions for role
+        const defaultPerms = ROLE_DEFAULT_PERMISSIONS[dto.role] ?? [];
+        if (defaultPerms.length > 0) {
+            await this.userDAO.setPermissions(user.id, defaultPerms);
+        }
+
+        await this.sendUserEmail({ action: 'invite_user', name: dto.name, email, tempPassword });
+
+        return { user, tempPassword };
+    }
+
+    async updateUser(userId: string, dto: UserUpdateDTO): Promise<User | null> {
+        if (dto.email) dto.email = dto.email.toLowerCase().trim();
+        return this.userDAO.update(userId, dto);
+    }
+
+    async resetPassword(userId: string): Promise<void> {
+        const user = await this.userDAO.getOneById(userId);
+        if (!user) throw new Error('User not found');
+
+        const tempPassword = this.generateTempPassword();
+        const hashedPassword = await this.authUtils.hashPassword(tempPassword);
+
+        await this.userDAO.updatePassword(userId, hashedPassword, true);
+        await this.sendUserEmail({ action: 'reset_password', name: user.name, email: user.email, tempPassword });
+    }
+
+    async changePassword(userId: string, newPassword: string): Promise<void> {
+        const hashedPassword = await this.authUtils.hashPassword(newPassword);
+        await this.userDAO.updatePassword(userId, hashedPassword, false);
+    }
+
+    private generateTempPassword(): string {
+        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let result = '';
+        for (let i = 0; i < 10; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    private async sendUserEmail(payload: {
+        action: 'invite_user' | 'reset_password';
+        name: string;
+        email: string;
+        tempPassword: string;
+    }): Promise<void> {
+        if (!this.config.makeUserWebhookUrl) {
+            console.warn('[UserService] MAKE_USER_WEBHOOK_URL not set — skipping email send');
+            return;
+        }
+        try {
+            await axios.post(this.config.makeUserWebhookUrl, payload, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 10000,
+            });
+        } catch (err) {
+            console.error('[UserService] Failed to send user email via Make.com:', err);
+        }
     }
 }

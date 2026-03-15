@@ -51,7 +51,7 @@ const LoginForm = () => {
             setRole(role);
             setLoginRecord({ email: "", password: "" });
             setFailedResponse(false);
-            navigate("/leads");
+            navigate(user.must_change_password ? "/change-password" : "/leads");
         } catch (error) {
             setFailedResponse(true);
             console.error("Login failed:", error);
