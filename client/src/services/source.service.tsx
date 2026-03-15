@@ -1,5 +1,5 @@
 import { authProvider, AxiosProvider } from "../config/axiosProvider";
-import { Source, SourceCreateDTO, SourceUpdateDTO, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
+import { Source, SourceCreateDTO, SourceUpdateDTO, SourceFilterUpdateDTO, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
 
 /**
  * SourceService - Frontend API client for source management
@@ -57,6 +57,11 @@ class SourceService {
      */
     async refreshToken(id: string): Promise<RefreshTokenResponse> {
         const res = await this.api.getApi().post(`/api/sources/${id}/refresh-token`);
+        return res.data;
+    }
+
+    async updateBuyerFilter(id: string, dto: SourceFilterUpdateDTO): Promise<Source> {
+        const res = await this.api.getApi().patch(`/api/sources/${id}/buyer-filters`, dto);
         return res.data;
     }
 
