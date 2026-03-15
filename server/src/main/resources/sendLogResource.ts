@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from "express";
 import { injectable } from "tsyringe";
 import SendLogService from "../services/sendLogService.ts";
 import { requirePermission } from "../middleware/requirePermission.ts";
-import { DisputePermission, ActivityPermission, LeadPermission } from "../types/permissionTypes.ts";
+import { DisputePermission, LogPermission, LeadPermission } from "../types/permissionTypes.ts";
 
 @injectable()
 export default class SendLogResource {
@@ -14,7 +14,7 @@ export default class SendLogResource {
     }
 
     private initializeRoutes() {
-        this.router.get("/admin/get-many", requirePermission(ActivityPermission.VIEW), async (req: Request, res: Response) => {
+        this.router.get("/admin/get-many", requirePermission(LogPermission.VIEW), async (req: Request, res: Response) => {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 50;
 

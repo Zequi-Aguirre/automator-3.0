@@ -14,6 +14,8 @@ export enum Permission {
     MANAGERS_MANAGE = 'managers.manage',
     BUYERS_MANAGE = 'buyers.manage',
     WORKER_TOGGLE = 'worker.toggle',
+    COUNTIES_MANAGE = 'counties.manage',
+    LOGS_VIEW = 'logs.view',
     SETTINGS_MANAGE = 'settings.manage',
     USERS_MANAGE = 'users.manage',
     ACTIVITY_VIEW = 'activity.view',
