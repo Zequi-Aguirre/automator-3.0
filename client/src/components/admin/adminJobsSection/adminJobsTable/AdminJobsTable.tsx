@@ -159,7 +159,7 @@ const AdminJobsTable = ({ jobs, setJobs }: JobsTableProps) => {
             renderCell: (params) => (
                 <Button
                     component={Link}
-                    to={`/a/worker-jobs/${params.row.id}`}
+                    to={`/worker-jobs/${params.row.id}`}
                     variant="contained"
                     color="primary"
                     size="small"

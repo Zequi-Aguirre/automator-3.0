@@ -12,7 +12,7 @@ class SendLogService {
         campaign_id?: string;
         county_id?: string;
     }): Promise<{ logs: SendLog[]; count: number }> {
-        const res = await this.api.getApi().get("/api/logs/admin/get-many", {
+        const res = await this.api.getApi().get("/api/logs/get-many", {
             params,
         });
         return res.data;
@@ -22,7 +22,7 @@ class SendLogService {
         logId: string,
         updates: Partial<Pick<SendLog, "status" | "response_code" | "response_body" | "payout_cents">>
     ): Promise<SendLog> {
-        const res = await this.api.getApi().patch(`/api/logs/admin/update/${logId}`, updates);
+        const res = await this.api.getApi().patch(`/api/logs/update/${logId}`, updates);
         return res.data;
     }
 

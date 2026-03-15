@@ -26,31 +26,31 @@ class UserService {
     }
 
     getAllUsers = async (): Promise<User[]> => {
-        const res = await this.api.getApi().get('/api/users/admin/users');
+        const res = await this.api.getApi().get('/api/users/users');
         return res.data;
     }
 
     updateRole = async (userId: string, role: 'user' | 'admin'): Promise<User> => {
-        const res = await this.api.getApi().patch(`/api/users/admin/users/${userId}/role`, { role });
+        const res = await this.api.getApi().patch(`/api/users/users/${userId}/role`, { role });
         return res.data;
     }
 
     setPermissions = async (userId: string, permissions: Permission[]): Promise<void> => {
-        await this.api.getApi().put(`/api/users/admin/users/${userId}/permissions`, { permissions });
+        await this.api.getApi().put(`/api/users/users/${userId}/permissions`, { permissions });
     }
 
     getAvailablePermissions = async (): Promise<Record<string, string[]>> => {
-        const res = await this.api.getApi().get('/api/users/admin/permissions');
+        const res = await this.api.getApi().get('/api/users/permissions');
         return res.data;
     }
 
     getUserById = async (id: string): Promise<User> => {
-        const res = await this.api.getApi().get(`/api/users/admin/users/${id}`);
+        const res = await this.api.getApi().get(`/api/users/users/${id}`);
         return res.data;
     }
 
     assignRole = async (userId: string, roleId: string): Promise<User & { permissions: Permission[] }> => {
-        const res = await this.api.getApi().patch(`/api/users/admin/users/${userId}/assign-role`, { role_id: roleId });
+        const res = await this.api.getApi().patch(`/api/users/users/${userId}/assign-role`, { role_id: roleId });
         return res.data;
     }
 }

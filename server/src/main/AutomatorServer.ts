@@ -13,7 +13,6 @@ import CampaignResource from "./resources/campaignResource";
 import SettingsResource from "./resources/settingsResource.ts";
 import { Worker } from './worker/Worker';
 import JobResource from "./resources/jobResource.ts";
-import AffiliateResource from "./resources/affiliateResource";
 import CountyResource from "./resources/countyResource";
 import LeadFormInputResource from "./resources/leadFormInputResource.ts";
 import WorkerResource from "./resources/workerResource.ts";
@@ -58,7 +57,6 @@ export class AutomatorServer {
 
         // Set up routes
         this.app.use("/api/activity", authFunc, cont.resolve(ActivityResource).routes());
-        this.app.use("/api/affiliates", authFunc, cont.resolve(AffiliateResource).routes());
         this.app.use("/api/authenticate", cont.resolve(AuthenticateResource).routes());
         this.app.use("/api/buyers", authFunc, cont.resolve(BuyerResource).routes());
         this.app.use("/api/campaigns", authFunc, cont.resolve(CampaignResource).routes());

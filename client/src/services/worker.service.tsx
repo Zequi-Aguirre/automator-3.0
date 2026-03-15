@@ -8,17 +8,17 @@ class WorkerService {
         cron_schedule: string | null;
         running: boolean;
     }> {
-        const response = await this.api.getApi().get("/api/worker/admin/status");
+        const response = await this.api.getApi().get("/api/worker/status");
         return response.data;
     }
 
     async startWorker(): Promise<{ success: boolean; message: string }> {
-        const response = await this.api.getApi().patch("/api/worker/admin/start");
+        const response = await this.api.getApi().patch("/api/worker/start");
         return response.data;
     }
 
     async stopWorker(): Promise<{ success: boolean; message: string }> {
-        const response = await this.api.getApi().patch("/api/worker/admin/stop");
+        const response = await this.api.getApi().patch("/api/worker/stop");
         return response.data;
     }
 
@@ -28,7 +28,7 @@ class WorkerService {
         cron_schedule: string;
     }> {
         const response = await this.api.getApi().patch(
-            "/api/worker/admin/update-cron",
+            "/api/worker/update-cron",
             { cron_schedule }
         );
         return response.data;

@@ -5,12 +5,12 @@ class CountyService {
     constructor(private readonly api: AxiosProvider) {}
 
     async getAll(): Promise<County[]> {
-        const res = await this.api.getApi().get('/api/counties/admin/get-all');
+        const res = await this.api.getApi().get('/api/counties/get-all');
         return res.data;
     }
 
     async getById(id: string): Promise<County> {
-        const res = await this.api.getApi().get(`/api/counties/admin/${id}`);
+        const res = await this.api.getApi().get(`/api/counties/${id}`);
         return res.data;
     }
 
@@ -22,7 +22,7 @@ class CountyService {
     }): Promise<{ counties: County[]; count: number }> {
 
         const res = await this.api.getApi().get(
-            "/api/counties/admin/get-many",
+            "/api/counties/get-many",
             { params: filters }
         );
         return res.data;
@@ -30,7 +30,7 @@ class CountyService {
 
     async updateBlacklist(id: string, value: boolean): Promise<County> {
         const res = await this.api.getApi().patch(
-            `/api/counties/admin/blacklist/${id}`,
+            `/api/counties/blacklist/${id}`,
             { blacklisted: value }
         );
         return res.data;
@@ -38,7 +38,7 @@ class CountyService {
 
     async update(id: string, updates: Partial<County>): Promise<County> {
         const res = await this.api.getApi().patch(
-            `/api/counties/admin/${id}`,
+            `/api/counties/${id}`,
             updates
         );
         return res.data;
@@ -50,7 +50,7 @@ class CountyService {
         errors: string[];
     }> {
         const response = await this.api.getApi().post(
-            "/api/counties/admin/import",
+            "/api/counties/import",
             formData,
             {
                 headers: { "Content-Type": "multipart/form-data" }

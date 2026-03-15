@@ -23,7 +23,6 @@ import LocationCityIcon from "@mui/icons-material/LocationCity";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import SettingsIcon from "@mui/icons-material/Settings";
-import WorkIcon from "@mui/icons-material/Work";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import GroupIcon from "@mui/icons-material/Group";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -64,8 +63,7 @@ export default function NavBar() {
         { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.COUNTIES_MANAGE },
         { label: "Logs", icon: <ReceiptIcon />, path: "/logs", pathMatch: "/logs", permission: Permission.LOGS_VIEW },
         { label: "Activity", icon: <TimelineIcon />, path: "/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
-        { label: "Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.SETTINGS_MANAGE },
-        { label: "Worker Jobs", icon: <WorkIcon />, path: "/worker-jobs", pathMatch: "/worker-jobs", permission: Permission.WORKER_TOGGLE },
+        { label: "Worker Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.SETTINGS_MANAGE },
         { label: "Roles", icon: <AdminPanelSettingsIcon />, path: "/roles", pathMatch: "/roles", permission: Permission.USERS_MANAGE },
         { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
     ], []);

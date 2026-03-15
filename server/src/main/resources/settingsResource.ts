@@ -26,7 +26,7 @@ export default class SettingsResource {
         });
 
         // Update settings
-        this.router.patch("/admin/update", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
+        this.router.patch("/update", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
             const updatedSettings = await this.settingsService.updateSettings(req.body);
             await this.activityService.log({
                 user_id: req.user?.id,
