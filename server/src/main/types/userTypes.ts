@@ -9,6 +9,8 @@ export type User = {
     permission_role_name?: string | null;
     permissions?: Permission[];
     must_change_password?: boolean;
+    status?: 'active' | 'pending';
+    navbar_open?: boolean;
 };
 
 export type UserWithPermissions = User & {
@@ -29,4 +31,9 @@ export type UserCreateDTO = {
 export type UserUpdateDTO = {
     name?: string;
     email?: string;
+};
+
+export type AccountRequestDTO = {
+    email: string;
+    name: string;
 };

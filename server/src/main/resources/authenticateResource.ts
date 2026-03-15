@@ -1,8 +1,9 @@
 import express, { Request, Response, Router } from 'express';
 import UserService from '../services/userService';
 import ActivityService from '../services/activityService';
-import { AuthAction } from '../types/activityTypes';
+import { AuthAction, EntityType, UserAction } from '../types/activityTypes';
 import { injectable } from "tsyringe";
+import { AccountRequestDTO } from '../types/userTypes';
 
 @injectable()
 export default class AuthenticateResource {
@@ -41,6 +42,28 @@ export default class AuthenticateResource {
             });
 
             res.status(200).json(response);
+        });
+
+        // Public: request an account (creates pending user + notifies approvers)
+        this.router.post('/request-account', async (req: Request, res: Response) => {
+            try {
+                const { email, name } = req.body as AccountRequestDTO;
+                if (!email || !name) {
+                    return res.status(400).json({ message: 'email and name are required' });
+                }
+                const user = await this.userService.requestAccount({ email, name });
+                await this.activityService.log({
+                    entity_type: EntityType.USER,
+                    entity_id: user.id,
+                    action: UserAction.USER_ACCOUNT_REQUESTED,
+                    action_details: { name, email },
+                });
+                return res.status(201).json({ success: true });
+            } catch (error) {
+                console.error('Error requesting account:', error);
+                const message = error instanceof Error ? error.message : 'Failed to request account';
+                return res.status(400).json({ message });
+            }
         });
     }
 

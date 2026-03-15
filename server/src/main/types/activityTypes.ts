@@ -70,6 +70,8 @@ export enum UserAction {
     ROLE_CHANGED = 'user_role_changed',
     PERMISSIONS_CHANGED = 'user_permissions_changed',
     USER_CREATED = 'user_created',
+    USER_ACCOUNT_REQUESTED = 'user_account_requested',
+    USER_ACCOUNT_APPROVED = 'user_account_approved',
     PASSWORD_RESET = 'user_password_reset',
     PASSWORD_CHANGED = 'user_password_changed',
 }

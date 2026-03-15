@@ -169,6 +169,37 @@ export default class UserResource {
             }
         });
 
+        // Approve a pending account — assign role + generate temp password + send invite email
+        this.router.post('/users/:id/approve', requirePermission(UserPermission.APPROVE), async (req: Request, res: Response) => {
+            try {
+                const { role_id } = req.body;
+                if (!role_id) return res.status(400).json({ message: 'role_id is required' });
+                const user = await this.userService.approveAccount(req.params.id, role_id);
+                if (!user) return res.status(404).json({ message: 'Pending user not found' });
+                await this.activityService.log({
+                    user_id: req.user.id,
+                    entity_type: EntityType.USER,
+                    entity_id: req.params.id,
+                    action: UserAction.USER_ACCOUNT_APPROVED,
+                    action_details: { role_id, approved_by: req.user.id },
+                });
+                return res.status(200).json(user);
+            } catch (error) {
+                console.error('Error approving account:', error);
+                return res.status(500).json({ message: error instanceof Error ? error.message : 'Failed to approve account' });
+            }
+        });
+
+        // Update current user's navbar preference
+        this.router.patch('/me/navbar', async (req: Request, res: Response) => {
+            const { navbar_open } = req.body;
+            if (typeof navbar_open !== 'boolean') {
+                return res.status(400).json({ message: 'navbar_open must be a boolean' });
+            }
+            await this.userService.updateNavbarOpen(req.user.id, navbar_open);
+            return res.status(200).json({ success: true });
+        });
+
         // Get all available permissions grouped by entity (for the UI checkboxes)
         this.router.get('/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
             res.status(200).json({

@@ -18,6 +18,7 @@ export enum Permission {
     COUNTIES_MANAGE = 'counties.manage',
     LOGS_VIEW = 'logs.view',
     USERS_MANAGE = 'users.manage',
+    USERS_APPROVE = 'users.approve',
     ACTIVITY_VIEW = 'activity.view',
     TRASH_REASONS_MANAGE = 'trash_reasons.manage',
     DISPUTES_CREATE = 'disputes.create',
@@ -32,6 +33,8 @@ export type User = {
     permission_role_name?: string | null;
     permissions?: Permission[];
     must_change_password?: boolean;
+    status?: 'active' | 'pending';
+    navbar_open?: boolean;
 };
 
 export type UserCreateDTO = {
@@ -43,6 +46,11 @@ export type UserCreateDTO = {
 export type UserUpdateDTO = {
     name?: string;
     email?: string;
+};
+
+export type AccountRequestDTO = {
+    email: string;
+    name: string;
 };
 
 export type Session = {

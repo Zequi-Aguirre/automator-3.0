@@ -35,10 +35,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EditIcon from '@mui/icons-material/Edit';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
 import roleService from '../../../services/role.service';
 import { Permission, User, UserCreateDTO, UserRole, UserUpdateDTO } from '../../../types/userTypes';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { PermissionRole } from '../../../types/roleTypes';
 import DataContext from '../../../context/DataContext';
 
@@ -53,6 +55,7 @@ const permLabel = (perm: string) =>
 
 const AdminUsersSection = () => {
     const { loggedInUser } = useContext(DataContext);
+    const { can } = usePermissions();
     const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -68,6 +71,11 @@ const AdminUsersSection = () => {
     const [createForm, setCreateForm] = useState<UserCreateDTO>({ email: '', name: '', role_id: '' });
     const [createError, setCreateError] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
+
+    // Approve account dialog
+    const [approveUser, setApproveUser] = useState<User | null>(null);
+    const [approveRoleId, setApproveRoleId] = useState('');
+    const [approving, setApproving] = useState(false);
 
     // Edit user dialog (name/email only)
     const [editUser, setEditUser] = useState<User | null>(null);
@@ -194,6 +202,23 @@ const AdminUsersSection = () => {
         }
     };
 
+    // Approve account handler
+    const handleApproveAccount = async () => {
+        if (!approveUser || !approveRoleId) return;
+        setApproving(true);
+        try {
+            const approved = await userService.approveAccount(approveUser.id, approveRoleId);
+            setUsers(prev => prev.map(u => u.id === approveUser.id ? { ...u, ...approved } : u));
+            setApproveUser(null);
+            setApproveRoleId('');
+            setSnack({ open: true, message: `Account approved — invite email sent to ${approveUser.email}`, severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to approve account', severity: 'error' });
+        } finally {
+            setApproving(false);
+        }
+    };
+
     // Reset password handler
     const handleResetPassword = async (user: User) => {
         try {
@@ -243,15 +268,19 @@ const AdminUsersSection = () => {
                                         {users.map((u) => {
                                             const isSelf = u.id === loggedInUser?.id;
                                             const isSuperAdmin = u.role === 'superadmin';
+                                            const isPending = u.status === 'pending';
                                             return (
-                                                <TableRow key={u.id} hover>
+                                                <TableRow key={u.id} hover sx={isPending ? { opacity: 0.8 } : {}}>
                                                     <TableCell>
                                                         <Stack direction="row" alignItems="center" spacing={1}>
                                                             <span>{u.name}</span>
                                                             {isSelf && (
                                                                 <Chip label="you" size="small" variant="outlined" />
                                                             )}
-                                                            {u.must_change_password && (
+                                                            {isPending && (
+                                                                <Chip label="pending approval" size="small" color="info" variant="outlined" />
+                                                            )}
+                                                            {u.must_change_password && !isPending && (
                                                                 <Chip label="must change password" size="small" color="warning" variant="outlined" />
                                                             )}
                                                         </Stack>
@@ -295,33 +324,57 @@ const AdminUsersSection = () => {
                                                     </TableCell>
                                                     <TableCell align="right">
                                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                                            <Button
-                                                                size="small"
-                                                                onClick={() => { navigate(`/users/${u.id}`); }}
-                                                            >
-                                                                View
-                                                            </Button>
-                                                            <Tooltip title="Edit name / email">
-                                                                <IconButton size="small" onClick={() => { handleOpenEdit(u); }}>
-                                                                    <EditIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                            <Tooltip title="Reset password">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() => { void handleResetPassword(u); }}
-                                                                    disabled={isSelf}
-                                                                >
-                                                                    <LockResetIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                            <Button
-                                                                size="small"
-                                                                onClick={() => { handleOpenPermDialog(u); }}
-                                                                disabled={isSuperAdmin && !isSelf}
-                                                            >
-                                                                Permissions
-                                                            </Button>
+                                                            {isPending
+                                                                ? (
+                                                                    <>
+                                                                        {can(Permission.USERS_APPROVE) && (
+                                                                            <Tooltip title="Approve account">
+                                                                                <IconButton
+                                                                                    size="small"
+                                                                                    color="success"
+                                                                                    onClick={() => {
+                                                                                        setApproveUser(u);
+                                                                                        setApproveRoleId('');
+                                                                                    }}
+                                                                                >
+                                                                                    <CheckCircleOutlineIcon fontSize="small" />
+                                                                                </IconButton>
+                                                                            </Tooltip>
+                                                                        )}
+                                                                    </>
+                                                                )
+                                                                : (
+                                                                    <>
+                                                                        <Button
+                                                                            size="small"
+                                                                            onClick={() => { navigate(`/users/${u.id}`); }}
+                                                                        >
+                                                                            View
+                                                                        </Button>
+                                                                        <Tooltip title="Edit name / email">
+                                                                            <IconButton size="small" onClick={() => { handleOpenEdit(u); }}>
+                                                                                <EditIcon fontSize="small" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                        <Tooltip title="Reset password">
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                onClick={() => { void handleResetPassword(u); }}
+                                                                                disabled={isSelf}
+                                                                            >
+                                                                                <LockResetIcon fontSize="small" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                        <Button
+                                                                            size="small"
+                                                                            onClick={() => { handleOpenPermDialog(u); }}
+                                                                            disabled={isSuperAdmin && !isSelf}
+                                                                        >
+                                                                            Permissions
+                                                                        </Button>
+                                                                    </>
+                                                                )
+                                                            }
                                                         </Stack>
                                                     </TableCell>
                                                 </TableRow>
@@ -516,6 +569,39 @@ const AdminUsersSection = () => {
                     <Button onClick={closePermDialog}>Cancel</Button>
                     <Button onClick={() => { void handleSavePermissions(); }} variant="contained" disabled={saving}>
                         {saving ? 'Saving…' : 'Save'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Approve Account Dialog */}
+            <Dialog open={!!approveUser} onClose={() => { setApproveUser(null); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Approve Account — {approveUser?.name}</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Select a role to assign to <strong>{approveUser?.email}</strong>. A temporary password will be generated and emailed to them.
+                    </Typography>
+                    <Select
+                        size="small"
+                        value={approveRoleId}
+                        onChange={e => { setApproveRoleId(e.target.value); }}
+                        fullWidth
+                        displayEmpty
+                    >
+                        <MenuItem value="" disabled>Select a role…</MenuItem>
+                        {roles.map(r => (
+                            <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                        ))}
+                    </Select>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setApproveUser(null); }}>Cancel</Button>
+                    <Button
+                        onClick={() => { void handleApproveAccount(); }}
+                        variant="contained"
+                        color="success"
+                        disabled={approving || !approveRoleId}
+                    >
+                        {approving ? 'Approving…' : 'Approve'}
                     </Button>
                 </DialogActions>
             </Dialog>
