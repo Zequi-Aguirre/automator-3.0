@@ -213,7 +213,7 @@ export default function NavBar() {
             {/* User avatar */}
             <Tooltip
                 title={isCollapsed
-                    ? `${loggedInUser?.name ?? ''}${loggedInUser?.email ? ` · ${loggedInUser.email}` : ''}`
+                    ? <Box><div>{`${loggedInUser?.name ?? ''}${loggedInUser?.email ? ` · ${loggedInUser.email}` : ''}`}</div><div style={{ opacity: 0.7, textTransform: 'capitalize' }}>{loggedInUser?.role ?? ''}</div></Box>
                     : (loggedInUser?.email ?? '')}
                 placement="right"
             >
