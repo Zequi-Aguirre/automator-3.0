@@ -1,454 +1,224 @@
-import {useCallback, useContext, useEffect, useState} from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import jobService from "../../../services/job.service";
 import workerService from "../../../services/worker.service.tsx";
 import AdminJobsTable from "./adminJobsTable/AdminJobsTable.tsx";
-import CustomPagination from "../../Pagination";
+import JobDetailDrawer from "./JobDetailDrawer.tsx";
 import {
-    Box,
-    Typography,
-    CircularProgress,
-    Container,
-    Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    FormControlLabel,
-    Switch,
     Alert,
-    Snackbar,
+    Box,
+    Button,
     Card,
     CardContent,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControlLabel,
+    Snackbar,
+    Switch,
+    TableContainer,
+    TextField,
+    Typography,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import { Job } from "../../../types/jobTypes";
 import DataContext from "../../../context/DataContext.tsx";
 
-const INITIAL_JOB_STATE = {
-    name: "",
-    description: "",
-    interval_minutes: 60,
-    is_paused: false
-};
+const INITIAL_JOB_STATE = { name: "", description: "", interval_minutes: 60, is_paused: false };
 
 const AdminJobsSection = () => {
-    const { role } = useContext(DataContext)
+    const { role } = useContext(DataContext);
     const isSuperAdmin = role === 'superadmin';
-    const [jobs, setJobs] = useState<Job[]>([]);
-    const [page, setPage] = useState(1);
-    const [jobCount, setJobCount] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [limit, setLimit] = useState(50);
 
+    const [jobs, setJobs] = useState<Job[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [newJob, setNewJob] = useState(INITIAL_JOB_STATE);
 
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error"
-    });
-
-    // Worker UI state
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
     const [workerLoading, setWorkerLoading] = useState(true);
     const [workerEnabled, setWorkerEnabled] = useState(false);
     const [cronSchedule, setCronSchedule] = useState("");
     const [cronDraft, setCronDraft] = useState("");
 
-    const showNotification = useCallback(
-        (message: string, severity: "success" | "error") => {
-            setSnackbar({
-                open: true,
-                message,
-                severity
-            });
-        },
-        []
-    );
+    const show = useCallback((message: string, severity: "success" | "error") => {
+        setSnackbar({ open: true, message, severity });
+    }, []);
 
     const fetchJobs = useCallback(async () => {
         try {
             const response = await jobService.getAll();
             setJobs(response);
-            setJobCount(response.length);
-        } catch (error) {
-            console.error("Error fetching jobs:", error);
-            showNotification("Failed to fetch jobs", "error");
+        } catch {
+            show("Failed to fetch jobs", "error");
         } finally {
             setLoading(false);
         }
-    }, [showNotification]);
+    }, [show]);
 
     const fetchWorkerStatus = useCallback(async () => {
         try {
             setWorkerLoading(true);
-
             const status = await workerService.getStatus();
-            const enabled = Boolean(status.worker_enabled);
-            const cron = status.cron_schedule ?? "";
-
-            setWorkerEnabled(enabled);
-            setCronSchedule(cron);
-            setCronDraft(cron);
-        } catch (error) {
-            console.error("Error fetching worker status:", error);
-            showNotification("Failed to fetch worker status", "error");
+            setWorkerEnabled(Boolean(status.worker_enabled));
+            setCronSchedule(status.cron_schedule ?? "");
+            setCronDraft(status.cron_schedule ?? "");
+        } catch {
+            show("Failed to fetch worker status", "error");
         } finally {
             setWorkerLoading(false);
         }
-    }, [showNotification]);
+    }, [show]);
 
     useEffect(() => {
         fetchJobs();
         fetchWorkerStatus();
     }, [fetchJobs, fetchWorkerStatus]);
 
-    const handleCreateModalClose = useCallback(() => {
-        setCreateModalOpen(false);
-        setNewJob(INITIAL_JOB_STATE);
-    }, []);
-
-    const handleInputChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-            const { name, value, type } = e.target;
-
-            if (name === "interval_minutes") {
-                const numValue = parseInt(value, 10);
-                if (Number.isNaN(numValue) || numValue < 1) {
-                    return;
-                }
-                setNewJob(prev => ({
-                    ...prev,
-                    [name]: numValue
-                }));
-                return;
-            }
-
-            const inputValue =
-                type === "checkbox"
-                    ? (e.target as HTMLInputElement).checked
-                    : value;
-
-            setNewJob(prev => ({
-                ...prev,
-                [name]: inputValue
-            }));
-        },
-        []
-    );
-
-    const handleCreateJob = useCallback(async () => {
-        try {
-            if (!newJob.name.trim()) {
-                showNotification("Job name is required", "error");
-                return;
-            }
-
-            if (!newJob.interval_minutes || newJob.interval_minutes < 1) {
-                showNotification("Valid interval minutes are required", "error");
-                return;
-            }
-
-            const createdJob = await jobService.createJob({
-                name: newJob.name,
-                description: newJob.description,
-                interval_minutes: newJob.interval_minutes
-            });
-
-            setJobs(prev => [createdJob, ...prev]);
-            setJobCount(prev => prev + 1);
-
-            handleCreateModalClose();
-            showNotification("Job created successfully", "success");
-        } catch (error) {
-            console.error("Error creating job:", error);
-            showNotification("Failed to create job", "error");
-        }
-    }, [newJob, showNotification, handleCreateModalClose]);
-
-    const handleSnackbarClose = useCallback(() => {
-        setSnackbar(prev => ({ ...prev, open: false }));
-    }, []);
-
     const handleToggleWorker = useCallback(async () => {
         try {
             setWorkerLoading(true);
-
             if (workerEnabled) {
                 await workerService.stopWorker();
-                showNotification("Worker stopped", "success");
+                show("Worker stopped", "success");
             } else {
                 await workerService.startWorker();
-                showNotification("Worker started", "success");
+                show("Worker started", "success");
             }
-
             await fetchWorkerStatus();
-        } catch (error) {
-            console.error("Error toggling worker:", error);
-            showNotification("Failed to toggle worker", "error");
+        } catch {
+            show("Failed to toggle worker", "error");
         } finally {
             setWorkerLoading(false);
         }
-    }, [workerEnabled, fetchWorkerStatus, showNotification]);
+    }, [workerEnabled, fetchWorkerStatus, show]);
 
     const handleSaveCron = useCallback(async () => {
+        if (!cronDraft.trim()) { show("Cron schedule cannot be empty", "error"); return; }
         try {
-            if (!cronDraft.trim()) {
-                showNotification("Cron schedule cannot be empty", "error");
-                return;
-            }
-
             setWorkerLoading(true);
             await workerService.updateCronSchedule(cronDraft.trim());
-            showNotification("Cron schedule updated", "success");
-
+            show("Cron schedule updated", "success");
             await fetchWorkerStatus();
-        } catch (error) {
-            console.error("Error updating cron schedule:", error);
-            showNotification("Failed to update cron schedule", "error");
+        } catch {
+            show("Failed to update cron schedule", "error");
         } finally {
             setWorkerLoading(false);
         }
-    }, [cronDraft, fetchWorkerStatus, showNotification]);
+    }, [cronDraft, fetchWorkerStatus, show]);
+
+    const handleCreateJob = useCallback(async () => {
+        if (!newJob.name.trim()) { show("Job name is required", "error"); return; }
+        if (!newJob.interval_minutes || newJob.interval_minutes < 1) { show("Valid interval is required", "error"); return; }
+        try {
+            const created = await jobService.createJob({ name: newJob.name, description: newJob.description, interval_minutes: newJob.interval_minutes });
+            setJobs(prev => [created, ...prev]);
+            setCreateModalOpen(false);
+            setNewJob(INITIAL_JOB_STATE);
+            show("Job created", "success");
+        } catch {
+            show("Failed to create job", "error");
+        }
+    }, [newJob, show]);
 
     return (
-        <Container
-            maxWidth={false}
-            sx={{
-                height: "calc(100vh - 64px)",
-                display: "flex",
-                flexDirection: "column",
-                p: 0
-            }}
-        >
-            <Box
-                sx={{
-                    p: 4,
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100%",
-                    overflow: "hidden",
-                    gap: 3
-                }}
-            >
-                {/* Worker Controls */}
-                <Card variant="outlined">
-                    <CardContent sx={{ py: 1.5 }}>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 2,
-                                flexWrap: "wrap" // wraps nicely on small screens
-                            }}
-                        >
-                            <Typography
-                                variant="h6"
-                                sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}
-                            >
-                                Worker Controls
-                            </Typography>
-
-                            {workerLoading
-                            ? (
-                                <CircularProgress size={20} />
-                            )
-                            : (
-                                <FormControlLabel
-                                    sx={{ m: 0, whiteSpace: "nowrap" }}
-                                    control={
-                                        <Switch
-                                            checked={workerEnabled}
-                                            onChange={handleToggleWorker}
-                                        />
-                                    }
-                                    label={workerEnabled ? "Worker ON" : "Worker OFF"}
-                                />
-                            )}
-
-                            { isSuperAdmin && (
-                                <>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 4, height: "100%" }}>
+            {/* Worker Controls */}
+            <Card variant="outlined">
+                <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                        <Typography variant="subtitle1" fontWeight={600} sx={{ whiteSpace: "nowrap" }}>
+                            Worker
+                        </Typography>
+                        {workerLoading ? (
+                            <CircularProgress size={20} />
+                        ) : (
+                            <FormControlLabel
+                                sx={{ m: 0 }}
+                                control={<Switch checked={workerEnabled} onChange={handleToggleWorker} />}
+                                label={workerEnabled ? "ON" : "OFF"}
+                            />
+                        )}
+                        {isSuperAdmin && (
+                            <>
                                 <TextField
                                     size="small"
                                     label="Cron Schedule"
                                     value={cronDraft}
-                                    onChange={(e) => {
-                                        setCronDraft(e.target.value);
-                                    }}
+                                    onChange={(e) => setCronDraft(e.target.value)}
                                     disabled={workerEnabled || workerLoading}
-                                    sx={{ flex: "1 1 360px" }} // grows but has a decent minimum width
-                                    helperText={
-                                        workerEnabled
-                                            ? "Disable worker to edit cron schedule"
-                                            : "Example: */5 * * * *"
-                                    }
+                                    sx={{ flex: "1 1 280px" }}
+                                    helperText={workerEnabled ? "Disable worker to edit" : "e.g. */5 * * * *"}
                                 />
-
                                 <Button
                                     variant="contained"
+                                    size="small"
                                     onClick={handleSaveCron}
-                                    disabled={
-                                        workerEnabled ||
-                                        workerLoading ||
-                                        cronDraft.trim() === cronSchedule.trim()
-                                    }
+                                    disabled={workerEnabled || workerLoading || cronDraft.trim() === cronSchedule.trim()}
                                     sx={{ whiteSpace: "nowrap" }}
                                 >
                                     Save
                                 </Button>
-                            </>)
-                        }
-                        </Box>
-                    </CardContent>
-                </Card>
-
-                {/* Jobs Header */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 1
-                    }}
-                >
-                    <Typography variant="h4" component="h2" sx={{ fontWeight: "bold" }}>
-                        Jobs
-                    </Typography>
-                    { isSuperAdmin && (
-                        <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
-                            onClick={() => {
-                                setCreateModalOpen(true);
-                            }}
-                        >
-                            Create New
-                        </Button>
-                    )}
-                </Box>
-
-                {loading
-? (
-                    <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                        <CircularProgress />
+                            </>
+                        )}
                     </Box>
-                )
-: (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            height: "100%",
-                            overflow: "hidden"
-                        }}
-                    >
-                        <Box sx={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
-                            <AdminJobsTable jobs={jobs} setJobs={setJobs} />
-                        </Box>
+                </CardContent>
+            </Card>
 
-                        <Box sx={{ backgroundColor: "background.paper" }}>
-                            <CustomPagination
-                                page={page}
-                                setPage={setPage}
-                                rows={jobCount}
-                                limit={limit}
-                                setLimit={setLimit}
-                            />
-                        </Box>
-                    </Box>
+            {/* Jobs */}
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="h6" fontWeight={600}>Jobs</Typography>
+                {isSuperAdmin && (
+                    <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setCreateModalOpen(true)}>
+                        Create
+                    </Button>
                 )}
             </Box>
 
-            {/* Create Job Modal */}
-            <Dialog
-                open={createModalOpen}
-                onClose={handleCreateModalClose}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Create New Job</DialogTitle>
+            {loading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                    <CircularProgress />
+                </Box>
+            ) : (
+                <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1, overflow: "auto" }}>
+                    <AdminJobsTable jobs={jobs} setJobs={setJobs} onSelectJob={setSelectedJobId} />
+                </TableContainer>
+            )}
+
+            {/* Job Detail Drawer */}
+            <JobDetailDrawer
+                jobId={selectedJobId}
+                onClose={() => setSelectedJobId(null)}
+                onJobUpdated={(updated) => setJobs(prev => prev.map(j => j.id === updated.id ? updated : j))}
+                onJobDeleted={(id) => setJobs(prev => prev.filter(j => j.id !== id))}
+            />
+
+            {/* Create Job Dialog */}
+            <Dialog open={createModalOpen} onClose={() => { setCreateModalOpen(false); setNewJob(INITIAL_JOB_STATE); }} maxWidth="sm" fullWidth>
+                <DialogTitle>Create Job</DialogTitle>
                 <DialogContent>
-                    <Box
-                        sx={{
-                            mt: 2,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2
-                        }}
-                    >
-                        <TextField
-                            fullWidth
-                            label="Job Name"
-                            name="name"
-                            value={newJob.name}
-                            onChange={handleInputChange}
-                            required
-                        />
-
-                        <TextField
-                            fullWidth
-                            label="Description"
-                            name="description"
-                            value={newJob.description}
-                            onChange={handleInputChange}
-                            multiline
-                            rows={3}
-                        />
-
-                        <TextField
-                            fullWidth
-                            label="Interval (minutes)"
-                            name="interval_minutes"
-                            type="number"
-                            value={newJob.interval_minutes}
-                            onChange={handleInputChange}
-                            required
-                            inputProps={{ min: 1 }}
-                        />
-
+                    <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                        <TextField fullWidth label="Job Name" value={newJob.name} onChange={(e) => setNewJob(p => ({ ...p, name: e.target.value }))} required size="small" />
+                        <TextField fullWidth label="Description" value={newJob.description} onChange={(e) => setNewJob(p => ({ ...p, description: e.target.value }))} multiline rows={2} size="small" />
+                        <TextField fullWidth label="Interval (minutes)" type="number" value={newJob.interval_minutes} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1) setNewJob(p => ({ ...p, interval_minutes: v })); }} required inputProps={{ min: 1 }} size="small" />
                         <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={!newJob.is_paused}
-                                    onChange={(e) => {
-                                        setNewJob(prev => ({
-                                            ...prev,
-                                            is_paused: !e.target.checked
-                                        }));
-                                    }}
-                                    name="is_paused"
-                                />
-                            }
-                            label="Start Job Immediately"
+                            control={<Switch checked={!newJob.is_paused} onChange={(e) => setNewJob(p => ({ ...p, is_paused: !e.target.checked }))} />}
+                            label="Start immediately"
                         />
                     </Box>
                 </DialogContent>
-
                 <DialogActions>
-                    <Button onClick={handleCreateModalClose}>Cancel</Button>
-                    <Button
-                        onClick={handleCreateJob}
-                        variant="contained"
-                        disabled={!newJob.name.trim() || !newJob.interval_minutes}
-                    >
-                        Create
-                    </Button>
+                    <Button onClick={() => { setCreateModalOpen(false); setNewJob(INITIAL_JOB_STATE); }}>Cancel</Button>
+                    <Button onClick={handleCreateJob} variant="contained" disabled={!newJob.name.trim()}>Create</Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Snackbar */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={handleSnackbarClose}
-                anchorOrigin={{ vertical: "top", horizontal: "right" }}
-            >
-                <Alert onClose={handleSnackbarClose} severity={snackbar.severity} variant="filled">
-                    {snackbar.message}
-                </Alert>
+            <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar(p => ({ ...p, open: false }))} anchorOrigin={{ vertical: "top", horizontal: "right" }}>
+                <Alert severity={snackbar.severity} variant="filled" onClose={() => setSnackbar(p => ({ ...p, open: false }))}>{snackbar.message}</Alert>
             </Snackbar>
-        </Container>
+        </Box>
     );
 };
 
