@@ -87,13 +87,16 @@ class LeadService {
 
     // Get buyer send history for lead
     async getBuyerSendHistory(leadId: string): Promise<{
+        outside_business_hours: boolean;
         buyers: Array<{
             buyer_id: string;
             buyer_name: string;
             buyer_priority: number;
-            dispatch_mode: 'manual' | 'worker' | 'both';
+            manual_send: boolean;
+            worker_send: boolean;
             sold: boolean;
             has_successful_send: boolean;
+            filter_warnings: string[];
             sends: Array<{
                 id: string;
                 status: string;

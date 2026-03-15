@@ -184,8 +184,8 @@ export default class LeadResource {
         this.router.get("/:leadId/buyers", requirePermission(LeadPermission.READ), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const history = await this.leadService.getBuyerSendHistory(leadId);
-                return res.status(200).send({ buyers: history });
+                const result = await this.leadService.getBuyerSendHistory(leadId);
+                return res.status(200).send(result);
             } catch (error) {
                 console.error('Error fetching buyer history:', error);
                 return res.status(500).send({
