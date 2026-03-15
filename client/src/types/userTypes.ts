@@ -25,6 +25,8 @@ export type User = {
     name: string;
     email: string;
     role: UserRole;
+    permission_role_id?: string | null;
+    permission_role_name?: string | null;
     permissions?: Permission[];
 };
 

@@ -1,5 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
 import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
     Alert,
     Box,
     Button,
@@ -25,6 +28,7 @@ import {
     TableRow,
     Typography,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
 import roleService from '../../../services/role.service';
@@ -80,10 +84,10 @@ const AdminUsersSection = () => {
         roleService.getAll().then(setRoles).catch(() => {});
     }, []);
 
-    const handleRoleChange = async (userId: string, role: 'user' | 'admin') => {
+    const handleRoleChange = async (userId: string, roleId: string) => {
         try {
-            await userService.updateRole(userId, role);
-            setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role } : u)));
+            const updated = await userService.assignRole(userId, roleId);
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updated } : u));
             setSnack({ open: true, message: 'Role updated', severity: 'success' });
         } catch {
             setSnack({ open: true, message: 'Failed to update role', severity: 'error' });
@@ -171,19 +175,22 @@ const AdminUsersSection = () => {
                                                             )
                                                             : (
                                                                 <Select
-                                                                    value={u.role}
+                                                                    value={u.permission_role_id ?? ''}
                                                                     size="small"
                                                                     variant="standard"
                                                                     disableUnderline
-                                                                    onChange={(e) => { void handleRoleChange(u.id, e.target.value as 'user' | 'admin'); }}
-                                                                    sx={{ fontSize: 'inherit' }}
+                                                                    displayEmpty
+                                                                    onChange={(e) => { void handleRoleChange(u.id, e.target.value); }}
+                                                                    sx={{ fontSize: 'inherit', minWidth: 100 }}
                                                                 >
-                                                                    <MenuItem value="user">
-                                                                        <Chip label="user" color={ROLE_COLORS.user} size="small" />
-                                                                    </MenuItem>
-                                                                    <MenuItem value="admin">
-                                                                        <Chip label="admin" color={ROLE_COLORS.admin} size="small" />
-                                                                    </MenuItem>
+                                                                    {u.permission_role_id === null || u.permission_role_id === undefined ? (
+                                                                        <MenuItem value="" disabled>
+                                                                            <Typography variant="body2" color="text.disabled">— no role —</Typography>
+                                                                        </MenuItem>
+                                                                    ) : null}
+                                                                    {roles.map(r => (
+                                                                        <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                                                                    ))}
                                                                 </Select>
                                                             )
                                                         }
@@ -229,17 +236,25 @@ const AdminUsersSection = () => {
             </Box>
 
             {/* Permissions Dialog */}
-            <Dialog open={!!permDialogUser} onClose={closePermDialog} maxWidth="sm" fullWidth>
+            <Dialog open={!!permDialogUser} onClose={closePermDialog} maxWidth="md" fullWidth>
                 <DialogTitle>
-                    Edit Permissions — {permDialogUser?.name}
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <span>Edit Permissions — {permDialogUser?.name}</span>
+                        <Chip
+                            label={`${selectedPerms.length} permissions`}
+                            size="small"
+                            color={selectedPerms.length > 0 ? 'primary' : 'default'}
+                            variant="outlined"
+                        />
+                    </Stack>
                 </DialogTitle>
-                <DialogContent>
+                <DialogContent dividers sx={{ maxHeight: 520, p: 0 }}>
                     {Object.keys(availablePerms).length === 0
-                        ? <CircularProgress size={20} />
+                        ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress size={24} /></Box>
                         : (
-                            <Stack spacing={2} sx={{ mt: 1 }}>
+                            <>
                                 {roles.length > 0 && (
-                                    <Box>
+                                    <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
                                         <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary' }}>
                                             Apply role template
                                         </Typography>
@@ -257,33 +272,63 @@ const AdminUsersSection = () => {
                                         </Stack>
                                     </Box>
                                 )}
-                                {Object.entries(availablePerms).map(([group, perms]) => (
-                                    <Box key={group}>
-                                        <Typography
-                                            variant="overline"
-                                            sx={{ fontWeight: 700, color: 'text.secondary' }}
-                                        >
-                                            {group.replace(/_/g, ' ')}
-                                        </Typography>
-                                        <Stack direction="row" flexWrap="wrap" gap={0}>
-                                            {perms.map((perm) => (
-                                                <FormControlLabel
-                                                    key={perm}
-                                                    label={permLabel(perm)}
-                                                    control={
-                                                        <Checkbox
-                                                            size="small"
-                                                            checked={selectedPerms.includes(perm as Permission)}
-                                                            onChange={() => { handleTogglePerm(perm as Permission); }}
+                                {Object.entries(availablePerms).map(([group, perms]) => {
+                                    const groupPerms = perms as Permission[];
+                                    const selectedInGroup = groupPerms.filter(p => selectedPerms.includes(p)).length;
+                                    const allSelected = selectedInGroup === groupPerms.length;
+                                    const someSelected = selectedInGroup > 0 && !allSelected;
+                                    const toggleGroup = () => {
+                                        setSelectedPerms(prev =>
+                                            allSelected
+                                                ? prev.filter(p => !groupPerms.includes(p))
+                                                : [...new Set([...prev, ...groupPerms])]
+                                        );
+                                    };
+                                    return (
+                                        <Accordion key={group} disableGutters elevation={0} sx={{ '&:before': { display: 'none' }, borderBottom: 1, borderColor: 'divider' }}>
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
+                                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, mr: 1 }}>
+                                                    <Checkbox
+                                                        size="small"
+                                                        checked={allSelected}
+                                                        indeterminate={someSelected}
+                                                        onChange={e => { e.stopPropagation(); toggleGroup(); }}
+                                                        onClick={e => e.stopPropagation()}
+                                                        sx={{ p: 0.5 }}
+                                                    />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                                                        {group.replace(/_/g, ' ')}
+                                                    </Typography>
+                                                    <Chip
+                                                        label={`${selectedInGroup} / ${groupPerms.length}`}
+                                                        size="small"
+                                                        color={selectedInGroup > 0 ? 'primary' : 'default'}
+                                                        variant={selectedInGroup > 0 ? 'filled' : 'outlined'}
+                                                    />
+                                                </Stack>
+                                            </AccordionSummary>
+                                            <AccordionDetails sx={{ px: 3, pt: 0, pb: 1.5 }}>
+                                                <Stack direction="row" flexWrap="wrap">
+                                                    {groupPerms.map(perm => (
+                                                        <FormControlLabel
+                                                            key={perm}
+                                                            label={permLabel(perm)}
+                                                            control={
+                                                                <Checkbox
+                                                                    size="small"
+                                                                    checked={selectedPerms.includes(perm)}
+                                                                    onChange={() => { handleTogglePerm(perm); }}
+                                                                />
+                                                            }
+                                                            sx={{ minWidth: 150 }}
                                                         />
-                                                    }
-                                                    sx={{ minWidth: 160 }}
-                                                />
-                                            ))}
-                                        </Stack>
-                                    </Box>
-                                ))}
-                            </Stack>
+                                                    ))}
+                                                </Stack>
+                                            </AccordionDetails>
+                                        </Accordion>
+                                    );
+                                })}
+                            </>
                         )
                     }
                 </DialogContent>

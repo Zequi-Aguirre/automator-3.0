@@ -1,4 +1,5 @@
 import UserDAO from '../data/userDAO';
+import RoleDAO from '../data/roleDAO';
 import { injectable } from "tsyringe";
 import { AuthTokenResponse, User, UserWithPermissions } from "../types/userTypes.ts";
 import { AuthUtils } from "../middleware/tokenGenerator";
@@ -9,6 +10,7 @@ export default class UserService {
 
     constructor(
         private readonly userDAO: UserDAO,
+        private readonly roleDAO: RoleDAO,
         private readonly authUtils: AuthUtils,
     ) {}
 
@@ -54,5 +56,12 @@ export default class UserService {
         if (requestingRole !== 'superadmin') return false;
         await this.userDAO.setPermissions(targetId, permissions);
         return true;
+    }
+
+    async assignRole(targetId: string, roleId: string): Promise<(User & { permissions: Permission[] }) | null> {
+        const role = await this.roleDAO.getById(roleId);
+        if (!role) return null;
+        await this.userDAO.assignRole(targetId, roleId, role.permissions);
+        return this.userDAO.getOneById(targetId);
     }
 }
