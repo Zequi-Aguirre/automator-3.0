@@ -63,7 +63,7 @@ export default function NavBar() {
         { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.COUNTIES_MANAGE },
         { label: "Logs", icon: <ReceiptIcon />, path: "/logs", pathMatch: "/logs", permission: Permission.LOGS_VIEW },
         { label: "Activity", icon: <TimelineIcon />, path: "/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
-        { label: "Worker Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.SETTINGS_MANAGE },
+        { label: "Worker Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.WORKER_SETTINGS_MANAGE },
         { label: "Roles", icon: <AdminPanelSettingsIcon />, path: "/roles", pathMatch: "/roles", permission: Permission.USERS_MANAGE },
         { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
     ], []);

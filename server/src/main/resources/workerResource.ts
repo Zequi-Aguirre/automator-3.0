@@ -5,7 +5,7 @@ import ActivityService from "../services/activityService";
 import { WorkerAction } from "../types/activityTypes";
 import { Worker } from "../worker/Worker";
 import { requirePermission } from '../middleware/requirePermission';
-import { WorkerPermission } from '../types/permissionTypes';
+import { WorkerSettingsPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class WorkerResource {
@@ -30,7 +30,7 @@ export default class WorkerResource {
         // Start worker (enable in DB, then initialize cron)
         this.router.patch(
             "/start",
-            requirePermission(WorkerPermission.TOGGLE),
+            requirePermission(WorkerSettingsPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
@@ -64,7 +64,7 @@ export default class WorkerResource {
         // Stop worker (disable in DB, stop cron)
         this.router.patch(
             "/stop",
-            requirePermission(WorkerPermission.TOGGLE),
+            requirePermission(WorkerSettingsPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
@@ -98,7 +98,7 @@ export default class WorkerResource {
         // Get worker status from DB + runtime
         this.router.get(
             "/status",
-            requirePermission(WorkerPermission.TOGGLE),
+            requirePermission(WorkerSettingsPermission.TOGGLE),
             async (_req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
@@ -126,7 +126,7 @@ export default class WorkerResource {
         // Update cron schedule in DB, restart worker if enabled
         this.router.patch(
             "/update-cron",
-            requirePermission(WorkerPermission.TOGGLE),
+            requirePermission(WorkerSettingsPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
                     const { cron_schedule } = req.body;
