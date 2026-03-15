@@ -1,5 +1,5 @@
 import { authProvider, AxiosProvider } from "../config/axiosProvider";
-import { County } from "../types/countyTypes";
+import { County, CountyFilterUpdateDTO } from "../types/countyTypes";
 
 class CountyService {
     constructor(private readonly api: AxiosProvider) {}
@@ -41,6 +41,11 @@ class CountyService {
             `/api/counties/${id}`,
             updates
         );
+        return res.data;
+    }
+
+    async updateBuyerFilter(id: string, dto: CountyFilterUpdateDTO): Promise<County> {
+        const res = await this.api.getApi().patch(`/api/counties/${id}/buyer-filters`, dto);
         return res.data;
     }
 

@@ -7,6 +7,7 @@ import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanel
 import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
 import AdminCountyDetailsView from "../../views/adminViews/AdminCountyDetailsView.tsx";
 import AdminBuyersView from "../../views/adminViews/AdminBuyersView.tsx";
+import AdminBuyerDetailsView from "../../views/adminViews/AdminBuyerDetailsView.tsx";
 import AdminSourcesView from "../../views/adminViews/AdminSourcesView.tsx";
 import AdminSourceDetailsView from "../../views/adminViews/AdminSourceDetailsView.tsx";
 import AdminLeadManagersView from "../../views/adminViews/AdminLeadManagersView.tsx";
@@ -22,6 +23,7 @@ const AppRoutes = () => {
             <Route path="/leads/:id" element={<RequireAuth><AdminLeadDetailsView /></RequireAuth>} />
             <Route path="/campaigns" element={<RequireAuth><AdminCampaignsView /></RequireAuth>} />
             <Route path="/buyers" element={<RequireAuth><AdminBuyersView /></RequireAuth>} />
+            <Route path="/buyers/:id" element={<RequireAuth><AdminBuyerDetailsView /></RequireAuth>} />
             <Route path="/sources" element={<RequireAuth><AdminSourcesView /></RequireAuth>} />
             <Route path="/sources/:id" element={<RequireAuth><AdminSourceDetailsView /></RequireAuth>} />
             <Route path="/lead-managers" element={<RequireAuth><AdminLeadManagersView /></RequireAuth>} />
