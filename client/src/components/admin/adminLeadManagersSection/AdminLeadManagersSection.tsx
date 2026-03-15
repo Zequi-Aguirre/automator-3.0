@@ -118,7 +118,7 @@ const AdminLeadManagersSection = () => {
                                         <TableRow
                                             key={m.id}
                                             hover
-                                            onClick={() => navigate(`/a/lead-managers/${m.id}`)}
+                                            onClick={() => navigate(`/lead-managers/${m.id}`)}
                                             sx={{ cursor: 'pointer' }}
                                         >
                                             <TableCell>{m.name}</TableCell>
