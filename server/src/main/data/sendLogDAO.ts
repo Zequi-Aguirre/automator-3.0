@@ -19,18 +19,23 @@ export default class SendLogDAO {
                 buyer_id,
                 source_id,
                 campaign_id,
-                status
+                status,
+                send_source
             )
             VALUES (
                 $[lead_id],
                 $[buyer_id],
                 $[source_id],
                 $[campaign_id],
-                $[status]
+                $[status],
+                $[send_source]
             )
             RETURNING *;
         `;
-        return await this.db.one<SendLog>(query, data);
+        return await this.db.one<SendLog>(query, {
+            ...data,
+            send_source: data.send_source ?? null
+        });
     }
 
     async getMany(filters: {

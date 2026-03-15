@@ -8,6 +8,9 @@ export enum LeadPermission {
     TRASH = 'leads.trash',
     EDIT = 'leads.edit',
     UNTRASH = 'leads.untrash',
+    // TICKET-065: Call tracking permissions
+    CALL_REQUEST = 'leads.call_request',
+    CALL_EXECUTE = 'leads.call_execute',
 }
 
 export enum WorkerSettingsPermission {
@@ -73,6 +76,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
         LeadPermission.EDIT,
+        LeadPermission.CALL_REQUEST,
+        LeadPermission.CALL_EXECUTE,
         ActivityPermission.VIEW,
         DisputePermission.CREATE,
     ],
@@ -86,6 +91,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.TRASH,
         LeadPermission.EDIT,
         LeadPermission.UNTRASH,
+        LeadPermission.CALL_REQUEST,
+        LeadPermission.CALL_EXECUTE,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         CountyPermission.MANAGE,
@@ -104,6 +111,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.TRASH,
         LeadPermission.EDIT,
         LeadPermission.UNTRASH,
+        LeadPermission.CALL_REQUEST,
+        LeadPermission.CALL_EXECUTE,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         BuyerPermission.MANAGE,

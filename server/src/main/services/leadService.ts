@@ -289,6 +289,12 @@ export default class LeadService {
                     );
                 }
             } else {
+                // TICKET-064: Flag lead as needs_review if required fields are missing
+                const missingReason = this.getMissingFieldsReason(lead);
+                if (missingReason) {
+                    lead.needs_review = true;
+                    lead.needs_review_reason = missingReason;
+                }
                 survivors.push(lead);
             }
         }
@@ -375,6 +381,14 @@ export default class LeadService {
 
             lead.county_id = county.id;
             lead.county = county.name; // Use standardized county name
+
+            // TICKET-064: Flag lead as needs_review if required fields are missing
+            const missingReason = this.getMissingFieldsReason(lead);
+            if (missingReason) {
+                lead.needs_review = true;
+                lead.needs_review_reason = missingReason;
+            }
+
             resolvedLeads.push(lead);
         }
 
@@ -478,6 +492,67 @@ export default class LeadService {
 
         // No trash reasons during import - all valid leads should be imported
         return null;
+    }
+
+    /**
+     * TICKET-064: Check if a lead is missing required personal fields.
+     * Returns a description string if any are missing, or null if all present.
+     */
+    private getMissingFieldsReason(lead: parsedLeadFromCSV): string | null {
+        const required: Array<keyof parsedLeadFromCSV> = [
+            'first_name', 'last_name', 'phone', 'email', 'address'
+        ];
+        const missing = required.filter(f => !lead[f]);
+        if (missing.length === 0) return null;
+        return `Missing: ${missing.join(', ')}`;
+    }
+
+    /**
+     * TICKET-064: Clear the needs_review flag once missing info has been filled in.
+     */
+    async resolveNeedsReview(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.resolveNeedsReview(leadId);
+        await this.activityService.log({
+            user_id: userId ?? null,
+            lead_id: leadId,
+            action: LeadAction.NEEDS_REVIEW_RESOLVED
+        });
+        return lead;
+    }
+
+    /**
+     * TICKET-065: Flag a lead as needing a phone call.
+     */
+    async requestCall(leadId: string, reason: string, userId: string): Promise<Lead> {
+        const lead = await this.leadDAO.requestCall(leadId, reason, userId);
+        await this.activityService.log({
+            user_id: userId,
+            lead_id: leadId,
+            action: LeadAction.CALL_REQUESTED,
+            action_details: { reason }
+        });
+        return lead;
+    }
+
+    /**
+     * TICKET-065: Log a call attempt and its outcome.
+     * If outcome is 'resolved', the needs_call flag is cleared.
+     */
+    async executeCall(
+        leadId: string,
+        outcome: string,
+        notes: string | null,
+        userId: string
+    ): Promise<Lead> {
+        const lead = await this.leadDAO.executeCall(leadId, outcome, notes, userId);
+        const action = outcome === 'resolved' ? LeadAction.CALL_RESOLVED : LeadAction.CALL_EXECUTED;
+        await this.activityService.log({
+            user_id: userId,
+            lead_id: leadId,
+            action,
+            action_details: { outcome, notes }
+        });
+        return lead;
     }
 
     // ========================================

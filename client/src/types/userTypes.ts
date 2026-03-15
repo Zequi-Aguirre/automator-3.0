@@ -10,6 +10,8 @@ export enum Permission {
     LEADS_TRASH = 'leads.trash',
     LEADS_EDIT = 'leads.edit',
     LEADS_UNTRASH = 'leads.untrash',
+    LEADS_CALL_REQUEST = 'leads.call_request',
+    LEADS_CALL_EXECUTE = 'leads.call_execute',
     SOURCES_MANAGE = 'sources.manage',
     MANAGERS_MANAGE = 'managers.manage',
     BUYERS_MANAGE = 'buyers.manage',

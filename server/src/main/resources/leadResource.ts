@@ -18,11 +18,16 @@ export default class LeadResource {
         // Get many leads with pagination and oldDatabase support
         this.router.get("/get-many", requirePermission(LeadPermission.READ), async (req: Request, res: Response) => {
             try {
-                const filters = {
+                const filters: LeadFilters = {
                     page: Number(req.query.page) || 1,
                     limit: Number(req.query.limit) || 10,
                     search: req.query.search ? String(req.query.search) : "",
-                    status: req.query.status ? String(req.query.status) as LeadFilters['status'] : 'new'
+                    status: (req.query.status ? String(req.query.status) : 'new') as LeadFilters['status'],
+                    // TICKET-066: Sent tab advanced filters
+                    buyer_id: req.query.buyer_id ? String(req.query.buyer_id) : undefined,
+                    send_source: req.query.send_source ? String(req.query.send_source) as LeadFilters['send_source'] : undefined,
+                    source_id: req.query.source_id ? String(req.query.source_id) : undefined,
+                    campaign_id: req.query.campaign_id ? String(req.query.campaign_id) : undefined,
                 };
 
                 const result = await this.leadService.getMany(filters);
@@ -271,6 +276,59 @@ export default class LeadResource {
 
                 return res.status(500).send({
                     message: 'Failed to unmark lead as sold',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // TICKET-064: Resolve needs_review flag (staff filled in missing info)
+        this.router.patch("/resolve-review/:leadId", requirePermission(LeadPermission.EDIT), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const lead = await this.leadService.resolveNeedsReview(leadId, req.user?.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                console.error('Error resolving needs_review:', error);
+                return res.status(500).send({
+                    message: 'Failed to resolve review flag',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // TICKET-065: Request a call for a lead
+        this.router.post("/:leadId/request-call", requirePermission(LeadPermission.CALL_REQUEST), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const { reason } = req.body;
+                if (!reason) {
+                    return res.status(400).send({ message: 'reason is required' });
+                }
+                const lead = await this.leadService.requestCall(leadId, reason, req.user.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                console.error('Error requesting call:', error);
+                return res.status(500).send({
+                    message: 'Failed to request call',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // TICKET-065: Log a call attempt and outcome
+        this.router.post("/:leadId/execute-call", requirePermission(LeadPermission.CALL_EXECUTE), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const { outcome, notes } = req.body;
+                if (!outcome) {
+                    return res.status(400).send({ message: 'outcome is required' });
+                }
+                const lead = await this.leadService.executeCall(leadId, outcome, notes ?? null, req.user.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                console.error('Error executing call:', error);
+                return res.status(500).send({
+                    message: 'Failed to log call',
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

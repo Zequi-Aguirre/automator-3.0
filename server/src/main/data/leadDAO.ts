@@ -98,6 +98,12 @@ export default class LeadDAO {
                 modified = NOW()
             WHERE deleted IS NULL
               AND sent = FALSE
+              AND NOT EXISTS (
+                  SELECT 1 FROM send_log
+                  WHERE send_log.lead_id = leads.id
+                    AND send_log.status = 'sent'
+                    AND send_log.deleted IS NULL
+              )
               AND created <= NOW() - ($[expireHours]::int * INTERVAL '1 hour')
             RETURNING id;
         `;
@@ -193,18 +199,39 @@ export default class LeadDAO {
         page: number;
         limit: number;
         search?: string;
-        status?: "new" | "verified" | "sent" | "sold" | "trash";
+        status?: "needs_review" | "needs_call" | "new" | "verified" | "sent" | "sold" | "trash";
+        buyer_id?: string;
+        send_source?: string;
+        source_id?: string;
+        campaign_id?: string;
     }): Promise<{ leads: Lead[]; count: number }> {
-        const { page, limit, search, status } = filters;
+        const { page, limit, search, status, buyer_id, send_source, source_id, campaign_id } = filters;
         const offset = (page - 1) * limit;
 
         const whereClauses: string[] = [];
+        const params: Record<string, unknown> = { limit, offset, search };
 
         // STATUS FILTER
         switch (status) {
+            case "needs_call":
+                whereClauses.push(`
+                l.needs_call = TRUE
+                AND l.deleted IS NULL
+            `);
+                break;
+
+            case "needs_review":
+                whereClauses.push(`
+                l.needs_review = TRUE
+                AND l.deleted IS NULL
+            `);
+                break;
+
             case "new":
                 whereClauses.push(`
                 l.verified = FALSE
+                AND l.needs_review = FALSE
+                AND l.needs_call = FALSE
                 AND l.deleted IS NULL
                 AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
             `);
@@ -218,12 +245,28 @@ export default class LeadDAO {
             `);
                 break;
 
-            case "sent":
+            case "sent": {
+                // Build the send_log subquery with optional buyer/source filters
+                const sentSubConditions = [
+                    'sl.lead_id = l.id',
+                    'sl.response_code >= 200',
+                    'sl.response_code < 300',
+                    'sl.deleted IS NULL'
+                ];
+                if (buyer_id) {
+                    sentSubConditions.push('sl.buyer_id = $[buyer_id]');
+                    params.buyer_id = buyer_id;
+                }
+                if (send_source) {
+                    sentSubConditions.push('sl.send_source = $[send_source]');
+                    params.send_source = send_source;
+                }
                 whereClauses.push(`
                 l.deleted IS NULL
-                AND EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
+                AND EXISTS (SELECT 1 FROM send_log sl WHERE ${sentSubConditions.join(' AND ')})
             `);
                 break;
+            }
 
             case "sold":
                 whereClauses.push(`
@@ -246,7 +289,17 @@ export default class LeadDAO {
 
         // SEARCH FILTER
         if (search) {
-            whereClauses.push(`l.county ILIKE '%' || $/search/ || '%'`);
+            whereClauses.push(`l.county ILIKE '%' || $[search] || '%'`);
+        }
+
+        // TICKET-066: Sent tab source/campaign filters
+        if (source_id) {
+            whereClauses.push(`l.source_id = $[source_id]`);
+            params.source_id = source_id;
+        }
+        if (campaign_id) {
+            whereClauses.push(`l.campaign_id = $[campaign_id]`);
+            params.campaign_id = campaign_id;
         }
 
         const whereSQL = whereClauses.length ? "WHERE " + whereClauses.join(" AND ") : "";
@@ -263,8 +316,8 @@ export default class LeadDAO {
                    c.platform AS campaign_platform
             ${baseQuery}
             ORDER BY l.modified DESC
-            LIMIT $/limit/
-            OFFSET $/offset/;
+            LIMIT $[limit]
+            OFFSET $[offset];
         `;
 
         const countQuery = `
@@ -272,13 +325,9 @@ export default class LeadDAO {
             ${baseQuery};
         `;
 
-        const leads = await this.db.manyOrNone<Lead>(leadsQuery, {
-            limit,
-            offset,
-            search
-        });
+        const leads = await this.db.manyOrNone<Lead>(leadsQuery, params);
 
-        const { total } = await this.db.one<{ total: number }>(countQuery, { search });
+        const { total } = await this.db.one<{ total: number }>(countQuery, params);
 
         return { leads, count: total };
     }
@@ -336,6 +385,7 @@ export default class LeadDAO {
                 FROM leads l
                 WHERE l.queued = TRUE
                 AND l.verified = TRUE
+                AND l.needs_call = FALSE
                 AND l.deleted IS NULL
                 -- Exclude leads already successfully sent to THIS buyer
                 AND NOT EXISTS (
@@ -366,6 +416,7 @@ export default class LeadDAO {
                 FROM leads
                 WHERE queued = TRUE
                 AND verified = TRUE
+                AND needs_call = FALSE
                 AND deleted IS NULL
                 ORDER BY created ASC
                 LIMIT 100
@@ -384,6 +435,7 @@ export default class LeadDAO {
                 FROM leads l
                 WHERE l.queued = TRUE
                 AND l.verified = FALSE
+                AND l.needs_call = FALSE
                 AND l.deleted IS NULL
                 -- Exclude leads already successfully sent to THIS buyer
                 AND NOT EXISTS (
@@ -414,6 +466,7 @@ export default class LeadDAO {
                 FROM leads
                 WHERE queued = TRUE
                 AND verified = FALSE
+                AND needs_call = FALSE
                 AND deleted IS NULL
                 ORDER BY created ASC
                 LIMIT 100
@@ -468,7 +521,9 @@ export default class LeadDAO {
                         external_lead_id: lead.external_lead_id ?? null,
                         external_ad_id: lead.external_ad_id ?? null,
                         external_ad_name: lead.external_ad_name ?? null,
-                        raw_payload: lead.raw_payload ?? null
+                        raw_payload: lead.raw_payload ?? null,
+                        needs_review: lead.needs_review ?? false,
+                        needs_review_reason: lead.needs_review_reason ?? null
                     };
 
                     const postedLead: Lead = await t.one(
@@ -476,12 +531,14 @@ export default class LeadDAO {
                           INSERT INTO leads (
                             first_name, last_name, email, phone, address, city, state, zipcode,
                             county, county_id, source_id, campaign_id,
-                            external_lead_id, external_ad_id, external_ad_name, raw_payload
+                            external_lead_id, external_ad_id, external_ad_name, raw_payload,
+                            needs_review, needs_review_reason
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
                             $[county], $[county_id], $[source_id], $[campaign_id],
-                            $[external_lead_id], $[external_ad_id], $[external_ad_name], $[raw_payload]
+                            $[external_lead_id], $[external_ad_id], $[external_ad_name], $[raw_payload],
+                            $[needs_review], $[needs_review_reason]
                           )
                           RETURNING *;
                         `,
@@ -543,6 +600,75 @@ export default class LeadDAO {
             RETURNING *;
         `, { ...lead, reason }
         );
+    }
+
+    async resolveNeedsReview(id: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET needs_review = FALSE,
+                needs_review_reason = NULL,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, { id });
+        if (!result) {
+            throw new Error('Lead not found');
+        }
+        return result;
+    }
+
+    async requestCall(id: string, reason: string, requestedBy: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET needs_call = TRUE,
+                call_reason = $[reason],
+                call_requested_at = NOW(),
+                call_requested_by = $[requestedBy],
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, { id, reason, requestedBy });
+        if (!result) {
+            throw new Error('Lead not found');
+        }
+        return result;
+    }
+
+    async executeCall(
+        id: string,
+        outcome: string,
+        notes: string | null,
+        executedBy: string
+    ): Promise<Lead> {
+        const resolved = outcome === 'resolved';
+        const query = `
+            UPDATE leads
+            SET needs_call = $[needsCall],
+                call_executed_at = NOW(),
+                call_executed_by = $[executedBy],
+                call_outcome = $[outcome],
+                call_outcome_notes = $[notes],
+                call_attempts = call_attempts + 1,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, {
+            id,
+            needsCall: !resolved,
+            executedBy,
+            outcome,
+            notes
+        });
+        if (!result) {
+            throw new Error('Lead not found');
+        }
+        return result;
     }
 
     async queueLead(id: string): Promise<Lead> {

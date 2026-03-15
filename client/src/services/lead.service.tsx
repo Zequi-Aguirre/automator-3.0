@@ -9,7 +9,12 @@ class LeadService {
         page: number,
         limit: number,
         search?: string,
-        status?: "new" | "verified" | "sent" | "sold" | "trash"
+        status?: "needs_review" | "needs_call" | "new" | "verified" | "sent" | "sold" | "trash",
+        // TICKET-066: Sent tab advanced filters
+        buyer_id?: string,
+        send_source?: "manual" | "worker" | "auto_send",
+        source_id?: string,
+        campaign_id?: string,
     }): Promise<{ leads: Lead[], count: number }> {
         const response = await this.api.getApi().get(
             '/api/leads/get-many',
@@ -149,6 +154,24 @@ class LeadService {
         const response = await this.api.getApi().delete(
             `/api/leads/${leadId}/buyers/${buyerId}/sold`
         );
+        return response.data;
+    }
+
+    // TICKET-064: Resolve needs_review flag once missing info is filled in
+    async resolveNeedsReview(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/resolve-review/${leadId}`);
+        return response.data;
+    }
+
+    // TICKET-065: Request a call for a lead
+    async requestCall(leadId: string, reason: string): Promise<Lead> {
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/request-call`, { reason });
+        return response.data;
+    }
+
+    // TICKET-065: Log a call attempt and outcome
+    async executeCall(leadId: string, outcome: string, notes?: string): Promise<Lead> {
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/execute-call`, { outcome, notes });
         return response.data;
     }
 }

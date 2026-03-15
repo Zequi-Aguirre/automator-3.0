@@ -3007,10 +3007,171 @@ ALTER TABLE leads ADD COLUMN call_queued_by UUID REFERENCES users(id);
 
 ---
 
+---
+
+## Sprint 8 Continued — Leads Page Stages & Filters (TICKET-062 through TICKET-067)
+
+**Sprint:** 8 | **Branch:** `claude/leads-filters-stages-3meQ6` | **Date:** 2026-03-15
+
+### Sprint Status
+| Ticket | Title | Status |
+|--------|-------|--------|
+| TICKET-062 | Remove phone unique constraint | ✅ Done |
+| TICKET-063 | Tab styling → ToggleButtonGroup | ✅ Done |
+| TICKET-064 | Needs Review lead stage | ✅ Done |
+| TICKET-065 | Needs Call stage + call tracking | ✅ Done |
+| TICKET-066 | Sent tab advanced filters | ✅ Done |
+| TICKET-067 | Fix worker trash query | ✅ Done |
+
+---
+
+## TICKET-062: Remove Phone Unique Constraint
+
+**Status:** ✅ Done
+**Sprint:** 8 | **Estimate:** 1 hr | **Priority:** HIGH (bug fix)
+
+### Summary
+Removed the `UNIQUE` constraint on `leads.phone` to allow duplicate phone numbers. The `(source_id, external_lead_id)` unique index is kept to prevent re-ingestion of the same external lead.
+
+### Files Changed
+- `postgres/migrations/20260316040000.do._ticket-062-remove-phone-unique-constraint.sql` — DROP CONSTRAINT
+
+### Acceptance Criteria
+- [x] Two leads with the same phone number can coexist in the DB
+- [x] `(source_id, external_lead_id)` uniqueness still enforced
+
+---
+
+## TICKET-063: Lead Tab Styling — ToggleButtonGroup
+
+**Status:** ✅ Done
+**Sprint:** 8 | **Estimate:** 1 hr | **Priority:** MEDIUM
+
+### Summary
+Replaced `Button` variant-toggle pattern in `LeadsSection.tsx` with `ToggleButtonGroup`/`ToggleButton` for mutually-exclusive stage selection, consistent with other pages.
+
+### Files Changed
+- `client/src/components/common/leadsSection/LeadsSection.tsx` — ToggleButtonGroup, new stage tabs, sent sub-filters
+
+### Acceptance Criteria
+- [x] Stage tabs use ToggleButtonGroup
+- [x] Active tab highlighted correctly
+- [x] Permission-gated tabs hidden for unauthorized users
+
+---
+
+## TICKET-064: "Needs Review" Lead Stage
+
+**Status:** ✅ Done
+**Sprint:** 8 | **Estimate:** 4 hrs | **Priority:** HIGH
+
+### Summary
+Leads imported with missing required fields (first_name, last_name, phone, email, address) are now flagged `needs_review=true` and shown in a dedicated "Needs Review" tab. Staff can edit and resolve the flag to move the lead to "Needs Verification".
+
+### Files Changed
+- `postgres/migrations/20260316050000.do._ticket-064-needs-review-stage.sql` — adds needs_review, needs_review_reason columns
+- `server/src/main/types/leadTypes.ts` — added needs_review fields to Lead and LeadFilters
+- `server/src/main/services/leadService.ts` — getMissingFieldsReason(), resolveNeedsReview(), flagging in importLeads/importLeadsFromApi
+- `server/src/main/data/leadDAO.ts` — needs_review status case in getMany(), resolveNeedsReview()
+- `server/src/main/types/activityTypes.ts` — LeadAction.NEEDS_REVIEW_RESOLVED
+- `server/src/main/resources/leadResource.ts` — PATCH /resolve-review/:leadId
+- `client/src/types/leadTypes.ts` — needs_review fields
+- `client/src/services/lead.service.tsx` — resolveNeedsReview()
+- `client/src/context/DataContext.tsx` — added needs_review to LeadFilters.status union, bumped CURRENT_VERSION to 6
+- `client/src/components/common/leadsSection/LeadsSection.tsx` — Needs Review tab
+- `client/src/components/common/leadsSection/leadsTable/LeadsTable.tsx` — conditional needs_review_reason column + Resolve button
+
+### Acceptance Criteria
+- [x] Lead imported with missing fields tagged needs_review=true
+- [x] "Needs Review" tab visible
+- [x] Row shows which fields are missing
+- [x] Staff can resolve → lead moves to Needs Verification
+- [x] Activity logged on resolve
+
+---
+
+## TICKET-065: "Needs Call" Stage & Call Tracking
+
+**Status:** ✅ Done
+**Sprint:** 9 | **Estimate:** 8 hrs | **Priority:** HIGH
+
+### Summary
+Full call-tracking workflow: request a call with reason, log call attempts with outcome. Two new permissions (CALL_REQUEST, CALL_EXECUTE). Leads flagged needs_call are shown in a "Needs Call" tab and skipped by the worker.
+
+### Files Changed
+- `postgres/migrations/20260316070000.do._ticket-065-needs-call-stage.sql` — call tracking columns on leads
+- `server/src/main/types/leadTypes.ts` — call fields on Lead, needs_call in LeadFilters.status
+- `server/src/main/types/activityTypes.ts` — CALL_REQUESTED, CALL_EXECUTED, CALL_RESOLVED
+- `server/src/main/types/permissionTypes.ts` — LeadPermission.CALL_REQUEST, CALL_EXECUTE; added to role defaults
+- `server/src/main/services/leadService.ts` — requestCall(), executeCall()
+- `server/src/main/data/leadDAO.ts` — needs_call status case, requestCall(), executeCall(); worker queries skip needs_call leads
+- `server/src/main/resources/leadResource.ts` — POST /request-call, POST /execute-call
+- `client/src/types/userTypes.ts` — Permission.LEADS_CALL_REQUEST, LEADS_CALL_EXECUTE
+- `client/src/services/lead.service.tsx` — requestCall(), executeCall()
+- `client/src/components/common/leadsSection/LeadsSection.tsx` — Needs Call tab
+- `client/src/components/common/leadsSection/leadsTable/LeadsTable.tsx` — needs_call column, call dialogs, Request Call action button
+
+### Acceptance Criteria
+- [x] needs_call flag exists on leads table
+- [x] Authorized user can request a call with reason
+- [x] Authorized user can log call outcome
+- [x] "Needs Call" tab shows only leads with needs_call=true
+- [x] Worker skips needs_call=true leads
+- [x] All actions permission-gated and activity-logged
+- [x] Permissions appear in Roles modal UI
+
+---
+
+## TICKET-066: Sent Tab — Advanced Filters
+
+**Status:** ✅ Done
+**Sprint:** 9 | **Estimate:** 5 hrs | **Priority:** MEDIUM
+
+### Summary
+Added buyer, dispatch method, source, and campaign dropdown filters to the Sent tab. Also added send_source column to send_log to track how each lead was dispatched.
+
+### Files Changed
+- `postgres/migrations/20260316060000.do._ticket-066-send-log-source.sql` — send_source on send_log
+- `server/src/main/types/sendLogTypes.ts` — send_source field
+- `server/src/main/data/sendLogDAO.ts` — createLog includes send_source
+- `server/src/main/services/buyerDispatchService.ts` — infers and passes send_source; calls markLeadAsSent
+- `server/src/main/types/leadTypes.ts` — buyer_id, send_source, source_id, campaign_id in LeadFilters
+- `server/src/main/data/leadDAO.ts` — dynamic sent subquery for buyer/send_source/source/campaign filters
+- `server/src/main/resources/leadResource.ts` — extract and pass new query params
+- `client/src/services/lead.service.tsx` — getMany() new params
+- `client/src/components/common/leadsSection/LeadsSection.tsx` — Sent sub-filter row UI
+
+### Acceptance Criteria
+- [x] Sent tab shows buyer, dispatch method, source, campaign filters
+- [x] Filters narrow results correctly
+- [x] Filters reset when switching tabs
+
+---
+
+## TICKET-067: Fix Worker Trash Query — Sent Flag Race Condition
+
+**Status:** ✅ Done
+**Sprint:** 8 | **Estimate:** 2 hrs | **Priority:** HIGH (bug fix)
+
+### Summary
+Root cause: `markLeadAsSent()` was defined in leadDAO but never called anywhere. Fixed by calling it in `buyerDispatchService.ts` after a successful send. Also added a belt-and-suspenders `NOT EXISTS (send_log)` guard in `trashExpiredLeads` so leads with any successful send_log entry are never auto-trashed regardless of the `sent` flag.
+
+### Files Changed
+- `server/src/main/data/leadDAO.ts` — NOT EXISTS guard in trashExpiredLeads
+- `server/src/main/services/buyerDispatchService.ts` — call markLeadAsSent() after successful send
+
+### Acceptance Criteria
+- [x] Lead with a successful send_log entry is never auto-trashed
+- [x] sent=TRUE is reliably set on successful dispatch
+- [x] Trash job only targets leads with zero successful sends AND older than expiry window
+
+---
+
 ### Grand Total (All Tickets)
 
 | Category | Tickets | Hours | Completed |
 |----------|---------|-------|-----------|
 | **Original Refactor** | 47 | ~150 hrs | 38 tickets (81%) |
 | **New Features** | 13 | ~120 hrs | 3 tickets (23%) |
-| **GRAND TOTAL** | **60** | **~270 hrs** | **41 tickets (68%)** |
+| **Leads Stages & Filters** | 6 | ~21 hrs | 6 tickets (100%) |
+| **GRAND TOTAL** | **66** | **~291 hrs** | **47 tickets (71%)** |

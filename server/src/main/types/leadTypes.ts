@@ -26,6 +26,19 @@ export type Lead = {
     external_ad_id: string | null; // Platform's ad ID
     external_ad_name: string | null; // Platform's ad name
     raw_payload: Record<string, unknown> | null; // Complete original platform payload
+    // TICKET-064: Needs review stage (missing required fields at import)
+    needs_review: boolean;
+    needs_review_reason: string | null;
+    // TICKET-065: Needs call stage and call tracking
+    needs_call: boolean;
+    call_reason: string | null;
+    call_requested_at: string | null;
+    call_requested_by: string | null;
+    call_executed_at: string | null;
+    call_executed_by: string | null;
+    call_outcome: string | null;
+    call_outcome_notes: string | null;
+    call_attempts: number;
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -43,7 +56,12 @@ export type LeadFilters = {
     page: number;
     limit: number;
     search?: string;
-    status?: "new" | "verified" | "sent" | "sold" | "trash";
+    status?: "needs_review" | "needs_call" | "new" | "verified" | "sent" | "sold" | "trash";
+    // TICKET-066: Sent tab advanced filters (only applied when status === "sent")
+    buyer_id?: string;
+    send_source?: "manual" | "worker" | "auto_send";
+    source_id?: string;
+    campaign_id?: string;
 };
 
 export type FlatLead = {
@@ -143,4 +161,7 @@ export type parsedLeadFromCSV = {
     external_ad_id?: string | null;
     external_ad_name?: string | null;
     raw_payload?: Record<string, unknown> | null;
+    // TICKET-064: Needs review flag (set before insert if required fields are missing)
+    needs_review?: boolean;
+    needs_review_reason?: string | null;
 };

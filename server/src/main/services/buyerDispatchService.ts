@@ -79,13 +79,27 @@ export default class BuyerDispatchService {
             authConfig
         );
 
+        // If send succeeded, mark the lead as sent so the trash job never expires it
+        if (response.success) {
+            try {
+                await this.leadDAO.markLeadAsSent(lead.id);
+            } catch (markErr) {
+                console.error(`[BuyerDispatch] Failed to mark lead ${lead.id} as sent:`, markErr);
+                // Non-fatal — continue so the send_log record is still written
+            }
+        }
+
+        // Infer dispatch source: worker > manual (has userId) > auto_send
+        const sendSource = isWorkerSend ? 'worker' : (userId ? 'manual' : 'auto_send');
+
         // Log the attempt to send_log
         const log = await this.sendLogDAO.createLog({
             lead_id: lead.id,
             buyer_id: buyer.id,
             source_id: sourceId,
             campaign_id: lead.campaign_id,
-            status: response.success ? "sent" : "failed"
+            status: response.success ? "sent" : "failed",
+            send_source: sendSource
         });
 
         // Update log with response details
@@ -118,7 +132,7 @@ export default class BuyerDispatchService {
             action_details: {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,
-                source: isWorkerSend ? 'worker' : 'auto_send',
+                source: sendSource,
                 status: response.success ? 'sent' : 'failed'
             }
         });

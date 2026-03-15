@@ -22,10 +22,13 @@ import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Groups as GroupsIcon,
+    Phone as PhoneIcon,
+    PhoneCallback as PhoneCallbackIcon,
     PlayArrow as PlayArrowIcon,
     Stop as StopIcon,
     VerifiedUser as VerifiedIcon,
 } from "@mui/icons-material";
+import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { Lead } from "../../../../types/leadTypes.ts";
 import { useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
@@ -47,9 +50,10 @@ import trashReasonService, { TrashReason } from "../../../../services/trashReaso
 interface LeadsTableProps {
     leads: Lead[];
     setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
+    currentStatus?: string;
 }
 
-const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
+const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
     const navigate = useNavigate();
     const { can } = usePermissions();
     const [snackbar, setSnackbar] = useState({
@@ -153,6 +157,63 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
             setSelectedLead(updated);
         } catch {
             // ignore
+        }
+    };
+
+    const [callDialogOpen, setCallDialogOpen] = useState(false);
+    const [callDialogMode, setCallDialogMode] = useState<"request" | "execute">("request");
+    const [callTargetLead, setCallTargetLead] = useState<Lead | null>(null);
+    const [callReason, setCallReason] = useState("");
+    const [callOutcome, setCallOutcome] = useState("reached");
+    const [callNotes, setCallNotes] = useState("");
+
+    const openRequestCallDialog = (lead: Lead) => {
+        setCallTargetLead(lead);
+        setCallReason("");
+        setCallDialogMode("request");
+        setCallDialogOpen(true);
+    };
+
+    const openExecuteCallDialog = (lead: Lead) => {
+        setCallTargetLead(lead);
+        setCallOutcome("reached");
+        setCallNotes("");
+        setCallDialogMode("execute");
+        setCallDialogOpen(true);
+    };
+
+    const handleSubmitCallDialog = async () => {
+        if (!callTargetLead) return;
+        try {
+            if (callDialogMode === "request") {
+                const updated = await leadsService.requestCall(callTargetLead.id, callReason);
+                setLeads(prev => prev.filter(l => l.id !== updated.id));
+                showNotification("Lead flagged for call", "success");
+            } else {
+                const updated = await leadsService.executeCall(callTargetLead.id, callOutcome, callNotes || undefined);
+                if (!updated.needs_call) {
+                    // Resolved — remove from needs_call list
+                    setLeads(prev => prev.filter(l => l.id !== updated.id));
+                } else {
+                    setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+                }
+                showNotification("Call logged", "success");
+            }
+        } catch {
+            showNotification("Failed to update call", "error");
+        } finally {
+            setCallDialogOpen(false);
+            setCallTargetLead(null);
+        }
+    };
+
+    const handleResolveNeedsReview = async (lead: Lead) => {
+        try {
+            const updated = await leadsService.resolveNeedsReview(lead.id);
+            setLeads(prev => prev.filter(l => l.id !== updated.id));
+            showNotification("Lead moved to Needs Verification", "success");
+        } catch {
+            showNotification("Failed to resolve review flag", "error");
         }
     };
 
@@ -318,6 +379,94 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 );
             },
         },
+        ...(currentStatus === "needs_review" ? [{
+            field: "needs_review_reason",
+            headerName: "Missing Fields",
+            flex: 1.2,
+            sortable: false,
+            renderCell: (params: GridRenderCellParams) => {
+                const lead: Lead = params.row.raw;
+                const canEdit = can(Permission.LEADS_EDIT);
+                return (
+                    <Stack direction="row" spacing={1} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>
+                        <Chip
+                            label={lead.needs_review_reason ?? "Missing fields"}
+                            color="warning"
+                            size="small"
+                            variant="outlined"
+                        />
+                        <Tooltip title={canEdit ? "Mark as resolved (info filled in)" : "You don't have permission to edit leads"}>
+                            <span>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="success"
+                                    disabled={!canEdit}
+                                    onClick={() => { void handleResolveNeedsReview(lead); }}
+                                >
+                                    Resolve
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    </Stack>
+                );
+            },
+        }] as GridColDef[] : []),
+        ...(currentStatus === "needs_call" ? [{
+            field: "call_info",
+            headerName: "Call Info",
+            flex: 1.5,
+            sortable: false,
+            renderCell: (params: GridRenderCellParams) => {
+                const lead: Lead = params.row.raw;
+                const canExecute = can(Permission.LEADS_CALL_EXECUTE);
+                const lastCallAt = lead.call_executed_at
+                    ? parseUtcToZone(lead.call_executed_at)
+                    : null;
+                return (
+                    <Stack spacing={0.5} onClick={(e) => { e.stopPropagation(); }}>
+                        {lead.call_reason && (
+                            <Typography variant="caption" color="text.secondary">
+                                <strong>Reason:</strong> {lead.call_reason}
+                            </Typography>
+                        )}
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Chip
+                                label={`${lead.call_attempts ?? 0} attempt${(lead.call_attempts ?? 0) === 1 ? "" : "s"}`}
+                                size="small"
+                                variant="outlined"
+                            />
+                            {lead.call_outcome && (
+                                <Chip
+                                    label={lead.call_outcome.replace("_", " ")}
+                                    size="small"
+                                    color={lead.call_outcome === "resolved" ? "success" : "default"}
+                                    variant="outlined"
+                                />
+                            )}
+                        </Stack>
+                        {lastCallAt && (
+                            <Typography variant="caption" color="text.disabled">
+                                Last: {lastCallAt.date} {lastCallAt.time}
+                            </Typography>
+                        )}
+                        <Tooltip title={canExecute ? "Log a call attempt" : "You don't have permission to log calls"}>
+                            <span>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<PhoneIcon />}
+                                    disabled={!canExecute}
+                                    onClick={() => { openExecuteCallDialog(lead); }}
+                                >
+                                    Log Call
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    </Stack>
+                );
+            },
+        }] as GridColDef[] : []),
         {
             field: "actions",
             headerName: "",
@@ -329,6 +478,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 const canSend = can(Permission.LEADS_SEND);
                 const canTrash = can(Permission.LEADS_TRASH);
                 const canEdit = can(Permission.LEADS_EDIT);
+                const canRequestCall = can(Permission.LEADS_CALL_REQUEST);
 
                 return (
                     <Stack direction="row" spacing={0.25} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>
@@ -339,6 +489,15 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                                 </IconButton>
                             </span>
                         </Tooltip>
+                        {currentStatus !== "needs_call" && (
+                            <Tooltip title={canRequestCall ? "Request a call for this lead" : "You don't have permission to request calls"}>
+                                <span>
+                                    <IconButton size="small" color="warning" disabled={!canRequestCall} onClick={() => { openRequestCallDialog(lead); }}>
+                                        <PhoneCallbackIcon fontSize="small" />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        )}
                         <Tooltip title={canTrash ? "Trash lead" : "You don't have permission to trash leads"}>
                             <span>
                                 <IconButton size="small" color="error" disabled={!canTrash} onClick={() => { void handleOpenTrashDialog(lead.id); }}>
@@ -418,6 +577,88 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 <DialogActions>
                     <Button onClick={() => { setTrashDialogOpen(false); }}>Cancel</Button>
                     <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained">Move to Trash</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* REQUEST CALL DIALOG */}
+            <Dialog
+                open={callDialogOpen && callDialogMode === "request"}
+                onClose={() => { setCallDialogOpen(false); }}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle>Request a Call</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Describe why this lead needs a call. It will be moved to the "Needs Call" tab.
+                    </DialogContentText>
+                    <TextField
+                        label="Reason"
+                        multiline
+                        rows={3}
+                        fullWidth
+                        value={callReason}
+                        onChange={(e) => { setCallReason(e.target.value); }}
+                        size="small"
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setCallDialogOpen(false); }}>Cancel</Button>
+                    <Button
+                        onClick={() => { void handleSubmitCallDialog(); }}
+                        color="warning"
+                        variant="contained"
+                        disabled={!callReason.trim()}
+                    >
+                        Request Call
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* EXECUTE CALL DIALOG */}
+            <Dialog
+                open={callDialogOpen && callDialogMode === "execute"}
+                onClose={() => { setCallDialogOpen(false); }}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle>Log Call Attempt</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 0.5 }}>
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Outcome</InputLabel>
+                            <Select
+                                value={callOutcome}
+                                label="Outcome"
+                                onChange={(e) => { setCallOutcome(e.target.value); }}
+                            >
+                                <MenuItem value="reached">Reached</MenuItem>
+                                <MenuItem value="voicemail">Voicemail</MenuItem>
+                                <MenuItem value="no_answer">No Answer</MenuItem>
+                                <MenuItem value="wrong_number">Wrong Number</MenuItem>
+                                <MenuItem value="resolved">Resolved (close ticket)</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <TextField
+                            label="Notes (optional)"
+                            multiline
+                            rows={3}
+                            fullWidth
+                            value={callNotes}
+                            onChange={(e) => { setCallNotes(e.target.value); }}
+                            size="small"
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setCallDialogOpen(false); }}>Cancel</Button>
+                    <Button
+                        onClick={() => { void handleSubmitCallDialog(); }}
+                        color="primary"
+                        variant="contained"
+                    >
+                        Log Call
+                    </Button>
                 </DialogActions>
             </Dialog>
         </>
