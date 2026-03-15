@@ -85,7 +85,7 @@ const AdminJobsSection = () => {
             setWorkerLoading(true);
 
             const status = await workerService.getStatus();
-            const enabled = Boolean(status.worker_enabled);
+            const enabled = Boolean(status.queued);
             const cron = status.cron_schedule ?? "";
 
             setWorkerEnabled(enabled);

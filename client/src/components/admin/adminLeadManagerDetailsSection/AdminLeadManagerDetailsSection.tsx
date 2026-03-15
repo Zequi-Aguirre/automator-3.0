@@ -64,7 +64,7 @@ const AdminLeadManagerDetailsSection = () => {
         return (
             <Container sx={{ p: 4 }}>
                 <Alert severity="error">Manager not found.</Alert>
-                <Button startIcon={<ArrowBack />} onClick={() => navigate('/a/lead-managers')} sx={{ mt: 2 }}>
+                <Button startIcon={<ArrowBack />} onClick={() => navigate('/lead-managers')} sx={{ mt: 2 }}>
                     Back to Lead Managers
                 </Button>
             </Container>
@@ -75,7 +75,7 @@ const AdminLeadManagerDetailsSection = () => {
         <Container maxWidth={false} sx={{ p: 4 }}>
             {/* Header */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-                <Button startIcon={<ArrowBack />} onClick={() => navigate('/a/lead-managers')} variant="outlined" size="small">
+                <Button startIcon={<ArrowBack />} onClick={() => navigate('/lead-managers')} variant="outlined" size="small">
                     Lead Managers
                 </Button>
                 <Typography variant="h4" sx={{ fontWeight: 'bold' }}>

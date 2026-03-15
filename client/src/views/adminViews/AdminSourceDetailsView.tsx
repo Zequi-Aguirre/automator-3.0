@@ -107,7 +107,7 @@ const AdminSourceDetailsView = () => {
         try {
             await sourceService.delete(id);
             setSnack({ open: true, message: 'Source deleted successfully', severity: 'success' });
-            setTimeout(() => navigate('/a/sources'), 1000);
+            setTimeout(() => navigate('/sources'), 1000);
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
             setSnack({ open: true, message: `Failed to delete source: ${errorMessage}`, severity: 'error' });
@@ -230,7 +230,7 @@ const AdminSourceDetailsView = () => {
             <Container maxWidth={false}>
                 <Box sx={{ p: 4 }}>
                     <Typography variant="h5">Source not found</Typography>
-                    <Button onClick={() => navigate('/a/sources')} sx={{ mt: 2 }}>
+                    <Button onClick={() => navigate('/sources')} sx={{ mt: 2 }}>
                         Back to Sources
                     </Button>
                 </Box>
@@ -243,7 +243,7 @@ const AdminSourceDetailsView = () => {
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
-                    <IconButton onClick={() => navigate('/a/sources')} title="Back to sources">
+                    <IconButton onClick={() => navigate('/sources')} title="Back to sources">
                         <ArrowBack />
                     </IconButton>
                     <Typography variant="h4" sx={{ fontWeight: 'bold', flexGrow: 1 }}>

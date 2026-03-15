@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Autocomplete,
@@ -40,15 +40,12 @@ import {
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
 import workingsService from "../../../services/settings.service.tsx";
-import DataContext from "../../../context/DataContext.tsx";
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Permission } from '../../../types/userTypes';
 
 const LeadDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { role } = useContext(DataContext);
-    const isAdmin = role.includes('admin');
     const { can } = usePermissions();
     const canEdit = can(Permission.LEADS_EDIT);
     const canTrash = can(Permission.LEADS_TRASH);
@@ -166,7 +163,7 @@ const LeadDetails = () => {
         try {
             if (!id) return;
             await leadsService.trashLead(id, selectedTrashReason?.label);
-            navigate(isAdmin ? '/a/leads' : '/u/leads');
+            navigate('/leads');
         } catch {
             showNotification('Failed to trash lead', 'error');
         }
@@ -271,7 +268,7 @@ const LeadDetails = () => {
         <Container maxWidth={false} disableGutters sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
             {/* Top bar */}
             <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-                <IconButton onClick={() => { navigate(isAdmin ? '/a/leads' : '/u/leads'); }} size="small">
+                <IconButton onClick={() => { navigate('/leads'); }} size="small">
                     <ArrowBack />
                 </IconButton>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>Lead Details</Typography>

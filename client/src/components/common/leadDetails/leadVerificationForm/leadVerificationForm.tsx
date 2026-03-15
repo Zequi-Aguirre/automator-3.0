@@ -165,7 +165,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
         setVerifySuccess(null);
         try {
             await leadsService.trashLead(lead.id, 'Property was listed');
-            navigate("/a/leads");
+            navigate("/leads");
         } catch {
             setError("Failed to trash lead");
         }

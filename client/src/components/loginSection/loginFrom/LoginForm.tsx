@@ -51,7 +51,7 @@ const LoginForm = () => {
             setRole(role);
             setLoginRecord({ email: "", password: "" });
             setFailedResponse(false);
-            navigate((role === "admin" || role === "superadmin") ? "/a/leads" : "/u/leads");
+            navigate("/leads");
         } catch (error) {
             setFailedResponse(true);
             console.error("Login failed:", error);

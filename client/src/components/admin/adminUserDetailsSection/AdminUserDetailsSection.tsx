@@ -79,7 +79,7 @@ const AdminUserDetailsSection = () => {
         return (
             <Container sx={{ p: 4 }}>
                 <Alert severity="error">User not found.</Alert>
-                <Button startIcon={<ArrowBack />} onClick={() => navigate('/a/users')} sx={{ mt: 2 }}>
+                <Button startIcon={<ArrowBack />} onClick={() => navigate('/users')} sx={{ mt: 2 }}>
                     Back to Users
                 </Button>
             </Container>
@@ -90,7 +90,7 @@ const AdminUserDetailsSection = () => {
         <Container maxWidth={false} disableGutters sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-                <Button startIcon={<ArrowBack />} onClick={() => navigate('/a/users')} variant="outlined" size="small">
+                <Button startIcon={<ArrowBack />} onClick={() => navigate('/users')} variant="outlined" size="small">
                     Users
                 </Button>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
