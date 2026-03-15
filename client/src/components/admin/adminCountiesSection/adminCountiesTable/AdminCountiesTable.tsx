@@ -102,7 +102,7 @@ const AdminCountiesTable = ({ counties, setCounties }: Props) => {
                 disableRowSelectionOnClick
                 hideFooter
                 onRowClick={(params) => {
-                    navigate(`/a/counties/${params.id}`);
+                    navigate(`/counties/${params.id}`);
                 }}
                 onSortModelChange={(params) => {
                     console.log("Sort model changed:", params[0]);

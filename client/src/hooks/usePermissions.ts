@@ -9,9 +9,10 @@ export function usePermissions() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [loggedInUser]
     );
+    const isSuperAdmin = loggedInUser?.role === 'superadmin';
     const can = useCallback(
-        (permission: Permission) => permissions.includes(permission),
-        [permissions]
+        (permission: Permission) => isSuperAdmin || permissions.includes(permission),
+        [isSuperAdmin, permissions]
     );
 
     return { can, permissions };
