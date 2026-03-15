@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import crypto from 'crypto';
 import SourceDAO from "../data/sourceDAO";
-import { Source, SourceCreateDTO, SourceUpdateDTO, SourceFilters } from "../types/sourceTypes";
+import { Source, SourceCreateDTO, SourceUpdateDTO, SourceFilters, SourceBuyerFilterMode } from "../types/sourceTypes";
 
 /**
  * SourceService - Business logic for lead sources with API authentication
@@ -240,6 +240,10 @@ export default class SourceService {
      * Hard delete source (use with caution)
      * Should only be used for cleanup/testing
      */
+    async updateBuyerFilter(id: string, mode: SourceBuyerFilterMode | null, buyerIds: string[]): Promise<Source> {
+        return await this.sourceDAO.updateBuyerFilter(id, mode, buyerIds);
+    }
+
     async delete(id: string): Promise<void> {
         try {
             await this.sourceDAO.delete(id);

@@ -39,6 +39,7 @@ export enum SourceAction {
     UPDATED = 'source_updated',
     TOKEN_REFRESHED = 'source_token_refreshed',
     LEAD_MANAGER_ASSIGNED = 'source_lead_manager_assigned',
+    BUYER_FILTER_UPDATED = 'source_buyer_filter_updated',
 }
 
 export enum BuyerAction {

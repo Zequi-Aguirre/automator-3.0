@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { IDatabase } from 'pg-promise';
 import { DBContainer } from "../config/DBContainer";
-import { Source, SourceCreateDTO, SourceUpdateDTO, SourceFilters } from "../types/sourceTypes";
+import { Source, SourceCreateDTO, SourceUpdateDTO, SourceFilters, SourceBuyerFilterMode } from "../types/sourceTypes";
 import { IClient } from "pg-promise/typescript/pg-subset";
 
 /**
@@ -185,6 +185,23 @@ export default class SourceDAO {
         `;
 
         return await this.db.one<Source>(query, { id });
+    }
+
+    /**
+     * Update buyer filter rules for a source
+     */
+    async updateBuyerFilter(id: string, mode: SourceBuyerFilterMode | null, buyerIds: string[]): Promise<Source> {
+        const query = `
+            UPDATE sources
+            SET
+                buyer_filter_mode = $[mode],
+                buyer_filter_buyer_ids = $[buyerIds],
+                modified = NOW()
+            WHERE id = $[id]
+                AND deleted IS NULL
+            RETURNING *;
+        `;
+        return await this.db.one<Source>(query, { id, mode, buyerIds });
     }
 
     /**
