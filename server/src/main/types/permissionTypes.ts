@@ -26,6 +26,14 @@ export enum ManagerPermission {
     MANAGE = 'managers.manage',
 }
 
+export enum CountyPermission {
+    MANAGE = 'counties.manage',
+}
+
+export enum LogPermission {
+    VIEW = 'logs.view',
+}
+
 export enum SettingsPermission {
     MANAGE = 'settings.manage',
 }
@@ -52,6 +60,8 @@ export type Permission =
     | SourcePermission
     | BuyerPermission
     | ManagerPermission
+    | CountyPermission
+    | LogPermission
     | SettingsPermission
     | UserPermission
     | ActivityPermission
@@ -81,6 +91,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.UNTRASH,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
+        CountyPermission.MANAGE,
+        LogPermission.VIEW,
         ActivityPermission.VIEW,
         TrashReasonPermission.MANAGE,
         DisputePermission.CREATE,
@@ -98,6 +110,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         BuyerPermission.MANAGE,
+        CountyPermission.MANAGE,
+        LogPermission.VIEW,
         WorkerPermission.TOGGLE,
         SettingsPermission.MANAGE,
         UserPermission.MANAGE,

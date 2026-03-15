@@ -43,7 +43,6 @@ type NavItem = {
     path: string;
     pathMatch: string;
     permission?: Permission;
-    adminOnly?: boolean;
 };
 
 export default function NavBar() {
@@ -57,15 +56,13 @@ export default function NavBar() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
 
-    const isAdmin = role.includes("admin");
-
     const allNavItems: NavItem[] = useMemo(() => [
         { label: "Leads", icon: <PeopleIcon />, path: "/leads", pathMatch: "/leads", permission: Permission.LEADS_READ },
         { label: "Buyers", icon: <StoreIcon />, path: "/buyers", pathMatch: "/buyers", permission: Permission.BUYERS_MANAGE },
         { label: "Sources", icon: <SourceIcon />, path: "/sources", pathMatch: "/sources", permission: Permission.SOURCES_MANAGE },
         { label: "Lead Managers", icon: <ManageAccountsIcon />, path: "/lead-managers", pathMatch: "/lead-managers", permission: Permission.MANAGERS_MANAGE },
-        { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.SETTINGS_MANAGE },
-        { label: "Logs", icon: <ReceiptIcon />, path: "/logs", pathMatch: "/logs", adminOnly: true },
+        { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.COUNTIES_MANAGE },
+        { label: "Logs", icon: <ReceiptIcon />, path: "/logs", pathMatch: "/logs", permission: Permission.LOGS_VIEW },
         { label: "Activity", icon: <TimelineIcon />, path: "/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
         { label: "Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.SETTINGS_MANAGE },
         { label: "Worker Jobs", icon: <WorkIcon />, path: "/worker-jobs", pathMatch: "/worker-jobs", permission: Permission.WORKER_TOGGLE },
@@ -74,12 +71,8 @@ export default function NavBar() {
     ], []);
 
     const visibleItems = useMemo(() => {
-        return allNavItems.filter(item => {
-            if (item.adminOnly) return isAdmin;
-            if (item.permission) return can(item.permission);
-            return true;
-        });
-    }, [allNavItems, isAdmin, can]);
+        return allNavItems.filter(item => !item.permission || can(item.permission));
+    }, [allNavItems, can]);
 
     const currentPath = location.pathname.toLowerCase();
 
