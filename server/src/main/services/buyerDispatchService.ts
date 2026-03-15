@@ -157,27 +157,7 @@ export default class BuyerDispatchService {
             }
         }
 
-        // Rule 3: Source buyer filter — source can restrict which buyers it routes to
-        if (lead.campaign_id) {
-            try {
-                const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                if (campaign?.source_id) {
-                    const source = await this.sourceDAO.getById(campaign.source_id);
-                    if (source?.buyer_filter_mode && source.buyer_filter_buyer_ids.length > 0) {
-                        if (source.buyer_filter_mode === 'include' && !source.buyer_filter_buyer_ids.includes(buyer.id)) {
-                            return { allowed: false, reason: 'Source does not allow this buyer' };
-                        }
-                        if (source.buyer_filter_mode === 'exclude' && source.buyer_filter_buyer_ids.includes(buyer.id)) {
-                            return { allowed: false, reason: 'Source has blocked this buyer' };
-                        }
-                    }
-                }
-            } catch (error) {
-                console.warn(`Could not fetch source for buyer filter check:`, error);
-            }
-        }
-
-        // Rule 4: Lead must not be sold to higher-priority buyer (check lead_buyer_outcomes)
+        // Rule 3: Lead must not be sold to higher-priority buyer (check lead_buyer_outcomes)
         const isBlocked = await this.isLeadBlockedByHigherPriorityBuyer(lead.id, buyer.priority);
         if (isBlocked) {
             return { allowed: false, reason: "Lead already sold to higher-priority buyer" };
