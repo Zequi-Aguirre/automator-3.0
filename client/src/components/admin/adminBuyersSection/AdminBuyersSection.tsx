@@ -28,9 +28,12 @@ import {
     FormControlLabel,
     Checkbox,
     Switch,
-    Chip
+    Chip,
+    Tooltip
 } from '@mui/material';
-import { Edit, Delete, DragIndicator } from '@mui/icons-material';
+import { Edit, Delete, DragIndicator, PauseCircle, PlayCircle } from '@mui/icons-material';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { Permission } from '../../../types/userTypes';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -70,11 +73,13 @@ interface SortableRowProps {
     buyer: Buyer;
     onEdit: (buyer: Buyer) => void;
     onDelete: (id: string) => void;
+    onToggleHold: (buyer: Buyer) => void;
     onOpenDatePicker: (buyer: Buyer) => void;
     onNavigate: (id: string) => void;
+    canHold: boolean;
 }
 
-const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker, onNavigate }: SortableRowProps) => {
+const SortableRow = ({ buyer, onEdit, onDelete, onToggleHold, onOpenDatePicker, onNavigate, canHold }: SortableRowProps) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: buyer.id });
 
     const style = {
@@ -139,6 +144,13 @@ const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker, onNavigate }: 
                 <IconButton size="small" onClick={() => onEdit(buyer)}>
                     <Edit />
                 </IconButton>
+                {canHold && (
+                    <Tooltip title={buyer.on_hold ? 'Resume' : 'Put on Hold'}>
+                        <IconButton size="small" color={buyer.on_hold ? 'success' : 'warning'} onClick={() => onToggleHold(buyer)}>
+                            {buyer.on_hold ? <PlayCircle /> : <PauseCircle />}
+                        </IconButton>
+                    </Tooltip>
+                )}
                 <IconButton size="small" onClick={() => onDelete(buyer.id)}>
                     <Delete />
                 </IconButton>
@@ -171,6 +183,7 @@ const defaultForm = (): BuyerCreateDTO => ({
 
 const AdminBuyersSection = () => {
     const navigate = useNavigate();
+    const { can } = usePermissions();
     const [buyers, setBuyers] = useState<Buyer[]>([]);
     const [count, setCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -284,6 +297,17 @@ const AdminBuyersSection = () => {
         }
     };
 
+    const handleToggleHold = async (buyer: Buyer) => {
+        try {
+            const updated = await buyerService.setOnHold(buyer.id, !buyer.on_hold);
+            setBuyers(prev => prev.map(b => b.id === updated.id ? updated : b));
+            setSnack({ open: true, message: updated.on_hold ? `${updated.name} put on hold` : `${updated.name} resumed`, severity: 'success' });
+        } catch (error: any) {
+            const msg = error.response?.data?.message || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to update hold status: ${msg}`, severity: 'error' });
+        }
+    };
+
     const handleOpenDatePicker = (buyer: Buyer) => {
         setEditingBuyerForDate(buyer);
         setSelectedDate(buyer.next_send_at ? dayjs(buyer.next_send_at) : dayjs());
@@ -367,8 +391,10 @@ const AdminBuyersSection = () => {
                                                 buyer={buyer}
                                                 onEdit={handleOpenDialog}
                                                 onDelete={handleDelete}
+                                                onToggleHold={handleToggleHold}
                                                 onOpenDatePicker={handleOpenDatePicker}
                                                 onNavigate={(id) => navigate(`/buyers/${id}`)}
+                                                canHold={can(Permission.BUYERS_HOLD)}
                                             />
                                         ))}
                                     </TableBody>
