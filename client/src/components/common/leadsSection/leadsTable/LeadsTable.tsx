@@ -29,7 +29,7 @@ import {
 import { Lead } from "../../../../types/leadTypes.ts";
 import { useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DateTime } from "luxon";
 import {
     remainingMs,
@@ -39,7 +39,6 @@ import {
 } from "../../../../utils/leadExpiry";
 import { parseUtcToZone } from "../../../../utils/dates.ts";
 import workingsService from "../../../../services/settings.service.tsx";
-import DataContext from "../../../../context/DataContext.tsx";
 import BuyerSendModal from "../../leadDetails/buyerSendModal/BuyerSendModal.tsx";
 import { usePermissions } from "../../../../hooks/usePermissions.ts";
 import { Permission } from "../../../../types/userTypes.ts";
@@ -66,8 +65,6 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
     const [selectedTrashReason, setSelectedTrashReason] = useState<TrashReason | null>(null);
     const [now, setNow] = useState(DateTime.utc());
     const [leadExpireHours, setLeadExpireHours] = useState(18);
-    const { role } = useContext(DataContext);
-    const isAdmin = role.includes("admin");
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -94,7 +91,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
                 showNotification("Lead unverified", "success");
             } else {
-                navigate(`/${isAdmin ? "a" : "u"}/leads/${lead.id}`);
+                navigate(`/leads/${lead.id}`);
             }
         } catch {
             showNotification("Failed to update verification", "error");
@@ -195,7 +192,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                     variant="body2"
                     color="primary"
                     sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                    onClick={() => { navigate(`/${isAdmin ? "a" : "u"}/leads/${params.row.id}`); }}
+                    onClick={() => { navigate(`/leads/${params.row.id}`); }}
                 >
                     {params.value}
                 </Typography>
@@ -351,7 +348,7 @@ const LeadsTable = ({ leads, setLeads }: LeadsTableProps) => {
                         </Tooltip>
                         <Tooltip title={canEdit ? "Edit lead" : "You don't have permission to edit leads"}>
                             <span>
-                                <IconButton size="small" disabled={!canEdit} onClick={() => { navigate(`/${isAdmin ? "a" : "u"}/leads/${lead.id}`); }}>
+                                <IconButton size="small" disabled={!canEdit} onClick={() => { navigate(`/leads/${lead.id}`); }}>
                                     <EditIcon fontSize="small" />
                                 </IconButton>
                             </span>
