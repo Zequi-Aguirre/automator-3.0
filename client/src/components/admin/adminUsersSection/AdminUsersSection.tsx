@@ -368,7 +368,6 @@ const AdminUsersSection = () => {
                     >
                         <MenuItem value="user">user</MenuItem>
                         <MenuItem value="admin">admin</MenuItem>
-                        <MenuItem value="superadmin">superadmin</MenuItem>
                     </Select>
                     {createError && <Alert severity="error">{createError}</Alert>}
                     <Typography variant="caption" color="text.secondary">
