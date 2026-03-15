@@ -6,7 +6,6 @@ import AdminCampaignsView from "../../views/adminViews/AdminCampaignsView.tsx";
 import WorkerSettingsPanel from "../../views/adminViews/AdminWorkerSettingsPanelView.tsx";
 import AdminCountiesView from "../../views/adminViews/AdminCountiesView.tsx";
 import AdminCountyDetailsView from "../../views/adminViews/AdminCountyDetailsView.tsx";
-import AdminLogsView from "../../views/adminViews/AdminLogsView.tsx";
 import AdminBuyersView from "../../views/adminViews/AdminBuyersView.tsx";
 import AdminSourcesView from "../../views/adminViews/AdminSourcesView.tsx";
 import AdminSourceDetailsView from "../../views/adminViews/AdminSourceDetailsView.tsx";
@@ -15,7 +14,6 @@ import AdminLeadManagerDetailsView from "../../views/adminViews/AdminLeadManager
 import AdminActivityView from "../../views/adminViews/AdminActivityView.tsx";
 import AdminUsersView from "../../views/adminViews/AdminUsersView.tsx";
 import AdminUserDetailsView from "../../views/adminViews/AdminUserDetailsView.tsx";
-import AdminRolesView from "../../views/adminViews/AdminRolesView";
 
 const AppRoutes = () => {
     return (
@@ -30,10 +28,8 @@ const AppRoutes = () => {
             <Route path="/lead-managers/:id" element={<RequireAuth><AdminLeadManagerDetailsView /></RequireAuth>} />
             <Route path="/counties" element={<RequireAuth><AdminCountiesView /></RequireAuth>} />
             <Route path="/counties/:id" element={<RequireAuth><AdminCountyDetailsView /></RequireAuth>} />
-            <Route path="/logs" element={<RequireAuth><AdminLogsView /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><WorkerSettingsPanel /></RequireAuth>} />
             <Route path="/activity" element={<RequireAuth><AdminActivityView /></RequireAuth>} />
-            <Route path="/roles" element={<RequireAuth><AdminRolesView /></RequireAuth>} />
             <Route path="/users" element={<RequireAuth><AdminUsersView /></RequireAuth>} />
             <Route path="/users/:id" element={<RequireAuth><AdminUserDetailsView /></RequireAuth>} />
         </Routes>
