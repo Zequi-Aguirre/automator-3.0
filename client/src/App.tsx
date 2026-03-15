@@ -1,6 +1,7 @@
 import React from 'react';
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { Routes, Route } from "react-router-dom";
+import { Box } from "@mui/material";
 import 'react-toastify/dist/ReactToastify.css';
 import LoginPage from "./views/LoginPage";
 import AdminRoutes from "./context/routes/AdminRoutes";
@@ -25,7 +26,7 @@ const App: React.FC = () => {
                     root: {
                         maxWidth: "2440px",
                         margin: "0 auto",
-                        padding: "0 100px",
+                        padding: "0 40px",
                         '@media (max-width: 1180px)': {
                             padding: "0 15px",
                         },
@@ -40,13 +41,24 @@ const App: React.FC = () => {
 
     return (
         <ThemeProvider theme={theme}>
-            <NavBar />
-            <Routes>
-                <Route path="/" element={<LoginPage/>}/>
-                <Route path="/login" element={<LoginPage/>}/>
-            </Routes>
-            <ProtectedRoutes />
-            <AdminRoutes />
+            <Box sx={{ display: "flex", minHeight: "100vh" }}>
+                <NavBar />
+                <Box
+                    component="main"
+                    sx={{
+                        flexGrow: 1,
+                        overflow: "auto",
+                        pt: { xs: "48px", md: 0 },
+                    }}
+                >
+                    <Routes>
+                        <Route path="/" element={<LoginPage/>}/>
+                        <Route path="/login" element={<LoginPage/>}/>
+                    </Routes>
+                    <ProtectedRoutes />
+                    <AdminRoutes />
+                </Box>
+            </Box>
         </ThemeProvider>
     );
 };
