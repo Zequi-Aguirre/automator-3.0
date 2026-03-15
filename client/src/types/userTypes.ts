@@ -37,7 +37,7 @@ export type User = {
 export type UserCreateDTO = {
     email: string;
     name: string;
-    role: UserRole;
+    role_id: string;
 };
 
 export type UserUpdateDTO = {

@@ -70,15 +70,16 @@ export default class UserService {
 
     async createUser(dto: UserCreateDTO): Promise<{ user: User; tempPassword: string }> {
         const email = dto.email.toLowerCase().trim();
+
+        const role = await this.roleDAO.getById(dto.role_id);
+        if (!role) throw new Error('Role not found');
+
         const tempPassword = this.generateTempPassword();
         const hashedPassword = await this.authUtils.hashPassword(tempPassword);
 
-        const user = await this.userDAO.create(email, dto.name, dto.role, hashedPassword);
-
-        const defaultPerms = ROLE_DEFAULT_PERMISSIONS[dto.role] ?? [];
-        if (defaultPerms.length > 0) {
-            await this.userDAO.setPermissions(user.id, defaultPerms);
-        }
+        // Create with base role 'user' — permissions are driven by permission_role
+        const user = await this.userDAO.create(email, dto.name, 'user', hashedPassword);
+        await this.userDAO.assignRole(user.id, dto.role_id, role.permissions);
 
         const { subject, html } = userInviteEmail({ name: dto.name, email, tempPassword });
         await this.emailService.send({ to: email, subject, html });

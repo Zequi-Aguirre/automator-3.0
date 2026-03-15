@@ -65,7 +65,7 @@ const AdminUsersSection = () => {
 
     // Create user dialog
     const [createOpen, setCreateOpen] = useState(false);
-    const [createForm, setCreateForm] = useState<UserCreateDTO>({ email: '', name: '', role: 'user' });
+    const [createForm, setCreateForm] = useState<UserCreateDTO>({ email: '', name: '', role_id: '' });
     const [createError, setCreateError] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
 
@@ -146,15 +146,15 @@ const AdminUsersSection = () => {
 
     // Create user handlers
     const handleOpenCreate = () => {
-        setCreateForm({ email: '', name: '', role: 'user' });
+        setCreateForm({ email: '', name: '', role_id: '' });
         setCreateError(null);
         setCreateOpen(true);
     };
 
     const handleCreateUser = async () => {
         setCreateError(null);
-        if (!createForm.email || !createForm.name) {
-            setCreateError('Email and name are required.');
+        if (!createForm.email || !createForm.name || !createForm.role_id) {
+            setCreateError('Email, name, and role are required.');
             return;
         }
         setCreating(true);
@@ -362,12 +362,15 @@ const AdminUsersSection = () => {
                     />
                     <Select
                         size="small"
-                        value={createForm.role}
-                        onChange={e => { setCreateForm(p => ({ ...p, role: e.target.value as UserCreateDTO['role'] })); }}
+                        value={createForm.role_id}
+                        onChange={e => { setCreateForm(p => ({ ...p, role_id: e.target.value })); }}
                         fullWidth
+                        displayEmpty
                     >
-                        <MenuItem value="user">user</MenuItem>
-                        <MenuItem value="admin">admin</MenuItem>
+                        <MenuItem value="" disabled>Select a role…</MenuItem>
+                        {roles.map(r => (
+                            <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                        ))}
                     </Select>
                     {createError && <Alert severity="error">{createError}</Alert>}
                     <Typography variant="caption" color="text.secondary">

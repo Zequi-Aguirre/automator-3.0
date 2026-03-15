@@ -43,20 +43,17 @@ export default class UserResource {
         // Create a new user (superadmin only via users.manage)
         this.router.post('/users', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             try {
-                const { email, name, role } = req.body as UserCreateDTO;
-                if (!email || !name || !role) {
-                    return res.status(400).json({ message: 'email, name, and role are required' });
+                const { email, name, role_id } = req.body as UserCreateDTO;
+                if (!email || !name || !role_id) {
+                    return res.status(400).json({ message: 'email, name, and role_id are required' });
                 }
-                if (!['user', 'admin', 'superadmin'].includes(role)) {
-                    return res.status(400).json({ message: 'Invalid role' });
-                }
-                const { user } = await this.userService.createUser({ email, name, role });
+                const { user } = await this.userService.createUser({ email, name, role_id });
                 await this.activityService.log({
                     user_id: req.user.id,
                     entity_type: EntityType.USER,
                     entity_id: user.id,
                     action: UserAction.USER_CREATED,
-                    action_details: { name, email, role, created_by: req.user.id },
+                    action_details: { name, email, role_id, created_by: req.user.id },
                 });
                 return res.status(201).json(user);
             } catch (error) {

@@ -23,7 +23,7 @@ export type AuthTokenResponse = {
 export type UserCreateDTO = {
     email: string;
     name: string;
-    role: 'user' | 'admin' | 'superadmin';
+    role_id: string;
 };
 
 export type UserUpdateDTO = {
