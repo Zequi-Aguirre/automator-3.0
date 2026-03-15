@@ -4,7 +4,7 @@ class WorkerService {
     constructor(private readonly api: AxiosProvider) {}
 
     async getStatus(): Promise<{
-        queued: boolean;
+        worker_enabled: boolean;
         cron_schedule: string | null;
         running: boolean;
     }> {
