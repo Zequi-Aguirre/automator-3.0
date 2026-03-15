@@ -518,6 +518,41 @@ export default class LeadService {
         // Get outcomes (sold status) for this lead
         const outcomes = await this.leadBuyerOutcomeDAO.getByLeadId(leadId);
 
+        // Compute source/county filter rules and business hours status for manual send warnings
+        let sourceFilter: { mode: string; buyerIds: string[] } | null = null;
+        let countyFilter: { mode: string; buyerIds: string[] } | null = null;
+        let outsideBusinessHours = false;
+        try {
+            const lead = await this.leadDAO.getById(leadId);
+            if (lead?.campaign_id) {
+                const campaign = await this.campaignService.getById(lead.campaign_id);
+                if (campaign?.source_id) {
+                    const source = await this.sourceService.getById(campaign.source_id);
+                    if (source?.buyer_filter_mode && source.buyer_filter_buyer_ids?.length > 0) {
+                        sourceFilter = { mode: source.buyer_filter_mode, buyerIds: source.buyer_filter_buyer_ids };
+                    }
+                }
+            }
+            let countyTimezone: string | null = null;
+            if (lead?.county_id) {
+                const county = await this.countyService.getById(lead.county_id);
+                if (county?.buyer_filter_mode && county.buyer_filter_buyer_ids?.length > 0) {
+                    countyFilter = { mode: county.buyer_filter_mode, buyerIds: county.buyer_filter_buyer_ids };
+                }
+                countyTimezone = county?.timezone ?? null;
+            }
+            // Business hours check
+            const settings = await this.workerSettingsDAO.getCurrentSettings();
+            const tz = countyTimezone ?? 'America/New_York';
+            const local = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+            const localMinute = local.getHours() * 60 + local.getMinutes();
+            if (localMinute < settings.business_hours_start || localMinute >= settings.business_hours_end) {
+                outsideBusinessHours = true;
+            }
+        } catch {
+            // non-critical — proceed without warnings
+        }
+
         // Map buyers to send history
         const history = allBuyers.map(buyer => {
             const buyerLogs = sendLogs.filter(log => log.buyer_id === buyer.id);
@@ -526,13 +561,34 @@ export default class LeadService {
                 log.response_code !== null && log.response_code >= 200 && log.response_code < 300
             );
 
+            // Compute filter warnings for manual sends
+            const filter_warnings: string[] = [];
+            if (sourceFilter) {
+                if (sourceFilter.mode === 'include' && !sourceFilter.buyerIds.includes(buyer.id)) {
+                    filter_warnings.push('Source routes leads to a restricted set of buyers — this buyer is not included');
+                }
+                if (sourceFilter.mode === 'exclude' && sourceFilter.buyerIds.includes(buyer.id)) {
+                    filter_warnings.push('Source has blocked this buyer');
+                }
+            }
+            if (countyFilter) {
+                if (countyFilter.mode === 'include' && !countyFilter.buyerIds.includes(buyer.id)) {
+                    filter_warnings.push('County routes leads to a restricted set of buyers — this buyer is not included');
+                }
+                if (countyFilter.mode === 'exclude' && countyFilter.buyerIds.includes(buyer.id)) {
+                    filter_warnings.push('County has blocked this buyer');
+                }
+            }
+
             return {
                 buyer_id: buyer.id,
                 buyer_name: buyer.name,
                 buyer_priority: buyer.priority,
-                dispatch_mode: buyer.dispatch_mode,
+                manual_send: buyer.manual_send,
+                worker_send: buyer.worker_send,
                 sold: outcome?.status === 'sold',
                 has_successful_send: hasSuccessfulSend,
+                filter_warnings,
                 sends: buyerLogs.map(log => ({
                     id: log.id,
                     status: log.status,
@@ -548,7 +604,7 @@ export default class LeadService {
             };
         });
 
-        return history;
+        return { buyers: history, outside_business_hours: outsideBusinessHours };
     }
 
     async unqueueLead(leadId: string, userId?: string | null): Promise<Lead> {

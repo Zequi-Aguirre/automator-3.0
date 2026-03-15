@@ -130,7 +130,7 @@ const AdminUsersSection = () => {
     const closePermDialog = () => { setPermDialogUser(null); };
 
     return (
-        <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
+        <Container maxWidth={false} sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 0 }}>
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Users</Typography>

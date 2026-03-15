@@ -8,7 +8,6 @@ class BuyerService {
         page: number;
         limit: number;
         search?: string;
-        dispatch_mode?: 'manual' | 'worker' | 'both';
     }): Promise<{ items: Buyer[]; count: number }> {
         const res = await this.api.getApi().get(
             "/api/buyers",

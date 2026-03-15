@@ -3,7 +3,7 @@ import { injectable } from "tsyringe";
 import SourceService from "../services/sourceService";
 import ActivityService from "../services/activityService";
 import { SourceAction, EntityType } from "../types/activityTypes";
-import { SourceCreateDTO, SourceUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
+import { SourceCreateDTO, SourceUpdateDTO, SourceFilterUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
 import { requirePermission } from '../middleware/requirePermission';
 import { SourcePermission } from '../types/permissionTypes';
 
@@ -95,6 +95,8 @@ export default class SourceResource {
                     id: source.id,
                     name: source.name,
                     lead_manager_id: source.lead_manager_id ?? null,
+                    buyer_filter_mode: source.buyer_filter_mode ?? null,
+                    buyer_filter_buyer_ids: source.buyer_filter_buyer_ids ?? [],
                     created: source.created,
                     modified: source.modified,
                     deleted: source.deleted,
@@ -200,6 +202,39 @@ export default class SourceResource {
             }
         });
 
+        // PATCH /api/sources/:id/buyer-filters - Update buyer routing filter
+        this.router.patch('/:id/buyer-filters', requirePermission(SourcePermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { id } = req.params;
+                const { mode, buyer_ids } = req.body as SourceFilterUpdateDTO;
+
+                if (mode !== null && mode !== 'include' && mode !== 'exclude') {
+                    return res.status(400).json({ error: "mode must be 'include', 'exclude', or null" });
+                }
+                if (!Array.isArray(buyer_ids)) {
+                    return res.status(400).json({ error: 'buyer_ids must be an array' });
+                }
+
+                const source = await this.sourceService.updateBuyerFilter(id, mode, buyer_ids);
+
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: EntityType.SOURCE,
+                    entity_id: id,
+                    action: SourceAction.BUYER_FILTER_UPDATED,
+                    action_details: { mode, buyer_ids }
+                });
+
+                res.status(200).json(this.maskToken(source));
+            } catch (error) {
+                console.error('Error updating buyer filter:', error);
+                res.status(500).json({
+                    error: 'Failed to update buyer filter',
+                    message: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // DELETE /api/sources/:id - Soft delete source
         this.router.delete('/:id', requirePermission(SourcePermission.MANAGE), async (req: Request, res: Response) => {
             try {
@@ -228,6 +263,8 @@ export default class SourceResource {
             lead_manager_id: source.lead_manager_id ?? null,
             lead_manager_name: source.lead_manager_name,
             campaign_count: source.campaign_count,
+            buyer_filter_mode: source.buyer_filter_mode ?? null,
+            buyer_filter_buyer_ids: source.buyer_filter_buyer_ids ?? [],
             created: source.created,
             modified: source.modified,
             deleted: source.deleted

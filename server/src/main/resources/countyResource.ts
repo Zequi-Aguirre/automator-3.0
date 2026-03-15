@@ -4,6 +4,7 @@ import { injectable } from "tsyringe";
 import CountyService from "../services/countyService.ts";
 import ActivityService from "../services/activityService";
 import { CountyAction, EntityType } from "../types/activityTypes";
+import { CountyFilterUpdateDTO } from "../types/countyTypes";
 import { requirePermission } from "../middleware/requirePermission";
 import { CountyPermission } from "../types/permissionTypes";
 import multer from "multer";
@@ -96,6 +97,32 @@ export default class CountyResource {
                 action_details: { blacklisted }
             });
             res.status(200).send(updated);
+        });
+
+        // PATCH /api/counties/:countyId/buyer-filters - Update county buyer routing filter
+        this.router.patch("/:countyId/buyer-filters", requirePermission(CountyPermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { countyId } = req.params;
+                const { mode, buyer_ids } = req.body as CountyFilterUpdateDTO;
+
+                const updated = await this.countyService.updateBuyerFilter(countyId, mode, buyer_ids);
+
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: EntityType.COUNTY,
+                    entity_id: countyId,
+                    action: CountyAction.BUYER_FILTER_UPDATED,
+                    action_details: { mode, buyer_ids }
+                });
+
+                res.status(200).send(updated);
+            } catch (error) {
+                console.error("Error updating county buyer filter:", error);
+                res.status(500).send({
+                    message: "Failed to update buyer filter",
+                    error: error instanceof Error ? error.message : "Unknown error"
+                });
+            }
         });
 
         this.router.post("/import", requirePermission(CountyPermission.MANAGE), upload.single("file"), async (req: Request, res: Response) => {

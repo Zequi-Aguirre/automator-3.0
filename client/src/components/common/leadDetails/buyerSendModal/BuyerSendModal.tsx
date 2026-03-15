@@ -26,7 +26,8 @@ import {
     Error as ErrorIcon,
     PlayArrow as PlayArrowIcon,
     Flag as FlagIcon,
-    FlagOutlined as FlagOutlinedIcon
+    FlagOutlined as FlagOutlinedIcon,
+    Warning as WarningIcon
 } from '@mui/icons-material';
 import leadsService from '../../../../services/lead.service';
 import sendLogService from '../../../../services/sendLog.service';
@@ -45,9 +46,11 @@ interface BuyerHistory {
     buyer_id: string;
     buyer_name: string;
     buyer_priority: number;
-    dispatch_mode: 'manual' | 'worker' | 'both';
+    manual_send: boolean;
+    worker_send: boolean;
     sold: boolean;
     has_successful_send: boolean;
+    filter_warnings: string[];
     sends: Array<{
         id: string;
         status: string;
@@ -74,12 +77,16 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
     const canDispute = can(Permission.DISPUTES_CREATE);
     const [loading, setLoading] = useState(false);
     const [buyerHistory, setBuyerHistory] = useState<BuyerHistory[]>([]);
+    const [outsideBusinessHours, setOutsideBusinessHours] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [sending, setSending] = useState<string | null>(null);
     const [enablingWorker, setEnablingWorker] = useState(false);
 
     // Resend confirmation state
     const [resendConfirmBuyerId, setResendConfirmBuyerId] = useState<string | null>(null);
+
+    // Filter/hours warning confirmation state
+    const [warningConfirm, setWarningConfirm] = useState<{ buyerId: string; messages: string[] } | null>(null);
 
     // Dispute dialog state
     const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
@@ -94,6 +101,7 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         try {
             const data = await leadsService.getBuyerSendHistory(lead.id);
             setBuyerHistory(data.buyers);
+            setOutsideBusinessHours(data.outside_business_hours ?? false);
         } catch (err: unknown) {
             setError(extractErrorMessage(err, 'Failed to load buyer history'));
         } finally {
@@ -107,18 +115,33 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
         }
     }, [open, loadBuyerHistory]);
 
-    const handleSendToBuyer = async (buyerId: string, force: boolean = false) => {
+    const handleSendToBuyer = async (buyerId: string, force: boolean = false, skipWarnings: boolean = false) => {
+        // Collect warnings (filter rules + business hours)
+        if (!skipWarnings) {
+            const buyer = buyerHistory.find(b => b.buyer_id === buyerId);
+            const warnings: string[] = [...(buyer?.filter_warnings ?? [])];
+            if (outsideBusinessHours) {
+                warnings.push('This lead\'s county is currently outside business hours');
+            }
+            if (warnings.length > 0) {
+                setWarningConfirm({ buyerId, messages: warnings });
+                return;
+            }
+        }
+
         setSending(buyerId);
         setError(null);
         try {
             await leadsService.sendLeadToBuyer(lead.id, buyerId, force);
             setResendConfirmBuyerId(null);
+            setWarningConfirm(null);
             await loadBuyerHistory();
             if (onRefresh) onRefresh();
         } catch (err: unknown) {
             const axiosErr = err as { response?: { status?: number; data?: { already_sent?: boolean } } };
             if (axiosErr?.response?.status === 409 && axiosErr?.response?.data?.already_sent) {
                 setResendConfirmBuyerId(buyerId);
+                setWarningConfirm(null);
             } else {
                 setError(extractErrorMessage(err, 'Failed to send lead'));
             }
@@ -189,13 +212,8 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
 
     const handleClearError = () => { setError(null); };
 
-    const manualBuyers = buyerHistory.filter(b =>
-        b.dispatch_mode === 'manual' || b.dispatch_mode === 'both'
-    );
-
-    const workerBuyers = buyerHistory.filter(b =>
-        b.dispatch_mode === 'worker' || b.dispatch_mode === 'both'
-    );
+    const manualBuyers = buyerHistory.filter(b => b.manual_send);
+    const workerBuyers = buyerHistory.filter(b => b.worker_send && !b.manual_send);
 
     const renderBuyerRow = (buyer: BuyerHistory, isWorkerBuyer: boolean) => {
         const latestSend = buyer.sends[0];
@@ -305,9 +323,15 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                                 </Tooltip>
                                 <Button
                                     variant="contained"
-                                    startIcon={sending === buyer.buyer_id ? <CircularProgress size={16} /> : <SendIcon />}
+                                    color={buyer.filter_warnings.length > 0 || outsideBusinessHours ? 'warning' : 'primary'}
+                                    startIcon={sending === buyer.buyer_id
+                                        ? <CircularProgress size={16} />
+                                        : buyer.filter_warnings.length > 0 || outsideBusinessHours
+                                            ? <WarningIcon />
+                                            : <SendIcon />
+                                    }
                                     onClick={() => { void handleSendToBuyer(buyer.buyer_id); }}
-                                    disabled={!canSend || sending !== null || (!lead.verified && buyer.buyer_name.includes('validation'))}
+                                    disabled={!canSend || sending !== null}
                                     size="small"
                                 >
                                     {sending === buyer.buyer_id ? 'Sending...' : 'Send'}
@@ -408,6 +432,33 @@ const BuyerSendModal = ({ open, onClose, lead, onRefresh }: BuyerSendModalProps)
                         </Button>
                     )}
                     <Button onClick={onClose}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Filter / Business Hours Warning Confirmation */}
+            <Dialog open={warningConfirm !== null} onClose={() => setWarningConfirm(null)} maxWidth="xs" fullWidth>
+                <DialogTitle>Confirm Send</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={1}>
+                        {warningConfirm?.messages.map((msg, i) => (
+                            <Alert key={i} severity="warning" sx={{ py: 0.5 }}>{msg}</Alert>
+                        ))}
+                        <Typography variant="body2" sx={{ pt: 1 }}>
+                            These are worker routing rules. As an admin you can override them — do you want to send anyway?
+                        </Typography>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setWarningConfirm(null)}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="warning"
+                        startIcon={sending === warningConfirm?.buyerId ? <CircularProgress size={16} /> : <SendIcon />}
+                        disabled={sending !== null}
+                        onClick={() => { if (warningConfirm) void handleSendToBuyer(warningConfirm.buyerId, false, true); }}
+                    >
+                        Send Anyway
+                    </Button>
                 </DialogActions>
             </Dialog>
 

@@ -4,7 +4,7 @@ import SettingsService from "../services/settingsService.ts";
 import ActivityService from "../services/activityService";
 import { WorkerAction } from "../types/activityTypes";
 import { requirePermission } from '../middleware/requirePermission';
-import { SettingsPermission } from '../types/permissionTypes';
+import { WorkerSettingsPermission } from '../types/permissionTypes';
 
 @injectable()
 export default class SettingsResource {
@@ -26,7 +26,7 @@ export default class SettingsResource {
         });
 
         // Update settings
-        this.router.patch("/update", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
+        this.router.patch("/update", requirePermission(WorkerSettingsPermission.MANAGE), async (req: Request, res: Response) => {
             const updatedSettings = await this.settingsService.updateSettings(req.body);
             await this.activityService.log({
                 user_id: req.user?.id,

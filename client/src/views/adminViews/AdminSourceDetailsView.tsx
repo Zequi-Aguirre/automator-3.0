@@ -1,37 +1,45 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+    Autocomplete,
     Box,
-    Typography,
+    Button,
+    Card,
+    CardContent,
+    Checkbox,
+    Chip,
     CircularProgress,
     Container,
-    Button,
-    Paper,
-    Stack,
-    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    FormControlLabel,
     IconButton,
+    Paper,
     Snackbar,
     Alert,
+    Stack,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     TextField,
-    FormControlLabel,
-    Checkbox,
+    ToggleButton,
+    ToggleButtonGroup,
+    Typography,
 } from '@mui/material';
 import { ArrowBack, Edit, Delete, Refresh, Add, ContentCopy, CheckCircle } from '@mui/icons-material';
 
 import sourceService from '../../services/source.service';
 import campaignService from '../../services/campaign.service';
-import { Source } from '../../types/sourceTypes';
+import buyerService from '../../services/buyer.service';
+import { Source, SourceBuyerFilterMode } from '../../types/sourceTypes';
 import { Campaign, CampaignCreateDTO, CampaignUpdateDTO } from '../../types/campaignTypes';
+import { Buyer } from '../../types/buyerTypes';
 
 const AdminSourceDetailsView = () => {
     const { id } = useParams<{ id: string }>();
@@ -63,6 +71,12 @@ const AdminSourceDetailsView = () => {
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editFormData, setEditFormData] = useState({ name: '' });
 
+    // Buyer filter state
+    const [buyers, setBuyers] = useState<Buyer[]>([]);
+    const [filterMode, setFilterMode] = useState<SourceBuyerFilterMode | null>(null);
+    const [filterBuyerIds, setFilterBuyerIds] = useState<string[]>([]);
+    const [filterSaving, setFilterSaving] = useState(false);
+
     const [snack, setSnack] = useState({
         open: false,
         message: '',
@@ -74,6 +88,7 @@ const AdminSourceDetailsView = () => {
             fetchSourceDetails();
             fetchCampaigns();
         }
+        buyerService.getAll({ page: 1, limit: 200 }).then(res => setBuyers(res.items)).catch(() => {});
     }, [id]);
 
     const fetchSourceDetails = async () => {
@@ -82,6 +97,8 @@ const AdminSourceDetailsView = () => {
         try {
             const data = await sourceService.getById(id);
             setSource(data);
+            setFilterMode(data.buyer_filter_mode);
+            setFilterBuyerIds(data.buyer_filter_buyer_ids ?? []);
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
             setSnack({ open: true, message: `Failed to fetch source: ${errorMessage}`, severity: 'error' });
@@ -142,6 +159,25 @@ const AdminSourceDetailsView = () => {
         setTokenDialogOpen(false);
         setDisplayToken('');
         setTokenCopied(false);
+    };
+
+    const handleSaveBuyerFilter = async () => {
+        if (!id) return;
+        setFilterSaving(true);
+        try {
+            const updated = await sourceService.updateBuyerFilter(id, {
+                mode: filterMode,
+                buyer_ids: filterMode ? filterBuyerIds : [],
+            });
+            setSource(updated);
+            setFilterMode(updated.buyer_filter_mode);
+            setFilterBuyerIds(updated.buyer_filter_buyer_ids ?? []);
+            setSnack({ open: true, message: 'Buyer filter saved', severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to save buyer filter', severity: 'error' });
+        } finally {
+            setFilterSaving(false);
+        }
     };
 
     const handleOpenEditDialog = () => {
@@ -297,6 +333,76 @@ const AdminSourceDetailsView = () => {
                         </Box>
                     </Stack>
                 </Paper>
+
+                {/* Buyer Filter Section */}
+                <Card variant="outlined" sx={{ mb: 3 }}>
+                    <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                            <Typography variant="subtitle1" fontWeight={600}>Buyer Routing Filter</Typography>
+                            <Button
+                                size="small"
+                                variant="contained"
+                                onClick={handleSaveBuyerFilter}
+                                disabled={filterSaving}
+                            >
+                                {filterSaving ? 'Saving…' : 'Save'}
+                            </Button>
+                        </Box>
+                        <Divider sx={{ mb: 2 }} />
+                        <Stack spacing={2}>
+                            <ToggleButtonGroup
+                                value={filterMode ?? 'none'}
+                                exclusive
+                                size="small"
+                                onChange={(_, val) => {
+                                    const next = val === 'none' ? null : val as SourceBuyerFilterMode;
+                                    setFilterMode(next);
+                                    if (!next) setFilterBuyerIds([]);
+                                }}
+                            >
+                                <ToggleButton value="none">No Filter</ToggleButton>
+                                <ToggleButton value="include">Only send to selected</ToggleButton>
+                                <ToggleButton value="exclude">Block selected</ToggleButton>
+                            </ToggleButtonGroup>
+
+                            {filterMode && (
+                                <Autocomplete
+                                    multiple
+                                    options={buyers}
+                                    getOptionLabel={(b) => b.name}
+                                    value={buyers.filter(b => filterBuyerIds.includes(b.id))}
+                                    onChange={(_, selected) => setFilterBuyerIds(selected.map(b => b.id))}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            size="small"
+                                            label={filterMode === 'include' ? 'Buyers to allow' : 'Buyers to block'}
+                                            placeholder="Select buyers…"
+                                        />
+                                    )}
+                                    renderTags={(value, getTagProps) =>
+                                        value.map((option, index) => (
+                                            <Chip
+                                                {...getTagProps({ index })}
+                                                key={option.id}
+                                                label={option.name}
+                                                size="small"
+                                                color={filterMode === 'include' ? 'success' : 'error'}
+                                                variant="outlined"
+                                            />
+                                        ))
+                                    }
+                                />
+                            )}
+
+                            {!filterMode && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Leads from this source will be sent to all eligible buyers.
+                                </Typography>
+                            )}
+                        </Stack>
+                    </CardContent>
+                </Card>
 
                 {/* Campaigns Section */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

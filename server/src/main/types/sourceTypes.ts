@@ -10,11 +10,15 @@
  * Source - Database entity
  * Represents an external lead source with API access
  */
+export type SourceBuyerFilterMode = 'include' | 'exclude';
+
 export type Source = {
     id: string;
     token: string;  // 64-char hex token for Bearer auth
     name: string;
     lead_manager_id: string | null;
+    buyer_filter_mode: SourceBuyerFilterMode | null;
+    buyer_filter_buyer_ids: string[];
     created: string;  // ISO timestamp
     modified: string;  // ISO timestamp
     deleted: string | null;  // Soft delete timestamp
@@ -49,6 +53,8 @@ export type SourceResponse = {
     lead_manager_id: string | null;
     lead_manager_name?: string | null;
     campaign_count?: number;
+    buyer_filter_mode: SourceBuyerFilterMode | null;
+    buyer_filter_buyer_ids: string[];
     created: string;
     modified: string;
     deleted: string | null;
@@ -69,6 +75,14 @@ export type CreateSourceResponse = SourceResponse & {
 export type RefreshTokenResponse = {
     id: string;
     token: string;  // New token (old token immediately invalid)
+};
+
+/**
+ * SourceFilterUpdateDTO - Update buyer routing filter for a source
+ */
+export type SourceFilterUpdateDTO = {
+    mode: SourceBuyerFilterMode | null;
+    buyer_ids: string[];
 };
 
 /**
