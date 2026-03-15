@@ -109,7 +109,7 @@ const LeadsSection = () => {
         } finally {
             setLoading(false);
         }
-    }, [leadFilters, can]);
+    }, [leadFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         fetchLeads();
