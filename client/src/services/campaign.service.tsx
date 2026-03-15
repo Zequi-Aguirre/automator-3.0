@@ -11,7 +11,7 @@ class CampaignService {
         limit: number
     }): Promise<{ campaigns: Campaign[]; count: number; sources: Source[]; managers: LeadManager[] }> {
         const response = await this.api.getApi().get(
-            '/api/campaigns/admin/get-many',
+            '/api/campaigns/get-many',
             { params: filters }
         );
         return response.data;
@@ -40,7 +40,7 @@ class CampaignService {
         campaignId: string,
         updates: { rating?: number; blacklisted?: boolean }
     ): Promise<Campaign> {
-        const res = await this.api.getApi().patch(`/api/campaigns/admin/update-meta/${campaignId}`, updates);
+        const res = await this.api.getApi().patch(`/api/campaigns/update-meta/${campaignId}`, updates);
         return res.data;
     }
 }

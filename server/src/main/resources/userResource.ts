@@ -27,20 +27,20 @@ export default class UserResource {
         });
 
         // List all users with their permissions
-        this.router.get('/admin/users', requirePermission(UserPermission.MANAGE), async (_req: Request, res: Response) => {
+        this.router.get('/users', requirePermission(UserPermission.MANAGE), async (_req: Request, res: Response) => {
             const users = await this.userService.getAllUsers();
             res.status(200).json(users);
         });
 
         // Get a single user by ID
-        this.router.get('/admin/users/:id', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+        this.router.get('/users/:id', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             const user = await this.userService.getUserById(req.params.id);
             if (!user) return res.status(404).json({ message: 'User not found' });
             res.status(200).json(user);
         });
 
         // Update a user's role
-        this.router.patch('/admin/users/:id/role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+        this.router.patch('/users/:id/role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             const { role } = req.body;
             if (!['user', 'admin'].includes(role)) {
                 return res.status(400).json({ message: 'Invalid role. Must be user or admin.' });
@@ -60,7 +60,7 @@ export default class UserResource {
         });
 
         // Set a user's permissions (superadmin only)
-        this.router.put('/admin/users/:id/permissions', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+        this.router.put('/users/:id/permissions', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             const { permissions } = req.body;
             if (!Array.isArray(permissions)) {
                 return res.status(400).json({ message: 'permissions must be an array.' });
@@ -78,7 +78,7 @@ export default class UserResource {
         });
 
         // Assign a permission role to a user (sets role + applies its permissions atomically)
-        this.router.patch('/admin/users/:id/assign-role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+        this.router.patch('/users/:id/assign-role', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
             const { role_id } = req.body;
             if (!role_id) return res.status(400).json({ message: 'role_id is required' });
             const updated = await this.userService.assignRole(req.params.id, role_id);
@@ -94,7 +94,7 @@ export default class UserResource {
         });
 
         // Get all available permissions grouped by entity (for the UI checkboxes)
-        this.router.get('/admin/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
+        this.router.get('/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
             res.status(200).json({
                 leads: Object.values(LeadPermission),
                 worker: Object.values(WorkerPermission),

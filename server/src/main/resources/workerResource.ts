@@ -29,7 +29,7 @@ export default class WorkerResource {
 
         // Start worker (enable in DB, then initialize cron)
         this.router.patch(
-            "/admin/start",
+            "/start",
             requirePermission(WorkerPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
@@ -63,7 +63,7 @@ export default class WorkerResource {
 
         // Stop worker (disable in DB, stop cron)
         this.router.patch(
-            "/admin/stop",
+            "/stop",
             requirePermission(WorkerPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
@@ -97,7 +97,8 @@ export default class WorkerResource {
 
         // Get worker status from DB + runtime
         this.router.get(
-            "/admin/status",
+            "/status",
+            requirePermission(WorkerPermission.TOGGLE),
             async (_req: Request, res: Response) => {
                 try {
                     const settings = await this.settingsService.getWorkerSettings();
@@ -124,7 +125,8 @@ export default class WorkerResource {
 
         // Update cron schedule in DB, restart worker if enabled
         this.router.patch(
-            "/admin/update-cron",
+            "/update-cron",
+            requirePermission(WorkerPermission.TOGGLE),
             async (req: Request, res: Response) => {
                 try {
                     const { cron_schedule } = req.body;

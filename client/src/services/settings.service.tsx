@@ -13,7 +13,7 @@ class SettingsService {
 
     // Update settings
     async updateSettings(settings: Partial<WorkerSettings>): Promise<WorkerSettings> {
-        const response = await this.api.getApi().patch(`/api/settings/admin/update`, settings);
+        const response = await this.api.getApi().patch(`/api/settings/update`, settings);
         return response.data;
     }
 }

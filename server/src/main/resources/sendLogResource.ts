@@ -14,7 +14,7 @@ export default class SendLogResource {
     }
 
     private initializeRoutes() {
-        this.router.get("/admin/get-many", requirePermission(LogPermission.VIEW), async (req: Request, res: Response) => {
+        this.router.get("/get-many", requirePermission(LogPermission.VIEW), async (req: Request, res: Response) => {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 50;
 
@@ -35,7 +35,7 @@ export default class SendLogResource {
             res.status(200).send(data);
         });
 
-        this.router.patch("/admin/update/:logId", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
+        this.router.patch("/update/:logId", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             const { logId } = req.params;
             const updates = req.body;
             const updated = await this.sendLogService.updateLog(logId, updates);

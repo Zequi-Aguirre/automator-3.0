@@ -6,6 +6,8 @@ import LeadManagerService from "../services/leadManagerService";
 import ActivityService from "../services/activityService";
 import { CampaignAction, EntityType } from "../types/activityTypes";
 import { CampaignCreateDTO, CampaignUpdateDTO } from "../types/campaignTypes";
+import { requirePermission } from "../middleware/requirePermission";
+import { SourcePermission } from "../types/permissionTypes";
 
 /**
  * CampaignResource - Admin API endpoints for campaign management
@@ -206,7 +208,7 @@ export default class CampaignResource {
         });
 
         // Admin list endpoint — returns campaigns with sources and managers for table display
-        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
+        this.router.get("/get-many", requirePermission(SourcePermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const filters = {
                     page: Number(req.query.page) || 1,
@@ -236,7 +238,7 @@ export default class CampaignResource {
             }
         });
 
-        this.router.patch("/admin/update-meta/:campaignId", async (req: Request, res: Response) => {
+        this.router.patch("/update-meta/:campaignId", requirePermission(SourcePermission.MANAGE), async (req: Request, res: Response) => {
             const { campaignId } = req.params;
             const updates = req.body;
             const updated = await this.campaignService.updateCampaignMeta(campaignId, updates);

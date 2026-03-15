@@ -73,7 +73,7 @@ export default class LeadResource {
         });
 
         // Send lead with oldDatabase support
-        this.router.patch("/admin/send/:leadId", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
+        this.router.patch("/send/:leadId", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const userId = req.user.id; // Assuming user is attached to request by auth middleware
