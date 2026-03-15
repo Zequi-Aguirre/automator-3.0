@@ -1,4 +1,5 @@
 import {
+    Avatar,
     Box,
     Divider,
     Drawer,
@@ -25,7 +26,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import GroupIcon from "@mui/icons-material/Group";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import userService from "../../services/user.service.tsx";
 import DataContext from "../../context/DataContext.tsx";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -42,8 +43,17 @@ type NavItem = {
     permission?: Permission;
 };
 
+function getInitials(name: string): string {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(w => w[0].toUpperCase())
+        .join('');
+}
+
 export default function NavBar() {
-    const { setSession, setRole, role, setLoggedInUser } = useContext(DataContext);
+    const { setSession, setRole, role, setLoggedInUser, loggedInUser } = useContext(DataContext);
     const { can } = usePermissions();
     const navigate = useNavigate();
     const location = useLocation();
@@ -51,7 +61,14 @@ export default function NavBar() {
 
     const isMobile = useMediaQuery("(max-width:900px)");
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(() => !(loggedInUser?.navbar_open ?? true));
+
+    // Sync collapsed state when loggedInUser changes (e.g. after initial API load)
+    useEffect(() => {
+        if (loggedInUser) {
+            setCollapsed(!(loggedInUser.navbar_open ?? true));
+        }
+    }, [loggedInUser?.id]);
 
     const allNavItems: NavItem[] = useMemo(() => [
         { label: "Leads", icon: <PeopleIcon />, path: "/leads", pathMatch: "/leads", permission: Permission.LEADS_READ },
@@ -84,7 +101,18 @@ export default function NavBar() {
         setDrawerOpen(false);
     };
 
+    const handleToggleCollapse = () => {
+        const newCollapsed = !collapsed;
+        setCollapsed(newCollapsed);
+        if (loggedInUser) {
+            setLoggedInUser(prev => prev ? { ...prev, navbar_open: !newCollapsed } : prev);
+            void userService.updateNavbarOpen(!newCollapsed);
+        }
+    };
+
     if (!role) return null;
+
+    const initials = loggedInUser?.name ? getInitials(loggedInUser.name) : '?';
 
     const sidebarContent = (isCollapsed: boolean) => (
         <Box
@@ -119,7 +147,7 @@ export default function NavBar() {
                 )}
                 <Tooltip title={isCollapsed ? "Expand" : "Collapse"} placement="right">
                     <IconButton
-                        onClick={() => setCollapsed(v => !v)}
+                        onClick={handleToggleCollapse}
                         size="small"
                         sx={{ color: "rgba(255,255,255,0.7)", "&:hover": { color: "white" } }}
                     >
@@ -142,7 +170,7 @@ export default function NavBar() {
                             arrow
                         >
                             <ListItemButton
-                                onClick={() => handleNav(item.path)}
+                                onClick={() => { handleNav(item.path); }}
                                 selected={isActive}
                                 sx={{
                                     color: "white",
@@ -179,6 +207,52 @@ export default function NavBar() {
                     );
                 })}
             </List>
+
+            <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
+
+            {/* User avatar */}
+            <Tooltip title={isCollapsed ? (loggedInUser?.name ?? '') : ''} placement="right">
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: isCollapsed ? 0 : 1.5,
+                        py: 1.25,
+                        justifyContent: isCollapsed ? "center" : "flex-start",
+                    }}
+                >
+                    <Avatar
+                        sx={{
+                            width: 32,
+                            height: 32,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            bgcolor: "rgba(255,255,255,0.2)",
+                            color: "white",
+                            flexShrink: 0,
+                        }}
+                    >
+                        {initials}
+                    </Avatar>
+                    {!isCollapsed && (
+                        <Box sx={{ overflow: "hidden" }}>
+                            <Typography
+                                variant="body2"
+                                sx={{ color: "white", fontWeight: 600, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                            >
+                                {loggedInUser?.name ?? ''}
+                            </Typography>
+                            <Typography
+                                variant="caption"
+                                sx={{ color: "rgba(255,255,255,0.6)", fontSize: 11, textTransform: "capitalize" }}
+                            >
+                                {loggedInUser?.role ?? ''}
+                            </Typography>
+                        </Box>
+                    )}
+                </Box>
+            </Tooltip>
 
             <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
 
@@ -234,7 +308,7 @@ export default function NavBar() {
                         zIndex: 1200,
                     }}
                 >
-                    <IconButton onClick={() => setDrawerOpen(true)} sx={{ color: "white" }}>
+                    <IconButton onClick={() => { setDrawerOpen(true); }} sx={{ color: "white" }}>
                         <MenuIcon />
                     </IconButton>
                     <Typography
@@ -247,7 +321,7 @@ export default function NavBar() {
                 <Drawer
                     anchor="left"
                     open={drawerOpen}
-                    onClose={() => setDrawerOpen(false)}
+                    onClose={() => { setDrawerOpen(false); }}
                     sx={{ "& .MuiDrawer-paper": { width: SIDEBAR_EXPANDED } }}
                 >
                     {sidebarContent(false)}

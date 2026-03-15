@@ -37,6 +37,7 @@ export enum LogPermission {
 
 export enum UserPermission {
     MANAGE = 'users.manage',
+    APPROVE = 'users.approve',
 }
 
 export enum ActivityPermission {
@@ -111,6 +112,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         WorkerSettingsPermission.TOGGLE,
         WorkerSettingsPermission.MANAGE,
         UserPermission.MANAGE,
+        UserPermission.APPROVE,
         ActivityPermission.VIEW,
         TrashReasonPermission.MANAGE,
         DisputePermission.CREATE,

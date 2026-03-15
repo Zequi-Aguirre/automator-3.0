@@ -15,6 +15,7 @@ import {
     DialogContent,
     DialogTitle,
     FormControlLabel,
+    IconButton,
     MenuItem,
     Paper,
     Select,
@@ -26,13 +27,21 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import EditIcon from '@mui/icons-material/Edit';
+import LockResetIcon from '@mui/icons-material/LockReset';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import { useNavigate } from 'react-router-dom';
 import userService from '../../../services/user.service';
 import roleService from '../../../services/role.service';
-import { Permission, User, UserRole } from '../../../types/userTypes';
+import { Permission, User, UserCreateDTO, UserRole, UserUpdateDTO } from '../../../types/userTypes';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { PermissionRole } from '../../../types/roleTypes';
 import DataContext from '../../../context/DataContext';
 
@@ -47,6 +56,7 @@ const permLabel = (perm: string) =>
 
 const AdminUsersSection = () => {
     const { loggedInUser } = useContext(DataContext);
+    const { can } = usePermissions();
     const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -56,6 +66,23 @@ const AdminUsersSection = () => {
     const [roles, setRoles] = useState<PermissionRole[]>([]);
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+
+    // Create user dialog
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createForm, setCreateForm] = useState<UserCreateDTO>({ email: '', name: '', role_id: '' });
+    const [createError, setCreateError] = useState<string | null>(null);
+    const [creating, setCreating] = useState(false);
+
+    // Approve account dialog
+    const [approveUser, setApproveUser] = useState<User | null>(null);
+    const [approveRoleId, setApproveRoleId] = useState('');
+    const [approving, setApproving] = useState(false);
+
+    // Edit user dialog (name/email only)
+    const [editUser, setEditUser] = useState<User | null>(null);
+    const [editForm, setEditForm] = useState<UserUpdateDTO>({});
+    const [editError, setEditError] = useState<string | null>(null);
+    const [editing, setEditing] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -126,6 +153,94 @@ const AdminUsersSection = () => {
         }
     };
 
+    // Create user handlers
+    const handleOpenCreate = () => {
+        setCreateForm({ email: '', name: '', role_id: '' });
+        setCreateError(null);
+        setCreateOpen(true);
+    };
+
+    const handleCreateUser = async () => {
+        setCreateError(null);
+        if (!createForm.email || !createForm.name || !createForm.role_id) {
+            setCreateError('Email, name, and role are required.');
+            return;
+        }
+        setCreating(true);
+        try {
+            const newUser = await userService.createUser(createForm);
+            setUsers(prev => [...prev, newUser]);
+            setCreateOpen(false);
+            setSnack({ open: true, message: `User "${newUser.name}" created — invite email sent.`, severity: 'success' });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Failed to create user';
+            setCreateError(msg);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    // Edit user handlers
+    const handleOpenEdit = (user: User) => {
+        setEditUser(user);
+        setEditForm({ name: user.name, email: user.email });
+        setEditError(null);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editUser) return;
+        setEditError(null);
+        setEditing(true);
+        try {
+            const updated = await userService.updateUser(editUser.id, editForm);
+            setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...updated } : u));
+            setEditUser(null);
+            setSnack({ open: true, message: 'User updated', severity: 'success' });
+        } catch {
+            setEditError('Failed to update user.');
+        } finally {
+            setEditing(false);
+        }
+    };
+
+    // Approve account handler
+    const handleApproveAccount = async () => {
+        if (!approveUser || !approveRoleId) return;
+        setApproving(true);
+        try {
+            const approved = await userService.approveAccount(approveUser.id, approveRoleId);
+            setUsers(prev => prev.map(u => u.id === approveUser.id ? { ...u, ...approved } : u));
+            setApproveUser(null);
+            setApproveRoleId('');
+            setSnack({ open: true, message: `Account approved — invite email sent to ${approveUser.email}`, severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to approve account', severity: 'error' });
+        } finally {
+            setApproving(false);
+        }
+    };
+
+    // Deny account handler
+    const handleDenyAccount = async (user: User) => {
+        try {
+            await userService.denyAccount(user.id);
+            setUsers(prev => prev.filter(u => u.id !== user.id));
+            setSnack({ open: true, message: `Account request from ${user.email} denied`, severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to deny account', severity: 'error' });
+        }
+    };
+
+    // Reset password handler
+    const handleResetPassword = async (user: User) => {
+        try {
+            await userService.resetPassword(user.id);
+            setSnack({ open: true, message: `Password reset — new credentials sent to ${user.email}`, severity: 'success' });
+        } catch {
+            setSnack({ open: true, message: 'Failed to reset password', severity: 'error' });
+        }
+    };
+
     const closeSnack = () => { setSnack(p => ({ ...p, open: false })); };
     const closePermDialog = () => { setPermDialogUser(null); };
 
@@ -134,6 +249,14 @@ const AdminUsersSection = () => {
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Users</Typography>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<PersonAddIcon />}
+                        onClick={handleOpenCreate}
+                    >
+                        Create User
+                    </Button>
                 </Box>
 
                 {loading
@@ -143,7 +266,7 @@ const AdminUsersSection = () => {
                     : (
                         <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
                             <TableContainer component={Paper} sx={{ height: '100%' }}>
-                                <Table stickyHeader>
+                                <Table stickyHeader size="small">
                                     <TableHead>
                                         <TableRow>
                                             <TableCell>Name</TableCell>
@@ -157,13 +280,20 @@ const AdminUsersSection = () => {
                                         {users.map((u) => {
                                             const isSelf = u.id === loggedInUser?.id;
                                             const isSuperAdmin = u.role === 'superadmin';
+                                            const isPending = u.status === 'pending';
                                             return (
-                                                <TableRow key={u.id} hover>
+                                                <TableRow key={u.id} hover sx={isPending ? { opacity: 0.8 } : {}}>
                                                     <TableCell>
                                                         <Stack direction="row" alignItems="center" spacing={1}>
                                                             <span>{u.name}</span>
                                                             {isSelf && (
                                                                 <Chip label="you" size="small" variant="outlined" />
+                                                            )}
+                                                            {isPending && (
+                                                                <Chip label="pending approval" size="small" color="info" variant="outlined" />
+                                                            )}
+                                                            {u.must_change_password && !isPending && (
+                                                                <Chip label="must change password" size="small" color="warning" variant="outlined" />
                                                             )}
                                                         </Stack>
                                                     </TableCell>
@@ -183,11 +313,13 @@ const AdminUsersSection = () => {
                                                                     onChange={(e) => { void handleRoleChange(u.id, e.target.value); }}
                                                                     sx={{ fontSize: 'inherit', minWidth: 100 }}
                                                                 >
-                                                                    {u.permission_role_id === null || u.permission_role_id === undefined ? (
-                                                                        <MenuItem value="" disabled>
-                                                                            <Typography variant="body2" color="text.disabled">— no role —</Typography>
-                                                                        </MenuItem>
-                                                                    ) : null}
+                                                                    {(u.permission_role_id === null || u.permission_role_id === undefined)
+                                                                        ? (
+                                                                            <MenuItem value="" disabled>
+                                                                                <Typography variant="body2" color="text.disabled">— no role —</Typography>
+                                                                            </MenuItem>
+                                                                        )
+                                                                        : null}
                                                                     {roles.map(r => (
                                                                         <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
                                                                     ))}
@@ -203,20 +335,69 @@ const AdminUsersSection = () => {
                                                         />
                                                     </TableCell>
                                                     <TableCell align="right">
-                                                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                                            <Button
-                                                                size="small"
-                                                                onClick={() => { navigate(`/users/${u.id}`); }}
-                                                            >
-                                                                View
-                                                            </Button>
-                                                            <Button
-                                                                size="small"
-                                                                onClick={() => { handleOpenPermDialog(u); }}
-                                                                disabled={isSuperAdmin && !isSelf}
-                                                            >
-                                                                Edit Permissions
-                                                            </Button>
+                                                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                                            {isPending
+                                                                ? (
+                                                                    <>
+                                                                        {can(Permission.USERS_APPROVE) && (
+                                                                            <>
+                                                                                <Tooltip title="Approve account">
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        color="success"
+                                                                                        onClick={() => {
+                                                                                            setApproveUser(u);
+                                                                                            setApproveRoleId('');
+                                                                                        }}
+                                                                                    >
+                                                                                        <CheckCircleOutlineIcon fontSize="small" />
+                                                                                    </IconButton>
+                                                                                </Tooltip>
+                                                                                <Tooltip title="Deny request">
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        color="error"
+                                                                                        onClick={() => { void handleDenyAccount(u); }}
+                                                                                    >
+                                                                                        <CancelOutlinedIcon fontSize="small" />
+                                                                                    </IconButton>
+                                                                                </Tooltip>
+                                                                            </>
+                                                                        )}
+                                                                    </>
+                                                                )
+                                                                : (
+                                                                    <>
+                                                                        <Button
+                                                                            size="small"
+                                                                            onClick={() => { navigate(`/users/${u.id}`); }}
+                                                                        >
+                                                                            View
+                                                                        </Button>
+                                                                        <Tooltip title="Edit name / email">
+                                                                            <IconButton size="small" onClick={() => { handleOpenEdit(u); }}>
+                                                                                <EditIcon fontSize="small" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                        <Tooltip title="Reset password">
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                onClick={() => { void handleResetPassword(u); }}
+                                                                                disabled={isSelf}
+                                                                            >
+                                                                                <LockResetIcon fontSize="small" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                        <Button
+                                                                            size="small"
+                                                                            onClick={() => { handleOpenPermDialog(u); }}
+                                                                            disabled={isSuperAdmin && !isSelf}
+                                                                        >
+                                                                            Permissions
+                                                                        </Button>
+                                                                    </>
+                                                                )
+                                                            }
                                                         </Stack>
                                                     </TableCell>
                                                 </TableRow>
@@ -234,6 +415,81 @@ const AdminUsersSection = () => {
                     )
                 }
             </Box>
+
+            {/* Create User Dialog */}
+            <Dialog open={createOpen} onClose={() => { setCreateOpen(false); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Create User</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Name"
+                        size="small"
+                        fullWidth
+                        value={createForm.name}
+                        onChange={e => { setCreateForm(p => ({ ...p, name: e.target.value })); }}
+                        autoFocus
+                    />
+                    <TextField
+                        label="Email"
+                        size="small"
+                        fullWidth
+                        type="email"
+                        value={createForm.email}
+                        onChange={e => { setCreateForm(p => ({ ...p, email: e.target.value })); }}
+                    />
+                    <Select
+                        size="small"
+                        value={createForm.role_id}
+                        onChange={e => { setCreateForm(p => ({ ...p, role_id: e.target.value })); }}
+                        fullWidth
+                        displayEmpty
+                    >
+                        <MenuItem value="" disabled>Select a role…</MenuItem>
+                        {roles.map(r => (
+                            <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                        ))}
+                    </Select>
+                    {createError && <Alert severity="error">{createError}</Alert>}
+                    <Typography variant="caption" color="text.secondary">
+                        A temporary password will be generated and emailed to the user.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setCreateOpen(false); }}>Cancel</Button>
+                    <Button onClick={() => { void handleCreateUser(); }} variant="contained" disabled={creating}>
+                        {creating ? 'Creating…' : 'Create'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Edit User Dialog */}
+            <Dialog open={!!editUser} onClose={() => { setEditUser(null); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Edit User — {editUser?.name}</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Name"
+                        size="small"
+                        fullWidth
+                        value={editForm.name ?? ''}
+                        onChange={e => { setEditForm(p => ({ ...p, name: e.target.value })); }}
+                        autoFocus
+                    />
+                    <TextField
+                        label="Email"
+                        size="small"
+                        fullWidth
+                        type="email"
+                        value={editForm.email ?? ''}
+                        onChange={e => { setEditForm(p => ({ ...p, email: e.target.value })); }}
+                    />
+                    {editError && <Alert severity="error">{editError}</Alert>}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setEditUser(null); }}>Cancel</Button>
+                    <Button onClick={() => { void handleSaveEdit(); }} variant="contained" disabled={editing}>
+                        {editing ? 'Saving…' : 'Save'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Permissions Dialog */}
             <Dialog open={!!permDialogUser} onClose={closePermDialog} maxWidth="md" fullWidth>
@@ -266,7 +522,7 @@ const AdminUsersSection = () => {
                                                     size="small"
                                                     variant="outlined"
                                                     clickable
-                                                    onClick={() => setSelectedPerms(role.permissions)}
+                                                    onClick={() => { setSelectedPerms(role.permissions); }}
                                                 />
                                             ))}
                                         </Stack>
@@ -293,7 +549,7 @@ const AdminUsersSection = () => {
                                                         checked={allSelected}
                                                         indeterminate={someSelected}
                                                         onChange={e => { e.stopPropagation(); toggleGroup(); }}
-                                                        onClick={e => e.stopPropagation()}
+                                                        onClick={e => { e.stopPropagation(); }}
                                                         sx={{ p: 0.5 }}
                                                     />
                                                     <Typography variant="subtitle2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
@@ -336,6 +592,39 @@ const AdminUsersSection = () => {
                     <Button onClick={closePermDialog}>Cancel</Button>
                     <Button onClick={() => { void handleSavePermissions(); }} variant="contained" disabled={saving}>
                         {saving ? 'Saving…' : 'Save'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Approve Account Dialog */}
+            <Dialog open={!!approveUser} onClose={() => { setApproveUser(null); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Approve Account — {approveUser?.name}</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Select a role to assign to <strong>{approveUser?.email}</strong>. A temporary password will be generated and emailed to them.
+                    </Typography>
+                    <Select
+                        size="small"
+                        value={approveRoleId}
+                        onChange={e => { setApproveRoleId(e.target.value); }}
+                        fullWidth
+                        displayEmpty
+                    >
+                        <MenuItem value="" disabled>Select a role…</MenuItem>
+                        {roles.map(r => (
+                            <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                        ))}
+                    </Select>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setApproveUser(null); }}>Cancel</Button>
+                    <Button
+                        onClick={() => { void handleApproveAccount(); }}
+                        variant="contained"
+                        color="success"
+                        disabled={approving || !approveRoleId}
+                    >
+                        {approving ? 'Approving…' : 'Approve'}
                     </Button>
                 </DialogActions>
             </Dialog>

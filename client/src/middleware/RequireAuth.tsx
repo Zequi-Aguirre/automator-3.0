@@ -1,5 +1,5 @@
 import { useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import DataContext from "../context/DataContext.tsx";
 import userService from "../services/user.service.tsx";
 
@@ -10,6 +10,7 @@ type Props = {
 const RequireAuth = ({ children }: Props) => {
     const { session, setSession, setRole, setLoggedInUser, allowLogin } = useContext(DataContext);
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         if (!session) {
@@ -20,12 +21,16 @@ const RequireAuth = ({ children }: Props) => {
         void userService.getUserInfo().then((user) => {
             setLoggedInUser(user);
             setRole(user.role);
+            // Force password change if flagged
+            if (user.must_change_password && location.pathname !== '/change-password') {
+                navigate('/change-password');
+            }
         }).catch(() => {
             setSession(null);
             setLoggedInUser(null);
             navigate("/login");
         });
-    }, [session, allowLogin, navigate, setSession, setLoggedInUser, setRole]);
+    }, [session, allowLogin, navigate, setSession, setLoggedInUser, setRole, location.pathname]);
 
     return <>{children}</>;
 };

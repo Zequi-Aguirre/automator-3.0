@@ -1,4 +1,4 @@
-import { User, Permission } from "../types/userTypes";
+import { User, Permission, UserCreateDTO, UserUpdateDTO, AccountRequestDTO } from "../types/userTypes";
 import { authProvider, AxiosProvider } from "../config/axiosProvider.ts";
 
 class UserService {
@@ -52,6 +52,41 @@ class UserService {
     assignRole = async (userId: string, roleId: string): Promise<User & { permissions: Permission[] }> => {
         const res = await this.api.getApi().patch(`/api/users/users/${userId}/assign-role`, { role_id: roleId });
         return res.data;
+    }
+
+    createUser = async (dto: UserCreateDTO): Promise<User> => {
+        const res = await this.api.getApi().post('/api/users/users', dto);
+        return res.data;
+    }
+
+    updateUser = async (userId: string, dto: UserUpdateDTO): Promise<User> => {
+        const res = await this.api.getApi().patch(`/api/users/users/${userId}`, dto);
+        return res.data;
+    }
+
+    resetPassword = async (userId: string): Promise<void> => {
+        await this.api.getApi().post(`/api/users/users/${userId}/reset-password`);
+    }
+
+    changePassword = async (newPassword: string): Promise<void> => {
+        await this.api.getApi().post('/api/users/change-password', { new_password: newPassword });
+    }
+
+    requestAccount = async (dto: AccountRequestDTO): Promise<void> => {
+        await this.api.getApi(false).post('/api/authenticate/request-account', dto);
+    }
+
+    denyAccount = async (userId: string): Promise<void> => {
+        await this.api.getApi().post(`/api/users/users/${userId}/deny`);
+    }
+
+    approveAccount = async (userId: string, roleId: string): Promise<User> => {
+        const res = await this.api.getApi().post(`/api/users/users/${userId}/approve`, { role_id: roleId });
+        return res.data;
+    }
+
+    updateNavbarOpen = async (value: boolean): Promise<void> => {
+        await this.api.getApi().patch('/api/users/me/navbar', { navbar_open: value });
     }
 }
 
