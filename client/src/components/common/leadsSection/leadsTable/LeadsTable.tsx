@@ -16,6 +16,10 @@ import {
     TextField,
     Tooltip,
     Typography,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
 } from "@mui/material";
 import {
     CheckCircle as CheckCircleIcon,
@@ -28,7 +32,6 @@ import {
     Stop as StopIcon,
     VerifiedUser as VerifiedIcon,
 } from "@mui/icons-material";
-import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { Lead } from "../../../../types/leadTypes.ts";
 import { useNavigate } from "react-router-dom";
 import leadsService from "../../../../services/lead.service.tsx";
@@ -379,7 +382,8 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                 );
             },
         },
-        ...(currentStatus === "needs_review" ? [{
+        ...(currentStatus === "needs_review"
+            ? [{
             field: "needs_review_reason",
             headerName: "Missing Fields",
             flex: 1.2,
@@ -411,8 +415,10 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                     </Stack>
                 );
             },
-        }] as GridColDef[] : []),
-        ...(currentStatus === "needs_call" ? [{
+        }] as GridColDef[]
+            : []),
+        ...(currentStatus === "needs_call"
+            ? [{
             field: "call_info",
             headerName: "Call Info",
             flex: 1.5,
@@ -466,7 +472,8 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                     </Stack>
                 );
             },
-        }] as GridColDef[] : []),
+        }] as GridColDef[]
+            : []),
         {
             field: "actions",
             headerName: "",

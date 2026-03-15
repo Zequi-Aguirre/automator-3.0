@@ -84,6 +84,7 @@ export type ActivityLog = {
     entity_type: string | null;
     entity_id: string | null;
     action: ActivityAction;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     action_details: Record<string, any> | null;
     created: string;
     user_name?: string | null;
