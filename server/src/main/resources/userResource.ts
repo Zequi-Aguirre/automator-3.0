@@ -3,7 +3,7 @@ import { injectable } from "tsyringe";
 import UserService from "../services/userService.ts";
 import ActivityService from "../services/activityService";
 import { requirePermission } from '../middleware/requirePermission';
-import { Permission, UserRole, LeadPermission, WorkerPermission, SourcePermission, BuyerPermission, ManagerPermission, SettingsPermission, UserPermission, ActivityPermission } from '../types/permissionTypes';
+import { Permission, UserRole, LeadPermission, WorkerPermission, SourcePermission, BuyerPermission, ManagerPermission, SettingsPermission, UserPermission, ActivityPermission, TrashReasonPermission, DisputePermission } from '../types/permissionTypes';
 import { EntityType, UserAction } from '../types/activityTypes';
 
 @injectable()
@@ -104,6 +104,8 @@ export default class UserResource {
                 settings: Object.values(SettingsPermission),
                 users: Object.values(UserPermission),
                 activity: Object.values(ActivityPermission),
+                trash_reasons: Object.values(TrashReasonPermission),
+                disputes: Object.values(DisputePermission),
             });
         });
     }

@@ -1,6 +1,7 @@
 export type UserRole = 'user' | 'admin' | 'superadmin';
 
 export enum Permission {
+    LEADS_READ = 'leads.read',
     LEADS_VERIFY = 'leads.verify',
     LEADS_QUEUE = 'leads.queue',
     LEADS_IMPORT = 'leads.import',

@@ -4,6 +4,8 @@ import { injectable } from "tsyringe";
 import CountyService from "../services/countyService.ts";
 import ActivityService from "../services/activityService";
 import { CountyAction, EntityType } from "../types/activityTypes";
+import { requirePermission } from "../middleware/requirePermission";
+import { SettingsPermission } from "../types/permissionTypes";
 import multer from "multer";
 
 const upload = multer(); // memory storage by default
@@ -21,12 +23,12 @@ export default class CountyResource {
     }
 
     private initializeRoutes() {
-        this.router.get("/admin/get-all", async (_req: Request, res: Response) => {
+        this.router.get("/admin/get-all", requirePermission(SettingsPermission.MANAGE), async (_req: Request, res: Response) => {
             const counties = await this.countyService.getAll();
             res.status(200).send(counties);
         });
 
-        this.router.get("/admin/get-many", async (req: Request, res: Response) => {
+        this.router.get("/admin/get-many", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
             const filters = {
                 page: Number(req.query.page) || 1,
                 limit: Number(req.query.limit) || 100,
@@ -39,7 +41,7 @@ export default class CountyResource {
         });
 
         // TICKET-047: Get county by ID
-        this.router.get("/admin/:countyId", async (req: Request, res: Response) => {
+        this.router.get("/admin/:countyId", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { countyId } = req.params;
                 const county = await this.countyService.getById(countyId);
@@ -59,7 +61,7 @@ export default class CountyResource {
         });
 
         // TICKET-047: Update county (including zip_codes)
-        this.router.patch("/admin/:countyId", async (req: Request, res: Response) => {
+        this.router.patch("/admin/:countyId", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { countyId } = req.params;
                 const updates = req.body;
@@ -82,7 +84,7 @@ export default class CountyResource {
             }
         });
 
-        this.router.patch("/admin/blacklist/:countyId", async (req: Request, res: Response) => {
+        this.router.patch("/admin/blacklist/:countyId", requirePermission(SettingsPermission.MANAGE), async (req: Request, res: Response) => {
             const { countyId } = req.params;
             const { blacklisted } = req.body;
             const updated = await this.countyService.updateCountyBlacklistStatus(countyId, blacklisted);
@@ -96,7 +98,7 @@ export default class CountyResource {
             res.status(200).send(updated);
         });
 
-        this.router.post("/admin/import", upload.single("file"), async (req: Request, res: Response) => {
+        this.router.post("/admin/import", requirePermission(SettingsPermission.MANAGE), upload.single("file"), async (req: Request, res: Response) => {
                 try {
                     if (!req.file) {
                         return res.status(400).send({ message: "No file uploaded" });

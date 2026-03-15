@@ -20,7 +20,7 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { Permission } from "../../../types/userTypes";
 
 const LeadsSection = () => {
-    const { leadFilters, setLeadFilters, role } = useContext(DataContext);
+    const { leadFilters, setLeadFilters } = useContext(DataContext);
     const { can } = usePermissions();
 
     // ------------------------------
@@ -30,7 +30,6 @@ const LeadsSection = () => {
     const [search, setSearch] = useState(leadFilters.search);
     const [page, setPage] = useState(leadFilters.page);
     const [limit, setLimit] = useState(leadFilters.limit);
-    const isAdmin = role.includes('admin')
 
     // ------------------------------
     // DATA STATES
@@ -71,11 +70,15 @@ const LeadsSection = () => {
     }, [status, search, page, limit, leadFilters, setLeadFilters]);
 
     useEffect(() => {
-        if (!isAdmin && (status === "sent" || status === "trash")) {
+        if (!can(Permission.LEADS_SEND) && (status === "sent" || status === "sold")) {
             setStatus("new");
             setPage(1);
         }
-    }, [isAdmin, status]);
+        if (!can(Permission.LEADS_TRASH) && status === "trash") {
+            setStatus("new");
+            setPage(1);
+        }
+    }, [can, status]);
 
     // ------------------------------
     // FETCH LEADS when CONTEXT FILTERS CHANGE
@@ -85,7 +88,11 @@ const LeadsSection = () => {
 
         try {
             const { status, ...rest } = leadFilters;
-            const verifiedStatus = isAdmin ? status : (status === "new" || status === "verified" ? status : "new");
+            const verifiedStatus = (
+                status === "new" || status === "verified" ||
+                (can(Permission.LEADS_SEND) && (status === "sent" || status === "sold")) ||
+                (can(Permission.LEADS_TRASH) && status === "trash")
+            ) ? status : "new";
             const response = await LeadsService.getMany({
                 ...rest,
                 status: verifiedStatus
@@ -102,7 +109,7 @@ const LeadsSection = () => {
         } finally {
             setLoading(false);
         }
-    }, [leadFilters, isAdmin]);
+    }, [leadFilters, can]);
 
     useEffect(() => {
         fetchLeads();
@@ -185,29 +192,31 @@ const LeadsSection = () => {
                         Verified
                     </Button>
 
-                    { isAdmin && (
-                            <>
-                                <Button
-                                    variant={currentVariant(status === "sent")}
-                                    onClick={() => { updateStatus("sent"); }}
-                                >
-                                    Sent
-                                </Button>
+                    { can(Permission.LEADS_SEND) && (
+                        <>
+                            <Button
+                                variant={currentVariant(status === "sent")}
+                                onClick={() => { updateStatus("sent"); }}
+                            >
+                                Sent
+                            </Button>
 
-                                <Button
-                                    variant={currentVariant(status === "sold")}
-                                    onClick={() => { updateStatus("sold"); }}
-                                >
-                                    Sold
-                                </Button>
+                            <Button
+                                variant={currentVariant(status === "sold")}
+                                onClick={() => { updateStatus("sold"); }}
+                            >
+                                Sold
+                            </Button>
+                        </>
+                    )}
 
-                                <Button
-                                    variant={currentVariant(status === "trash")}
-                                    onClick={() => { updateStatus("trash"); }}
-                                >
-                                    Trash
-                                </Button>
-                            </>
+                    { can(Permission.LEADS_TRASH) && (
+                        <Button
+                            variant={currentVariant(status === "trash")}
+                            onClick={() => { updateStatus("trash"); }}
+                        >
+                            Trash
+                        </Button>
                     )}
 
                     <TextField

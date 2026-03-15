@@ -16,7 +16,7 @@ export default class LeadResource {
 
     private initializeRoutes() {
         // Get many leads with pagination and oldDatabase support
-        this.router.get("/get-many", async (req: Request, res: Response) => {
+        this.router.get("/get-many", requirePermission(LeadPermission.READ), async (req: Request, res: Response) => {
             try {
                 const filters = {
                     page: Number(req.query.page) || 1,
@@ -37,7 +37,7 @@ export default class LeadResource {
         });
 
         // Get single lead by ID with oldDatabase support
-        this.router.get("/get/:leadId", async (req: Request, res: Response) => {
+        this.router.get("/get/:leadId", requirePermission(LeadPermission.READ), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const lead = await this.leadService.getLeadById(leadId);
@@ -57,7 +57,7 @@ export default class LeadResource {
         });
 
         // Update lead with oldDatabase support
-        this.router.patch("/update/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/update/:leadId", requirePermission(LeadPermission.EDIT), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const leadData = req.body;
@@ -73,7 +73,7 @@ export default class LeadResource {
         });
 
         // Send lead with oldDatabase support
-        this.router.patch("/admin/send/:leadId", async (req: Request, res: Response) => {
+        this.router.patch("/admin/send/:leadId", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
                 const userId = req.user.id; // Assuming user is attached to request by auth middleware
@@ -181,7 +181,7 @@ export default class LeadResource {
         });
 
         // Get buyer send history for lead
-        this.router.get("/:leadId/buyers", async (req: Request, res: Response) => {
+        this.router.get("/:leadId/buyers", requirePermission(LeadPermission.READ), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
                 const history = await this.leadService.getBuyerSendHistory(leadId);
@@ -227,7 +227,7 @@ export default class LeadResource {
         });
 
         // Mark lead as sold to buyer
-        this.router.post("/:leadId/buyers/:buyerId/sold", async (req: Request, res: Response) => {
+        this.router.post("/:leadId/buyers/:buyerId/sold", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
                 const { leadId, buyerId } = req.params;
                 const { sold_price } = req.body;
@@ -257,7 +257,7 @@ export default class LeadResource {
         });
 
         // Unmark lead as sold to buyer
-        this.router.delete("/:leadId/buyers/:buyerId/sold", async (req: Request, res: Response) => {
+        this.router.delete("/:leadId/buyers/:buyerId/sold", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
                 const { leadId, buyerId } = req.params;
                 const outcome = await this.leadService.unmarkSoldToBuyer(leadId, buyerId);

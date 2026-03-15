@@ -145,7 +145,7 @@ const AdminCountyDetailsView = () => {
             <Container maxWidth={false}>
                 <Box sx={{ p: 4 }}>
                     <Typography variant="h5">County not found</Typography>
-                    <Button onClick={() => navigate('/a/counties')} sx={{ mt: 2 }}>
+                    <Button onClick={() => navigate('/counties')} sx={{ mt: 2 }}>
                         Back to Counties
                     </Button>
                 </Box>
@@ -158,7 +158,7 @@ const AdminCountyDetailsView = () => {
             <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
-                    <IconButton onClick={() => navigate('/a/counties')} title="Back to counties">
+                    <IconButton onClick={() => navigate('/counties')} title="Back to counties">
                         <ArrowBack />
                     </IconButton>
                     <Typography variant="h4" sx={{ fontWeight: 'bold', flexGrow: 1 }}>

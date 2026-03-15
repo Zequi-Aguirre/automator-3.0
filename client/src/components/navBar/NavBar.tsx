@@ -60,18 +60,18 @@ export default function NavBar() {
     const isAdmin = role.includes("admin");
 
     const allNavItems: NavItem[] = useMemo(() => [
-        { label: "Leads", icon: <PeopleIcon />, path: isAdmin ? "/a/leads" : "/u/leads", pathMatch: "/leads" },
-        { label: "Buyers", icon: <StoreIcon />, path: "/a/buyers", pathMatch: "/buyers", permission: Permission.BUYERS_MANAGE },
-        { label: "Sources", icon: <SourceIcon />, path: "/a/sources", pathMatch: "/sources", permission: Permission.SOURCES_MANAGE },
-        { label: "Lead Managers", icon: <ManageAccountsIcon />, path: "/a/lead-managers", pathMatch: "/lead-managers", permission: Permission.MANAGERS_MANAGE },
-        { label: "Counties", icon: <LocationCityIcon />, path: "/a/counties", pathMatch: "/counties", permission: Permission.SETTINGS_MANAGE },
-        { label: "Logs", icon: <ReceiptIcon />, path: "/a/logs", pathMatch: "/logs", adminOnly: true },
-        { label: "Activity", icon: <TimelineIcon />, path: "/a/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
-        { label: "Settings", icon: <SettingsIcon />, path: "/a/settings", pathMatch: "/settings", permission: Permission.SETTINGS_MANAGE },
-        { label: "Worker Jobs", icon: <WorkIcon />, path: "/a/worker-jobs", pathMatch: "/worker-jobs", permission: Permission.WORKER_TOGGLE },
-        { label: "Roles", icon: <AdminPanelSettingsIcon />, path: "/a/roles", pathMatch: "/roles", permission: Permission.USERS_MANAGE },
-        { label: "Users", icon: <GroupIcon />, path: "/a/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
-    ], [isAdmin]);
+        { label: "Leads", icon: <PeopleIcon />, path: "/leads", pathMatch: "/leads", permission: Permission.LEADS_READ },
+        { label: "Buyers", icon: <StoreIcon />, path: "/buyers", pathMatch: "/buyers", permission: Permission.BUYERS_MANAGE },
+        { label: "Sources", icon: <SourceIcon />, path: "/sources", pathMatch: "/sources", permission: Permission.SOURCES_MANAGE },
+        { label: "Lead Managers", icon: <ManageAccountsIcon />, path: "/lead-managers", pathMatch: "/lead-managers", permission: Permission.MANAGERS_MANAGE },
+        { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.SETTINGS_MANAGE },
+        { label: "Logs", icon: <ReceiptIcon />, path: "/logs", pathMatch: "/logs", adminOnly: true },
+        { label: "Activity", icon: <TimelineIcon />, path: "/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
+        { label: "Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.SETTINGS_MANAGE },
+        { label: "Worker Jobs", icon: <WorkIcon />, path: "/worker-jobs", pathMatch: "/worker-jobs", permission: Permission.WORKER_TOGGLE },
+        { label: "Roles", icon: <AdminPanelSettingsIcon />, path: "/roles", pathMatch: "/roles", permission: Permission.USERS_MANAGE },
+        { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
+    ], []);
 
     const visibleItems = useMemo(() => {
         return allNavItems.filter(item => {

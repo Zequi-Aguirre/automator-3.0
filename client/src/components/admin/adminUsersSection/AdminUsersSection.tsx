@@ -206,7 +206,7 @@ const AdminUsersSection = () => {
                                                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                                                             <Button
                                                                 size="small"
-                                                                onClick={() => { navigate(`/a/users/${u.id}`); }}
+                                                                onClick={() => { navigate(`/users/${u.id}`); }}
                                                             >
                                                                 View
                                                             </Button>

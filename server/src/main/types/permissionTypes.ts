@@ -1,4 +1,5 @@
 export enum LeadPermission {
+    READ = 'leads.read',
     VERIFY = 'leads.verify',
     QUEUE = 'leads.queue',
     IMPORT = 'leads.import',
@@ -61,6 +62,7 @@ export type UserRole = 'user' | 'admin' | 'superadmin';
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
     user: [
+        LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
         LeadPermission.EDIT,
@@ -68,6 +70,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         DisputePermission.CREATE,
     ],
     admin: [
+        LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
         LeadPermission.IMPORT,
@@ -83,6 +86,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         DisputePermission.CREATE,
     ],
     superadmin: [
+        LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
         LeadPermission.IMPORT,

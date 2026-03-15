@@ -4,8 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
 import 'react-toastify/dist/ReactToastify.css';
 import LoginPage from "./views/LoginPage";
-import AdminRoutes from "./context/routes/AdminRoutes";
-import ProtectedRoutes from "./context/routes/ProtectedRoutes";
+import AppRoutes from "./context/routes/AppRoutes";
 import NavBar from "./components/navBar/NavBar.tsx";
 
 const App: React.FC = () => {
@@ -55,8 +54,7 @@ const App: React.FC = () => {
                         <Route path="/" element={<LoginPage/>}/>
                         <Route path="/login" element={<LoginPage/>}/>
                     </Routes>
-                    <ProtectedRoutes />
-                    <AdminRoutes />
+                    <AppRoutes />
                 </Box>
             </Box>
         </ThemeProvider>
