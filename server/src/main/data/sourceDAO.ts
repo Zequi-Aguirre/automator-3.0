@@ -195,7 +195,7 @@ export default class SourceDAO {
             UPDATE sources
             SET
                 buyer_filter_mode = $[mode],
-                buyer_filter_buyer_ids = $[buyerIds],
+                buyer_filter_buyer_ids = $[buyerIds]::uuid[],
                 modified = NOW()
             WHERE id = $[id]
                 AND deleted IS NULL
