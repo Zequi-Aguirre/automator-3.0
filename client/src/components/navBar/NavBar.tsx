@@ -7,10 +7,14 @@ import {
     ListItemButton,
     ListItemIcon,
     ListItemText,
+    Tooltip,
     Typography,
     useMediaQuery,
+    useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import PeopleIcon from "@mui/icons-material/People";
 import StoreIcon from "@mui/icons-material/Store";
 import SourceIcon from "@mui/icons-material/Source";
@@ -30,7 +34,8 @@ import DataContext from "../../context/DataContext.tsx";
 import { usePermissions } from "../../hooks/usePermissions";
 import { Permission } from "../../types/userTypes";
 
-export const SIDEBAR_WIDTH = 220;
+export const SIDEBAR_EXPANDED = 253;
+export const SIDEBAR_COLLAPSED = 60;
 
 type NavItem = {
     label: string;
@@ -46,9 +51,11 @@ export default function NavBar() {
     const { can } = usePermissions();
     const navigate = useNavigate();
     const location = useLocation();
+    const theme = useTheme();
 
     const isMobile = useMediaQuery("(max-width:900px)");
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
 
     const isAdmin = role.includes("admin");
 
@@ -92,76 +99,133 @@ export default function NavBar() {
 
     if (!role) return null;
 
-    const sidebarContent = (
+    const sidebarContent = (isCollapsed: boolean) => (
         <Box
             sx={{
-                width: SIDEBAR_WIDTH,
+                width: "100%",
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
                 bgcolor: "primary.main",
                 color: "white",
+                overflowX: "hidden",
             }}
         >
-            <Box sx={{ px: 2, py: 1.5 }}>
-                <Typography
-                    variant="subtitle2"
-                    sx={{ color: "white", fontWeight: 700, letterSpacing: 1.5, fontSize: 13 }}
-                >
-                    AUTOMATOR
-                </Typography>
+            {/* Header */}
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isCollapsed ? "center" : "space-between",
+                    px: isCollapsed ? 0 : 2,
+                    py: 1.5,
+                    minHeight: 48,
+                }}
+            >
+                {!isCollapsed && (
+                    <Typography
+                        variant="subtitle2"
+                        sx={{ color: "white", fontWeight: 700, letterSpacing: 1.5, fontSize: 13, whiteSpace: "nowrap" }}
+                    >
+                        AUTOMATOR
+                    </Typography>
+                )}
+                <Tooltip title={isCollapsed ? "Expand" : "Collapse"} placement="right">
+                    <IconButton
+                        onClick={() => setCollapsed(v => !v)}
+                        size="small"
+                        sx={{ color: "rgba(255,255,255,0.7)", "&:hover": { color: "white" } }}
+                    >
+                        {isCollapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+                    </IconButton>
+                </Tooltip>
             </Box>
+
             <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
-            <List sx={{ flexGrow: 1, pt: 1, px: 0.5 }}>
+
+            {/* Nav items */}
+            <List sx={{ flexGrow: 1, pt: 1, px: isCollapsed ? 0.5 : 0.5 }}>
                 {visibleItems.map((item) => {
                     const isActive = currentPath.includes(item.pathMatch);
                     return (
-                        <ListItemButton
+                        <Tooltip
                             key={item.label}
-                            onClick={() => handleNav(item.path)}
-                            selected={isActive}
-                            sx={{
-                                color: "white",
-                                borderRadius: 1,
-                                mb: 0.25,
-                                minHeight: 40,
-                                "&.Mui-selected": {
-                                    bgcolor: "rgba(255,255,255,0.18)",
-                                    "&:hover": { bgcolor: "rgba(255,255,255,0.22)" },
-                                },
-                                "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
-                            }}
+                            title={isCollapsed ? item.label : ""}
+                            placement="right"
+                            arrow
                         >
-                            <ListItemIcon sx={{ color: "white", minWidth: 34 }}>
-                                {item.icon}
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{ fontSize: 13, fontWeight: isActive ? 600 : 400 }}
-                            />
-                        </ListItemButton>
+                            <ListItemButton
+                                onClick={() => handleNav(item.path)}
+                                selected={isActive}
+                                sx={{
+                                    color: "white",
+                                    borderRadius: 1,
+                                    mb: 0.25,
+                                    minHeight: 40,
+                                    justifyContent: isCollapsed ? "center" : "flex-start",
+                                    px: isCollapsed ? 1.5 : 1,
+                                    "&.Mui-selected": {
+                                        bgcolor: "rgba(255,255,255,0.18)",
+                                        "&:hover": { bgcolor: "rgba(255,255,255,0.22)" },
+                                    },
+                                    "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
+                                }}
+                            >
+                                <ListItemIcon
+                                    sx={{
+                                        color: "white",
+                                        minWidth: isCollapsed ? 0 : 34,
+                                        mr: isCollapsed ? 0 : 0,
+                                        justifyContent: "center",
+                                    }}
+                                >
+                                    {item.icon}
+                                </ListItemIcon>
+                                {!isCollapsed && (
+                                    <ListItemText
+                                        primary={item.label}
+                                        primaryTypographyProps={{ fontSize: 13, fontWeight: isActive ? 600 : 400, noWrap: true }}
+                                    />
+                                )}
+                            </ListItemButton>
+                        </Tooltip>
                     );
                 })}
             </List>
+
             <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
+
+            {/* Logout */}
             <List sx={{ px: 0.5, py: 0.5 }}>
-                <ListItemButton
-                    onClick={handleLogout}
-                    sx={{
-                        color: "rgba(255,255,255,0.7)",
-                        borderRadius: 1,
-                        minHeight: 40,
-                        "&:hover": { bgcolor: "rgba(255,255,255,0.1)", color: "white" },
-                    }}
-                >
-                    <ListItemIcon sx={{ color: "inherit", minWidth: 34 }}>
-                        <LogoutIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText
-                        primary="Logout"
-                        primaryTypographyProps={{ fontSize: 13 }}
-                    />
-                </ListItemButton>
+                <Tooltip title={isCollapsed ? "Logout" : ""} placement="right" arrow>
+                    <ListItemButton
+                        onClick={handleLogout}
+                        sx={{
+                            color: "rgba(255,255,255,0.7)",
+                            borderRadius: 1,
+                            minHeight: 40,
+                            justifyContent: isCollapsed ? "center" : "flex-start",
+                            px: isCollapsed ? 1.5 : 1,
+                            "&:hover": { bgcolor: "rgba(255,255,255,0.1)", color: "white" },
+                        }}
+                    >
+                        <ListItemIcon
+                            sx={{
+                                color: "inherit",
+                                minWidth: isCollapsed ? 0 : 34,
+                                justifyContent: "center",
+                            }}
+                        >
+                            <LogoutIcon fontSize="small" />
+                        </ListItemIcon>
+                        {!isCollapsed && (
+                            <ListItemText
+                                primary="Logout"
+                                primaryTypographyProps={{ fontSize: 13 }}
+                            />
+                        )}
+                    </ListItemButton>
+                </Tooltip>
             </List>
         </Box>
     );
@@ -197,27 +261,43 @@ export default function NavBar() {
                     anchor="left"
                     open={drawerOpen}
                     onClose={() => setDrawerOpen(false)}
+                    sx={{ "& .MuiDrawer-paper": { width: SIDEBAR_EXPANDED } }}
                 >
-                    {sidebarContent}
+                    {sidebarContent(false)}
                 </Drawer>
             </>
         );
     }
 
+    const currentWidth = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;
+
     return (
         <Drawer
             variant="permanent"
             sx={{
-                width: SIDEBAR_WIDTH,
+                width: currentWidth,
                 flexShrink: 0,
                 "& .MuiDrawer-paper": {
-                    width: SIDEBAR_WIDTH,
+                    width: currentWidth,
                     boxSizing: "border-box",
                     border: "none",
+                    overflowX: "hidden",
+                    transition: theme.transitions.create("width", {
+                        easing: theme.transitions.easing.sharp,
+                        duration: collapsed
+                            ? theme.transitions.duration.leavingScreen
+                            : theme.transitions.duration.enteringScreen,
+                    }),
                 },
+                transition: theme.transitions.create("width", {
+                    easing: theme.transitions.easing.sharp,
+                    duration: collapsed
+                        ? theme.transitions.duration.leavingScreen
+                        : theme.transitions.duration.enteringScreen,
+                }),
             }}
         >
-            {sidebarContent}
+            {sidebarContent(collapsed)}
         </Drawer>
     );
 }
