@@ -21,7 +21,7 @@ import {
     Typography,
     Checkbox,
 } from '@mui/material';
-import { ArrowBack, Edit, Save, Cancel, Delete } from '@mui/icons-material';
+import { ArrowBack, Edit, Save, Cancel, Delete, PauseCircle, PlayCircle } from '@mui/icons-material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -30,10 +30,13 @@ import dayjs, { Dayjs } from 'dayjs';
 import buyerService from '../../services/buyer.service';
 import { Buyer, BuyerUpdateDTO } from '../../types/buyerTypes';
 import { US_STATES } from '../../constants/usStates';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Permission } from '../../types/userTypes';
 
 const AdminBuyerDetailsView = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { can } = usePermissions();
 
     const [buyer, setBuyer] = useState<Buyer | null>(null);
     const [loading, setLoading] = useState(true);
@@ -113,6 +116,18 @@ const AdminBuyerDetailsView = () => {
         }
     };
 
+    const handleToggleHold = async () => {
+        if (!id || !buyer) return;
+        try {
+            const updated = await buyerService.setOnHold(id, !buyer.on_hold);
+            setBuyer(updated);
+            setSnack({ open: true, message: updated.on_hold ? 'Buyer put on hold' : 'Buyer removed from hold', severity: 'success' });
+        } catch (error: any) {
+            const msg = error.response?.data?.message || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to update hold status: ${msg}`, severity: 'error' });
+        }
+    };
+
     const handleDelete = async () => {
         if (!id || !confirm('Delete this buyer?')) return;
         try {
@@ -163,6 +178,18 @@ const AdminBuyerDetailsView = () => {
                 <IconButton onClick={() => navigate('/buyers')}><ArrowBack /></IconButton>
                 <Typography variant="h5" sx={{ fontWeight: 600, flexGrow: 1 }}>{buyer.name}</Typography>
                 <Chip label={`Priority ${buyer.priority}`} variant="outlined" size="small" />
+                {buyer.on_hold && <Chip label="On Hold" color="warning" size="small" />}
+                {can(Permission.BUYERS_HOLD) && (
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        color={buyer.on_hold ? 'success' : 'warning'}
+                        startIcon={buyer.on_hold ? <PlayCircle /> : <PauseCircle />}
+                        onClick={handleToggleHold}
+                    >
+                        {buyer.on_hold ? 'Resume' : 'Put on Hold'}
+                    </Button>
+                )}
                 <Button size="small" variant="outlined" color="error" startIcon={<Delete />} onClick={handleDelete}>Delete</Button>
             </Box>
 

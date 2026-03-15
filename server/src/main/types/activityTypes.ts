@@ -50,6 +50,8 @@ export enum SourceAction {
 export enum BuyerAction {
     CREATED = 'buyer_created',
     UPDATED = 'buyer_updated',
+    PUT_ON_HOLD = 'buyer_put_on_hold',
+    REMOVED_FROM_HOLD = 'buyer_removed_from_hold',
 }
 
 export enum CampaignAction {

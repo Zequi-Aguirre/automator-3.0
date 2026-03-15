@@ -24,6 +24,7 @@ export enum SourcePermission {
 
 export enum BuyerPermission {
     MANAGE = 'buyers.manage',
+    HOLD = 'buyers.hold',
 }
 
 export enum ManagerPermission {
@@ -100,6 +101,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         ActivityPermission.VIEW,
         TrashReasonPermission.MANAGE,
         DisputePermission.CREATE,
+        BuyerPermission.HOLD,
     ],
     superadmin: [
         LeadPermission.READ,
@@ -116,6 +118,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         BuyerPermission.MANAGE,
+        BuyerPermission.HOLD,
         CountyPermission.MANAGE,
         LogPermission.VIEW,
         WorkerSettingsPermission.TOGGLE,

@@ -97,13 +97,16 @@ const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker, onNavigate }: 
                 </Box>
             </TableCell>
             <TableCell>
-                <Typography
-                    variant="body2"
-                    sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => onNavigate(buyer.id)}
-                >
-                    {buyer.name}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography
+                        variant="body2"
+                        sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+                        onClick={() => onNavigate(buyer.id)}
+                    >
+                        {buyer.name}
+                    </Typography>
+                    {buyer.on_hold && <Chip label="on hold" size="small" color="warning" />}
+                </Box>
             </TableCell>
             <TableCell>
                 <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>

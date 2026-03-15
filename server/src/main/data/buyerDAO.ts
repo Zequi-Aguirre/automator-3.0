@@ -99,7 +99,7 @@ export default class BuyerDAO {
     }
 
     /**
-     * Get auto-send buyers (auto_send = true)
+     * Get auto-send buyers (auto_send = true, not on hold)
      */
     async getAutoSendBuyers(): Promise<Buyer[]> {
         const query = `
@@ -107,13 +107,14 @@ export default class BuyerDAO {
             FROM buyers
             WHERE deleted IS NULL
             AND auto_send = true
+            AND on_hold = false
             ORDER BY priority ASC;
         `;
         return await this.db.manyOrNone<Buyer>(query);
     }
 
     /**
-     * Get worker buyers (worker_send = true)
+     * Get worker buyers (worker_send = true, not on hold)
      */
     async getWorkerBuyers(): Promise<Buyer[]> {
         const query = `
@@ -121,9 +122,27 @@ export default class BuyerDAO {
             FROM buyers
             WHERE deleted IS NULL
             AND worker_send = true
+            AND on_hold = false
             ORDER BY priority ASC;
         `;
         return await this.db.manyOrNone<Buyer>(query);
+    }
+
+    /**
+     * Toggle buyer on_hold status
+     */
+    async setOnHold(id: string, onHold: boolean): Promise<Buyer> {
+        const query = `
+            UPDATE buyers
+            SET on_hold = $[on_hold],
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Buyer>(query, { id, on_hold: onHold });
+        if (!result) throw new Error('Buyer not found');
+        return result;
     }
 
     /**
@@ -242,6 +261,7 @@ export default class BuyerDAO {
                 enforce_county_cooldown = $[enforce_county_cooldown],
                 enforce_state_cooldown = $[enforce_state_cooldown],
                 payload_format = $[payload_format],
+                on_hold = $[on_hold],
                 modified = NOW()
             WHERE id = $[id]
             AND deleted IS NULL
@@ -270,7 +290,8 @@ export default class BuyerDAO {
             delay_same_state: dto.delay_same_state ?? existing.delay_same_state,
             enforce_county_cooldown: dto.enforce_county_cooldown ?? existing.enforce_county_cooldown,
             enforce_state_cooldown: dto.enforce_state_cooldown ?? existing.enforce_state_cooldown,
-            payload_format: dto.payload_format ?? existing.payload_format
+            payload_format: dto.payload_format ?? existing.payload_format,
+            on_hold: dto.on_hold ?? existing.on_hold
         });
 
         if (!result) {

@@ -250,6 +250,13 @@ export default class BuyerService {
     }
 
     /**
+     * Toggle buyer on_hold status
+     */
+    async setOnHold(id: string, onHold: boolean): Promise<Buyer> {
+        return await this.buyerDAO.setOnHold(id, onHold);
+    }
+
+    /**
      * Soft-delete buyer
      */
     async trash(id: string): Promise<Buyer> {
