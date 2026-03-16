@@ -113,12 +113,18 @@ export default class LeadService {
     }
 
     async getTabCounts(): Promise<{ new: number; verified: number; needs_review: number; needs_call: number }> {
-        return this.leadDAO.getTabCounts();
+        const settings = await this.workerSettingsDAO.getCurrentSettings();
+        return this.leadDAO.getTabCounts(settings.expire_after_hours);
     }
 
     async getMany(filters: LeadFilters): Promise<{ leads: Lead[]; count: number }> {
         try {
-            return await this.leadDAO.getMany(filters);
+            let expireHours: number | undefined;
+            if (filters.status === 'new') {
+                const settings = await this.workerSettingsDAO.getCurrentSettings();
+                expireHours = settings.expire_after_hours;
+            }
+            return await this.leadDAO.getMany({ ...filters, expireHours });
         } catch (error) {
             console.error("Error fetching leads:", error);
             throw new Error(

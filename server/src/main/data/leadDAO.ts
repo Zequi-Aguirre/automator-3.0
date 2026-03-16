@@ -204,8 +204,9 @@ export default class LeadDAO {
         send_source?: string;
         source_id?: string;
         campaign_id?: string;
+        expireHours?: number;
     }): Promise<{ leads: Lead[]; count: number }> {
-        const { page, limit, search, status, buyer_id, send_source, source_id, campaign_id } = filters;
+        const { page, limit, search, status, buyer_id, send_source, source_id, campaign_id, expireHours } = filters;
         const offset = (page - 1) * limit;
 
         const whereClauses: string[] = [];
@@ -228,13 +229,23 @@ export default class LeadDAO {
                 break;
 
             case "new":
-                whereClauses.push(`
-                l.verified = FALSE
-                AND l.needs_review = FALSE
-                AND l.needs_call = FALSE
-                AND l.deleted IS NULL
-                AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
-            `);
+                if (expireHours !== undefined) {
+                    params.expireHours = expireHours;
+                    whereClauses.push(`
+                    l.verified = FALSE
+                    AND l.needs_review = FALSE
+                    AND l.needs_call = FALSE
+                    AND l.deleted IS NULL
+                    AND l.created > NOW() - ($[expireHours]::int * INTERVAL '1 hour')
+                `);
+                } else {
+                    whereClauses.push(`
+                    l.verified = FALSE
+                    AND l.needs_review = FALSE
+                    AND l.needs_call = FALSE
+                    AND l.deleted IS NULL
+                `);
+                }
                 break;
 
             case "verified":
@@ -689,15 +700,15 @@ export default class LeadDAO {
         return result;
     }
 
-    async getTabCounts(): Promise<{ new: number; verified: number; needs_review: number; needs_call: number }> {
+    async getTabCounts(expireHours: number): Promise<{ new: number; verified: number; needs_review: number; needs_call: number }> {
         const query = `
             SELECT
-                (SELECT COUNT(*)::int FROM leads WHERE verified = FALSE AND needs_review = FALSE AND needs_call = FALSE AND deleted IS NULL AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = leads.id AND sl.response_code >= 200 AND sl.response_code < 300)) AS "new",
+                (SELECT COUNT(*)::int FROM leads WHERE verified = FALSE AND needs_review = FALSE AND needs_call = FALSE AND deleted IS NULL AND created > NOW() - ($[expireHours]::int * INTERVAL '1 hour')) AS "new",
                 (SELECT COUNT(*)::int FROM leads WHERE verified = TRUE AND deleted IS NULL AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = leads.id AND sl.response_code >= 200 AND sl.response_code < 300)) AS "verified",
                 (SELECT COUNT(*)::int FROM leads WHERE needs_review = TRUE AND deleted IS NULL) AS "needs_review",
                 (SELECT COUNT(*)::int FROM leads WHERE needs_call = TRUE AND deleted IS NULL) AS "needs_call";
         `;
-        return this.db.one(query);
+        return this.db.one(query, { expireHours });
     }
 
     async unqueueLead(id: string): Promise<Lead> {
