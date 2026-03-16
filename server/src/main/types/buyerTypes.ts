@@ -23,6 +23,8 @@ export type Buyer = {
     enforce_county_cooldown: boolean;
     enforce_state_cooldown: boolean;
     payload_format: 'default' | 'northstar';
+    send_lead_id: boolean;
+    send_private_note: boolean;
     on_hold: boolean;
     created: string;
     modified: string;
@@ -50,6 +52,8 @@ export type BuyerCreateDTO = {
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
     payload_format?: 'default' | 'northstar';
+    send_lead_id?: boolean;
+    send_private_note?: boolean;
 };
 
 export type BuyerUpdateDTO = {
@@ -74,6 +78,8 @@ export type BuyerUpdateDTO = {
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
     payload_format?: 'default' | 'northstar';
+    send_lead_id?: boolean;
+    send_private_note?: boolean;
     on_hold?: boolean;
 };
 

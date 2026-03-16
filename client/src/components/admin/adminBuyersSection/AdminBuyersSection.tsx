@@ -178,7 +178,9 @@ const defaultForm = (): BuyerCreateDTO => ({
     delay_same_state: 0,
     enforce_county_cooldown: true,
     enforce_state_cooldown: false,
-    payload_format: 'default'
+    payload_format: 'default',
+    send_lead_id: false,
+    send_private_note: false,
 });
 
 const AdminBuyersSection = () => {
@@ -253,7 +255,9 @@ const AdminBuyersSection = () => {
                 delay_same_state: buyer.delay_same_state || 0,
                 enforce_county_cooldown: buyer.enforce_county_cooldown ?? true,
                 enforce_state_cooldown: buyer.enforce_state_cooldown ?? false,
-                payload_format: buyer.payload_format ?? 'default'
+                payload_format: buyer.payload_format ?? 'default',
+                send_lead_id: buyer.send_lead_id ?? false,
+                send_private_note: buyer.send_private_note ?? false,
             });
         } else {
             setEditingBuyer(null);
@@ -448,6 +452,21 @@ const AdminBuyersSection = () => {
                                 <MenuItem value="northstar">Northstar (Compass / SellersDirect)</MenuItem>
                             </Select>
                         </FormControl>
+
+                        {/* Payload extras — send_lead_id + send_private_note */}
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Payload Extras</Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <FormControlLabel
+                                    control={<Switch size="small" checked={!!fd.send_lead_id} onChange={(e) => setFormData({ ...formData, send_lead_id: e.target.checked })} />}
+                                    label={<Typography variant="body2">Send Internal Lead ID <Typography component="span" variant="caption" color="text.secondary">(for dispute matching)</Typography></Typography>}
+                                />
+                                <FormControlLabel
+                                    control={<Switch size="small" checked={!!fd.send_private_note} onChange={(e) => setFormData({ ...formData, send_private_note: e.target.checked })} />}
+                                    label={<Typography variant="body2">Send Private Note <Typography component="span" variant="caption" color="text.secondary">(MM-DD HH:mm - Platform - Campaign)</Typography></Typography>}
+                                />
+                            </Box>
+                        </Box>
 
                         <Box sx={{ display: 'flex', gap: 2 }}>
                             <TextField size="small" fullWidth label="Min Min Between Sends" type="number" value={fd.min_minutes_between_sends ?? 4} onChange={(e) => setFormData({ ...formData, min_minutes_between_sends: parseInt(e.target.value) })} />
