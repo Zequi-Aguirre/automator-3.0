@@ -137,26 +137,17 @@ const LeadsSection = () => {
     }, [status, search, page, limit, leadFilters, setLeadFilters]);
 
     useEffect(() => {
-        if (!can(Permission.LEADS_SEND) && (status === "sent" || status === "sold")) {
-            setStatus("new");
-            setPage(1);
-        }
-        if (!can(Permission.LEADS_TRASH) && status === "trash") {
-            setStatus("new");
-            setPage(1);
-        }
-        if (!can(Permission.LEADS_VIEW_VERIFIED) && status === "verified") {
-            setStatus("new");
-            setPage(1);
-        }
-        if (!can(Permission.LEADS_VIEW_NEEDS_REVIEW) && status === "needs_review") {
-            setStatus("new");
-            setPage(1);
-        }
-        if (!can(Permission.LEADS_VIEW_NEEDS_CALL) && status === "needs_call") {
-            setStatus("new");
-            setPage(1);
-        }
+        const fallback = can(Permission.LEADS_VIEW_NEW) ? "new" : null;
+        const redirect = (condition: boolean) => {
+            if (condition && fallback) { setStatus(fallback); setPage(1); }
+        };
+        redirect(!can(Permission.LEADS_VIEW_NEW) && status === "new");
+        redirect(!can(Permission.LEADS_VIEW_VERIFIED) && status === "verified");
+        redirect(!can(Permission.LEADS_VIEW_NEEDS_REVIEW) && status === "needs_review");
+        redirect(!can(Permission.LEADS_VIEW_NEEDS_CALL) && status === "needs_call");
+        redirect(!can(Permission.LEADS_VIEW_SENT) && status === "sent");
+        redirect(!can(Permission.LEADS_VIEW_SOLD) && status === "sold");
+        redirect(!can(Permission.LEADS_VIEW_TRASH) && status === "trash");
     }, [can, status]);
 
     const fetchTabCounts = useCallback(async () => {
@@ -177,10 +168,13 @@ const LeadsSection = () => {
         try {
             const { status: ctxStatus, ...rest } = leadFilters;
             const allowedStatuses: LeadStatus[] = [
-                "needs_review", "new", "verified",
-                "needs_call",
-            ...(can(Permission.LEADS_SEND) ? (["sent", "sold"] as LeadStatus[]) : []),
-                ...(can(Permission.LEADS_TRASH) ? (["trash"] as LeadStatus[]) : [])
+                ...(can(Permission.LEADS_VIEW_NEW) ? (["new"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_VIEW_VERIFIED) ? (["verified"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_VIEW_NEEDS_REVIEW) ? (["needs_review"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_VIEW_NEEDS_CALL) ? (["needs_call"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_VIEW_SENT) ? (["sent"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_VIEW_SOLD) ? (["sold"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_VIEW_TRASH) ? (["trash"] as LeadStatus[]) : []),
             ];
             const safeStatus: LeadStatus = allowedStatuses.includes(ctxStatus as LeadStatus)
                 ? (ctxStatus as LeadStatus)
@@ -296,11 +290,13 @@ const LeadsSection = () => {
                         size="small"
                         onChange={(_e, val) => { if (val !== null) updateStatus(val as LeadStatus); }}
                     >
-                        <ToggleButton value="new" sx={{ pr: tabCounts.new > 0 ? 2.5 : undefined }}>
-                            <Badge badgeContent={tabCounts.new || null} color="primary">
-                                Needs Verification
-                            </Badge>
-                        </ToggleButton>
+                        {can(Permission.LEADS_VIEW_NEW) && (
+                            <ToggleButton value="new" sx={{ pr: tabCounts.new > 0 ? 2.5 : undefined }}>
+                                <Badge badgeContent={tabCounts.new || null} color="primary">
+                                    Needs Verification
+                                </Badge>
+                            </ToggleButton>
+                        )}
 
                         {can(Permission.LEADS_VIEW_VERIFIED) && (
                             <ToggleButton value="verified" sx={{ pr: tabCounts.verified > 0 ? 2.5 : undefined }}>
@@ -326,19 +322,19 @@ const LeadsSection = () => {
                             </ToggleButton>
                         )}
 
-                        {can(Permission.LEADS_SEND) && (
+                        {can(Permission.LEADS_VIEW_SENT) && (
                             <ToggleButton value="sent">
                                 Sent
                             </ToggleButton>
                         )}
 
-                        {can(Permission.LEADS_SEND) && (
+                        {can(Permission.LEADS_VIEW_SOLD) && (
                             <ToggleButton value="sold">
                                 Sold
                             </ToggleButton>
                         )}
 
-                        {can(Permission.LEADS_TRASH) && (
+                        {can(Permission.LEADS_VIEW_TRASH) && (
                             <ToggleButton value="trash">
                                 Trash
                             </ToggleButton>
