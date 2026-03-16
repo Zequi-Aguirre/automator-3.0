@@ -139,24 +139,6 @@ export default class LeadDAO {
         };
     }
 
-    // Mark lead sent and sent_date
-    async markLeadAsSent(leadId: string): Promise<Lead> {
-        const query = `
-            UPDATE leads
-            SET sent = TRUE,
-                sent_date = NOW(),
-                modified = NOW()
-            WHERE id = $[leadId]
-            AND deleted IS NULL
-            RETURNING *;
-        `;
-        const result = await this.db.oneOrNone<Lead>(query, { leadId });
-        if (!result) {
-            throw new Error("Lead not found or mark as sent failed");
-        }
-        return result;
-    }
-
     // Get lead by ID (active only)
     async getById(id: string): Promise<Lead | null> {
         const query = `
