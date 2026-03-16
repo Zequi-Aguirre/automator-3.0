@@ -7,8 +7,6 @@ import {
     Snackbar,
     Alert,
     Button,
-    TextField,
-    Stack,
     Table,
     TableBody,
     TableCell,
@@ -21,16 +19,10 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    FormControlLabel,
-    Checkbox,
-    Switch,
     Chip,
     Tooltip
 } from '@mui/material';
+import BuyerFormFields from './BuyerFormFields';
 import { Edit, Delete, DragIndicator, PauseCircle, PlayCircle } from '@mui/icons-material';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Permission } from '../../../types/userTypes';
@@ -45,7 +37,6 @@ import dayjs, { Dayjs } from 'dayjs';
 import buyerService from '../../../services/buyer.service';
 import { Buyer, BuyerCreateDTO, BuyerUpdateDTO } from '../../../types/buyerTypes';
 import CustomPagination from '../../Pagination';
-import { US_STATES } from '../../../constants/usStates';
 
 // Format dispatch mode as "auto / manual / worker" showing only enabled modes
 const formatDispatchMode = (buyer: Buyer): string => {
@@ -195,9 +186,6 @@ const AdminBuyersSection = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingBuyer, setEditingBuyer] = useState<Buyer | null>(null);
     const [formData, setFormData] = useState<BuyerCreateDTO | BuyerUpdateDTO>(defaultForm());
-    const [showStates, setShowStates] = useState(false);
-    const [requiresAuth, setRequiresAuth] = useState(false);
-    const [authPreset, setAuthPreset] = useState<'bearer' | 'apikey' | 'custom'>('bearer');
 
     const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
@@ -223,19 +211,9 @@ const AdminBuyersSection = () => {
 
     useEffect(() => { fetchBuyers(); }, [page, limit]);
 
-    const detectAuthPreset = (headerName: string, prefix: string | null): 'bearer' | 'apikey' | 'custom' => {
-        if (headerName === 'Authorization' && prefix === 'Bearer') return 'bearer';
-        if (!prefix) return 'apikey';
-        return 'custom';
-    };
-
     const handleOpenDialog = (buyer?: Buyer) => {
         if (buyer) {
             setEditingBuyer(buyer);
-            setShowStates((buyer.states_on_hold || []).length > 0);
-            const hasAuth = !!(buyer.auth_token_encrypted || buyer.auth_header_prefix || buyer.auth_header_name !== 'Authorization');
-            setRequiresAuth(hasAuth);
-            setAuthPreset(detectAuthPreset(buyer.auth_header_name, buyer.auth_header_prefix));
             setFormData({
                 name: buyer.name,
                 webhook_url: buyer.webhook_url,
@@ -261,9 +239,6 @@ const AdminBuyersSection = () => {
             });
         } else {
             setEditingBuyer(null);
-            setShowStates(false);
-            setRequiresAuth(false);
-            setAuthPreset('bearer');
             setFormData(defaultForm());
         }
         setDialogOpen(true);
@@ -359,8 +334,6 @@ const AdminBuyersSection = () => {
         }
     };
 
-    const fd = formData as any;
-
     return (
         <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -413,188 +386,19 @@ const AdminBuyersSection = () => {
                 <CustomPagination page={page} setPage={setPage} rows={count} limit={limit} setLimit={setLimit} />
             </Box>
 
-            {/* Create/Edit Dialog — compact */}
+            {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); setEditingBuyer(null); }} maxWidth="sm" fullWidth>
                 <DialogTitle>{editingBuyer ? 'Edit Buyer' : 'Add Buyer'}</DialogTitle>
                 <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        <TextField size="small" label="Name" value={fd.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required fullWidth />
-                        <TextField size="small" label="Webhook URL" value={fd.webhook_url || ''} onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })} required fullWidth />
-                        <TextField size="small" label="Priority" type="number" value={fd.priority ?? 1} onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })} required fullWidth />
-
-                        {/* Dispatch Mode — 3 checkboxes */}
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Dispatch Mode</Typography>
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                <FormControlLabel
-                                    control={<Checkbox size="small" checked={!!fd.auto_send} onChange={(e) => setFormData({ ...formData, auto_send: e.target.checked })} />}
-                                    label={<Typography variant="body2">Auto Send</Typography>}
-                                />
-                                <FormControlLabel
-                                    control={<Checkbox size="small" checked={fd.manual_send !== false} onChange={(e) => setFormData({ ...formData, manual_send: e.target.checked })} />}
-                                    label={<Typography variant="body2">Manual</Typography>}
-                                />
-                                <FormControlLabel
-                                    control={<Checkbox size="small" checked={fd.worker_send !== false} onChange={(e) => setFormData({ ...formData, worker_send: e.target.checked })} />}
-                                    label={<Typography variant="body2">Worker</Typography>}
-                                />
-                            </Box>
-                        </Box>
-
-                        <FormControl size="small" fullWidth>
-                            <InputLabel>Payload Format</InputLabel>
-                            <Select
-                                value={fd.payload_format ?? 'default'}
-                                label="Payload Format"
-                                onChange={(e) => setFormData({ ...formData, payload_format: e.target.value as 'default' | 'northstar' })}
-                            >
-                                <MenuItem value="default">Default</MenuItem>
-                                <MenuItem value="northstar">Northstar (Compass / SellersDirect)</MenuItem>
-                            </Select>
-                        </FormControl>
-
-                        {/* Payload extras — send_lead_id + send_private_note */}
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Payload Extras</Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                <FormControlLabel
-                                    control={<Switch size="small" checked={!!fd.send_lead_id} onChange={(e) => setFormData({ ...formData, send_lead_id: e.target.checked })} />}
-                                    label={<Typography variant="body2">Send Internal Lead ID <Typography component="span" variant="caption" color="text.secondary">(for dispute matching)</Typography></Typography>}
-                                />
-                                <FormControlLabel
-                                    control={<Switch size="small" checked={!!fd.send_private_note} onChange={(e) => setFormData({ ...formData, send_private_note: e.target.checked })} />}
-                                    label={<Typography variant="body2">Send Private Note <Typography component="span" variant="caption" color="text.secondary">(MM-DD HH:mm - Platform - Campaign)</Typography></Typography>}
-                                />
-                            </Box>
-                        </Box>
-
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <TextField size="small" fullWidth label="Min Min Between Sends" type="number" value={fd.min_minutes_between_sends ?? 4} onChange={(e) => setFormData({ ...formData, min_minutes_between_sends: parseInt(e.target.value) })} />
-                            <TextField size="small" fullWidth label="Max Min Between Sends" type="number" value={fd.max_minutes_between_sends ?? 11} onChange={(e) => setFormData({ ...formData, max_minutes_between_sends: parseInt(e.target.value) })} />
-                        </Box>
-
-                        <FormControlLabel
-                            control={<Switch size="small" checked={!!fd.allow_resell} onChange={(e) => setFormData({ ...formData, allow_resell: e.target.checked })} />}
-                            label={<Typography variant="body2">Allow Resell</Typography>}
+                    <Box sx={{ mt: 1 }}>
+                        <BuyerFormFields
+                            key={editingBuyer?.id ?? 'new'}
+                            formData={formData}
+                            onChange={setFormData}
+                            isEditing={!!editingBuyer}
+                            hasStoredToken={!!(editingBuyer?.auth_token_encrypted)}
                         />
-
-                        {/* Requires Validation toggle */}
-                        <FormControlLabel
-                            control={<Switch size="small" checked={!!fd.requires_validation} onChange={(e) => setFormData({ ...formData, requires_validation: e.target.checked })} />}
-                            label={<Typography variant="body2">Requires Validation</Typography>}
-                        />
-
-                        {/* States on Hold toggle + collapse */}
-                        <FormControlLabel
-                            control={<Switch size="small" checked={showStates} onChange={(e) => {
-                                setShowStates(e.target.checked);
-                                if (!e.target.checked) setFormData({ ...formData, states_on_hold: [] });
-                            }} />}
-                            label={<Typography variant="body2">
-                                States on Hold {(fd.states_on_hold?.length ?? 0) > 0 && <Chip label={fd.states_on_hold.length} size="small" sx={{ ml: 0.5, height: 18, fontSize: '0.65rem' }} />}
-                            </Typography>}
-                        />
-                        {showStates && (
-                            <TextField
-                                select
-                                size="small"
-                                fullWidth
-                                label="States on Hold"
-                                SelectProps={{ multiple: true, value: fd.states_on_hold || [] }}
-                                onChange={(e) => setFormData({ ...formData, states_on_hold: e.target.value as any })}
-                            >
-                                {US_STATES.map((state) => (
-                                    <MenuItem key={state} value={state}>{state}</MenuItem>
-                                ))}
-                            </TextField>
-                        )}
-
-                        <FormControlLabel
-                            control={<Switch size="small" checked={!!fd.enforce_county_cooldown} onChange={(e) => setFormData({ ...formData, enforce_county_cooldown: e.target.checked })} />}
-                            label={<Typography variant="body2">Enforce County Cooldown</Typography>}
-                        />
-                        {fd.enforce_county_cooldown && (
-                            <TextField size="small" fullWidth label="County Cooldown (hours)" type="number" value={fd.delay_same_county ?? 36} onChange={(e) => setFormData({ ...formData, delay_same_county: parseInt(e.target.value) })} />
-                        )}
-
-                        <FormControlLabel
-                            control={<Switch size="small" checked={!!fd.enforce_state_cooldown} onChange={(e) => setFormData({ ...formData, enforce_state_cooldown: e.target.checked })} />}
-                            label={<Typography variant="body2">Enforce State Cooldown</Typography>}
-                        />
-                        {fd.enforce_state_cooldown && (
-                            <TextField size="small" fullWidth label="State Cooldown (hours)" type="number" value={fd.delay_same_state ?? 0} onChange={(e) => setFormData({ ...formData, delay_same_state: parseInt(e.target.value) })} />
-                        )}
-
-                        {/* Authentication — collapsed behind toggle */}
-                        <FormControlLabel
-                            control={<Switch size="small" checked={requiresAuth} onChange={(e) => {
-                                setRequiresAuth(e.target.checked);
-                                if (!e.target.checked) {
-                                    setAuthPreset('bearer');
-                                    setFormData({ ...formData, auth_header_name: 'Authorization', auth_header_prefix: null, auth_token: null });
-                                } else {
-                                    setAuthPreset('bearer');
-                                    setFormData({ ...formData, auth_header_name: 'Authorization', auth_header_prefix: 'Bearer' });
-                                }
-                            }} />}
-                            label={<Typography variant="body2">Requires Authentication</Typography>}
-                        />
-                        {requiresAuth && (
-                            <>
-                                <FormControl size="small" fullWidth>
-                                    <InputLabel>Auth Preset</InputLabel>
-                                    <Select
-                                        value={authPreset}
-                                        label="Auth Preset"
-                                        onChange={(e) => {
-                                            const preset = e.target.value as 'bearer' | 'apikey' | 'custom';
-                                            setAuthPreset(preset);
-                                            if (preset === 'bearer') {
-                                                setFormData({ ...formData, auth_header_name: 'Authorization', auth_header_prefix: 'Bearer' });
-                                            } else if (preset === 'apikey') {
-                                                setFormData({ ...formData, auth_header_name: 'X-Api-Key', auth_header_prefix: null });
-                                            }
-                                        }}
-                                    >
-                                        <MenuItem value="bearer">Bearer Token</MenuItem>
-                                        <MenuItem value="apikey">API Key</MenuItem>
-                                        <MenuItem value="custom">Custom</MenuItem>
-                                    </Select>
-                                </FormControl>
-                                <TextField
-                                    size="small"
-                                    fullWidth
-                                    label="Header Name"
-                                    value={fd.auth_header_name || ''}
-                                    onChange={(e) => {
-                                        setAuthPreset('custom');
-                                        setFormData({ ...formData, auth_header_name: e.target.value });
-                                    }}
-                                />
-                                {authPreset !== 'apikey' && (
-                                    <TextField
-                                        size="small"
-                                        fullWidth
-                                        label="Header Prefix"
-                                        value={fd.auth_header_prefix || ''}
-                                        onChange={(e) => {
-                                            setAuthPreset('custom');
-                                            setFormData({ ...formData, auth_header_prefix: e.target.value || null });
-                                        }}
-                                    />
-                                )}
-                                <TextField
-                                    size="small"
-                                    fullWidth
-                                    label="Auth Token"
-                                    type="password"
-                                    value={fd.auth_token || ''}
-                                    onChange={(e) => setFormData({ ...formData, auth_token: e.target.value || null })}
-                                    helperText={editingBuyer ? 'Leave empty to keep current token' : ''}
-                                />
-                            </>
-                        )}
-                    </Stack>
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => { setDialogOpen(false); setEditingBuyer(null); }}>Cancel</Button>
