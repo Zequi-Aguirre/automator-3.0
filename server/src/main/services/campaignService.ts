@@ -186,6 +186,9 @@ export default class CampaignService {
      */
     async trash(id: string): Promise<Campaign> {
         try {
+            const hasLeads = await this.campaignDAO.hasLeads(id);
+            if (hasLeads) throw new Error('CAMPAIGN_HAS_LEADS');
+
             const campaign = await this.campaignDAO.trash(id);
 
             console.info('Soft deleted campaign', {

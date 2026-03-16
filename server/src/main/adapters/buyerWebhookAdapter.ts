@@ -39,7 +39,7 @@ export default class BuyerWebhookAdapter {
             if (authConfig.auth_token_decrypted) {
                 const headerName = authConfig.auth_header_name || 'Authorization';
                 const headerValue = authConfig.auth_header_prefix
-                    ? `${authConfig.auth_header_prefix}${authConfig.auth_token_decrypted}`
+                    ? `${authConfig.auth_header_prefix} ${authConfig.auth_token_decrypted}`
                     : authConfig.auth_token_decrypted;
 
                 headers[headerName] = headerValue;

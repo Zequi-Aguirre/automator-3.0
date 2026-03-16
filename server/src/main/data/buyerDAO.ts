@@ -172,7 +172,9 @@ export default class BuyerDAO {
                 delay_same_state,
                 enforce_county_cooldown,
                 enforce_state_cooldown,
-                payload_format
+                payload_format,
+                send_lead_id,
+                send_private_note
             )
             VALUES (
                 $[name],
@@ -194,7 +196,9 @@ export default class BuyerDAO {
                 $[delay_same_state],
                 $[enforce_county_cooldown],
                 $[enforce_state_cooldown],
-                $[payload_format]
+                $[payload_format],
+                $[send_lead_id],
+                $[send_private_note]
             )
             RETURNING *;
         `;
@@ -219,7 +223,9 @@ export default class BuyerDAO {
             delay_same_state: dto.delay_same_state ?? 0,
             enforce_county_cooldown: dto.enforce_county_cooldown ?? true,
             enforce_state_cooldown: dto.enforce_state_cooldown ?? false,
-            payload_format: dto.payload_format ?? 'default'
+            payload_format: dto.payload_format ?? 'default',
+            send_lead_id: dto.send_lead_id ?? false,
+            send_private_note: dto.send_private_note ?? false
         });
     }
 
@@ -261,6 +267,8 @@ export default class BuyerDAO {
                 enforce_county_cooldown = $[enforce_county_cooldown],
                 enforce_state_cooldown = $[enforce_state_cooldown],
                 payload_format = $[payload_format],
+                send_lead_id = $[send_lead_id],
+                send_private_note = $[send_private_note],
                 on_hold = $[on_hold],
                 modified = NOW()
             WHERE id = $[id]
@@ -291,6 +299,8 @@ export default class BuyerDAO {
             enforce_county_cooldown: dto.enforce_county_cooldown ?? existing.enforce_county_cooldown,
             enforce_state_cooldown: dto.enforce_state_cooldown ?? existing.enforce_state_cooldown,
             payload_format: dto.payload_format ?? existing.payload_format,
+            send_lead_id: dto.send_lead_id ?? existing.send_lead_id,
+            send_private_note: dto.send_private_note ?? existing.send_private_note,
             on_hold: dto.on_hold ?? existing.on_hold
         });
 
