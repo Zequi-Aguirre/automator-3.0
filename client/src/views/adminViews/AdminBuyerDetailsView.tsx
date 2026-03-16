@@ -7,20 +7,13 @@ import {
     CardContent,
     Chip,
     CircularProgress,
-    FormControl,
-    FormControlLabel,
     IconButton,
-    InputLabel,
-    MenuItem,
-    Select,
     Snackbar,
     Alert,
     Stack,
-    Switch,
-    TextField,
     Typography,
-    Checkbox,
 } from '@mui/material';
+import BuyerFormFields from '../../components/admin/adminBuyersSection/BuyerFormFields';
 import { ArrowBack, Edit, Save, Cancel, Delete, PauseCircle, PlayCircle } from '@mui/icons-material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -29,7 +22,6 @@ import dayjs, { Dayjs } from 'dayjs';
 
 import buyerService from '../../services/buyer.service';
 import { Buyer, BuyerUpdateDTO } from '../../types/buyerTypes';
-import { US_STATES } from '../../constants/usStates';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Permission } from '../../types/userTypes';
 
@@ -43,7 +35,6 @@ const AdminBuyerDetailsView = () => {
     const [editMode, setEditMode] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState<BuyerUpdateDTO>({});
-    const [showStates, setShowStates] = useState(false);
     const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
 
@@ -67,7 +58,6 @@ const AdminBuyerDetailsView = () => {
 
     const handleEdit = () => {
         if (!buyer) return;
-        setShowStates((buyer.states_on_hold || []).length > 0);
         setForm({
             name: buyer.name,
             webhook_url: buyer.webhook_url,
@@ -88,6 +78,8 @@ const AdminBuyerDetailsView = () => {
             enforce_county_cooldown: buyer.enforce_county_cooldown,
             enforce_state_cooldown: buyer.enforce_state_cooldown,
             payload_format: buyer.payload_format,
+            send_lead_id: buyer.send_lead_id,
+            send_private_note: buyer.send_private_note,
         });
         setEditMode(true);
     };
@@ -152,8 +144,6 @@ const AdminBuyerDetailsView = () => {
         }
     };
 
-    const f = form as any;
-
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -209,101 +199,13 @@ const AdminBuyerDetailsView = () => {
                     </Box>
 
                     {editMode ? (
-                        <Stack spacing={2}>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <TextField size="small" fullWidth label="Name" value={f.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                                <TextField size="small" sx={{ width: 120 }} label="Priority" type="number" value={f.priority ?? ''} onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value) })} />
-                            </Box>
-                            <TextField size="small" fullWidth label="Webhook URL" value={f.webhook_url || ''} onChange={(e) => setForm({ ...form, webhook_url: e.target.value })} />
-
-                            {/* Dispatch Mode */}
-                            <Box>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Dispatch Mode</Typography>
-                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                    <FormControlLabel
-                                        control={<Checkbox size="small" checked={!!f.auto_send} onChange={(e) => setForm({ ...form, auto_send: e.target.checked })} />}
-                                        label={<Typography variant="body2">Auto Send</Typography>}
-                                    />
-                                    <FormControlLabel
-                                        control={<Checkbox size="small" checked={f.manual_send !== false} onChange={(e) => setForm({ ...form, manual_send: e.target.checked })} />}
-                                        label={<Typography variant="body2">Manual</Typography>}
-                                    />
-                                    <FormControlLabel
-                                        control={<Checkbox size="small" checked={f.worker_send !== false} onChange={(e) => setForm({ ...form, worker_send: e.target.checked })} />}
-                                        label={<Typography variant="body2">Worker</Typography>}
-                                    />
-                                </Box>
-                            </Box>
-
-                            <FormControl size="small" fullWidth>
-                                <InputLabel>Payload Format</InputLabel>
-                                <Select value={f.payload_format ?? 'default'} label="Payload Format" onChange={(e) => setForm({ ...form, payload_format: e.target.value as 'default' | 'northstar' })}>
-                                    <MenuItem value="default">Default</MenuItem>
-                                    <MenuItem value="northstar">Northstar (Compass / SellersDirect)</MenuItem>
-                                </Select>
-                            </FormControl>
-
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <TextField size="small" fullWidth label="Min Min Between Sends" type="number" value={f.min_minutes_between_sends ?? 4} onChange={(e) => setForm({ ...form, min_minutes_between_sends: parseInt(e.target.value) })} />
-                                <TextField size="small" fullWidth label="Max Min Between Sends" type="number" value={f.max_minutes_between_sends ?? 11} onChange={(e) => setForm({ ...form, max_minutes_between_sends: parseInt(e.target.value) })} />
-                            </Box>
-
-                            <FormControlLabel
-                                control={<Switch size="small" checked={!!f.allow_resell} onChange={(e) => setForm({ ...form, allow_resell: e.target.checked })} />}
-                                label={<Typography variant="body2">Allow Resell</Typography>}
-                            />
-
-                            <FormControlLabel
-                                control={<Switch size="small" checked={!!f.requires_validation} onChange={(e) => setForm({ ...form, requires_validation: e.target.checked })} />}
-                                label={<Typography variant="body2">Requires Validation</Typography>}
-                            />
-
-                            {/* States on Hold toggle + collapse */}
-                            <Box>
-                                <FormControlLabel
-                                    control={<Switch size="small" checked={showStates} onChange={(e) => {
-                                        setShowStates(e.target.checked);
-                                        if (!e.target.checked) setForm({ ...form, states_on_hold: [] });
-                                    }} />}
-                                    label={<Typography variant="body2">
-                                        States on Hold {(f.states_on_hold?.length ?? 0) > 0 && <Chip label={f.states_on_hold.length} size="small" sx={{ ml: 0.5, height: 18, fontSize: '0.65rem' }} />}
-                                    </Typography>}
-                                />
-                                {showStates && (
-                                    <TextField
-                                        select
-                                        size="small"
-                                        fullWidth
-                                        label="States on Hold"
-                                        SelectProps={{ multiple: true, value: f.states_on_hold || [] }}
-                                        onChange={(e) => setForm({ ...form, states_on_hold: e.target.value as any })}
-                                        sx={{ mt: 1 }}
-                                    >
-                                        {US_STATES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-                                    </TextField>
-                                )}
-                            </Box>
-
-                            <FormControlLabel
-                                control={<Switch size="small" checked={!!f.enforce_county_cooldown} onChange={(e) => setForm({ ...form, enforce_county_cooldown: e.target.checked })} />}
-                                label={<Typography variant="body2">Enforce County Cooldown</Typography>}
-                            />
-                            {f.enforce_county_cooldown && (
-                                <TextField size="small" fullWidth label="County Cooldown (hours)" type="number" value={f.delay_same_county ?? 36} onChange={(e) => setForm({ ...form, delay_same_county: parseInt(e.target.value) })} />
-                            )}
-
-                            <FormControlLabel
-                                control={<Switch size="small" checked={!!f.enforce_state_cooldown} onChange={(e) => setForm({ ...form, enforce_state_cooldown: e.target.checked })} />}
-                                label={<Typography variant="body2">Enforce State Cooldown</Typography>}
-                            />
-                            {f.enforce_state_cooldown && (
-                                <TextField size="small" fullWidth label="State Cooldown (hours)" type="number" value={f.delay_same_state ?? 0} onChange={(e) => setForm({ ...form, delay_same_state: parseInt(e.target.value) })} />
-                            )}
-
-                            <TextField size="small" fullWidth label="Auth Header Name" value={f.auth_header_name || 'Authorization'} onChange={(e) => setForm({ ...form, auth_header_name: e.target.value })} />
-                            <TextField size="small" fullWidth label="Auth Header Prefix" value={f.auth_header_prefix || ''} onChange={(e) => setForm({ ...form, auth_header_prefix: e.target.value || null })} />
-                            <TextField size="small" fullWidth label="Auth Token" type="password" value={f.auth_token || ''} onChange={(e) => setForm({ ...form, auth_token: e.target.value || null })} helperText="Leave empty to keep current token" />
-                        </Stack>
+                        <BuyerFormFields
+                            key={`${id ?? ''}-edit`}
+                            formData={form}
+                            onChange={(data) => { setForm(data as BuyerUpdateDTO); }}
+                            isEditing={true}
+                            hasStoredToken={!!(buyer?.auth_token_encrypted)}
+                        />
                     ) : (
                         <Stack spacing={1.5}>
                             <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

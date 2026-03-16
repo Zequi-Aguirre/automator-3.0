@@ -576,10 +576,19 @@ export default class BuyerDispatchService {
      */
     private buildPrivateNote(lead: Lead, campaign: Campaign | null): string {
         const dt = new Date(lead.created);
-        const mm = (dt.getMonth() + 1).toString().padStart(2, '0');
-        const dd = dt.getDate().toString().padStart(2, '0');
-        const hh = dt.getHours().toString().padStart(2, '0');
-        const min = dt.getMinutes().toString().padStart(2, '0');
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).formatToParts(dt);
+        const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
+        const mm = get('month');
+        const dd = get('day');
+        const hh = get('hour');
+        const min = get('minute');
         const platform = (campaign?.platform ?? '').toUpperCase() || 'Unknown';
         const name = campaign?.name ?? 'Unknown';
         return `${mm}${dd}-${hh}${min} ${platform} - ${name}`;
