@@ -270,6 +270,14 @@ export default class CampaignDAO {
         return await this.update(id, updates);
     }
 
+    async hasLeads(id: string): Promise<boolean> {
+        const row = await this.db.one<{ count: number }>(
+            `SELECT COUNT(*)::int AS count FROM leads WHERE campaign_id = $[id]`,
+            { id }
+        );
+        return row.count > 0;
+    }
+
     /**
      * Soft delete campaign
      */
