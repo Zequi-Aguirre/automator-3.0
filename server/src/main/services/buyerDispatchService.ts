@@ -12,6 +12,7 @@ import ActivityService from "../services/activityService";
 import BuyerWebhookAdapter, { BuyerWebhookResponse } from "../adapters/buyerWebhookAdapter";
 import { Lead } from "../types/leadTypes";
 import { Buyer } from "../types/buyerTypes";
+import { Campaign } from "../types/campaignTypes";
 import { SendLog } from "../types/sendLogTypes";
 import { County } from "../types/countyTypes";
 
@@ -51,14 +52,15 @@ export default class BuyerDispatchService {
             }
         }
 
-        // Get source_id from campaign if available
+        // Get campaign (needed for source_id and private note)
         let sourceId: string | null = null;
+        let campaign: Campaign | null = null;
         if (lead.campaign_id) {
             try {
-                const campaign = await this.campaignDAO.getById(lead.campaign_id);
-                sourceId = campaign?.source_id || null;
+                campaign = await this.campaignDAO.getById(lead.campaign_id);
+                sourceId = campaign?.source_id ?? null;
             } catch (error) {
-                // Campaign not found or error - continue without source_id
+                // Campaign not found or error - continue without campaign data
                 console.warn(`Could not fetch campaign ${lead.campaign_id}:`, error);
             }
         }
@@ -70,7 +72,7 @@ export default class BuyerDispatchService {
         }
 
         // Build payload (map lead fields to buyer's expected format)
-        const payload = this.buildPayload(lead, buyer);
+        const payload = this.buildPayload(lead, buyer, campaign);
 
         // Send to actual webhook (Make.com URLs configured per environment)
         const response: BuyerWebhookResponse = await this.buyerWebhookAdapter.sendToBuyer(
@@ -532,8 +534,8 @@ export default class BuyerDispatchService {
      * @param lead - Lead to transform
      * @returns Payload object ready for webhook
      */
-    private buildPayload(lead: Lead, buyer: Buyer): Record<string, unknown> {
-        const privateNote = buyer.send_private_note ? this.buildPrivateNote(lead) : undefined;
+    private buildPayload(lead: Lead, buyer: Buyer, campaign: Campaign | null): Record<string, unknown> {
+        const privateNote = buyer.send_private_note ? this.buildPrivateNote(lead, campaign) : undefined;
 
         if (buyer.payload_format === 'northstar') {
             return {
@@ -569,16 +571,17 @@ export default class BuyerDispatchService {
 
     /**
      * Build private note string for payload
-     * Format: MM-DD HH:mm - Platform - Campaign Name
+     * Format: MMdd-HHmm Platform - Campaign Name
+     * e.g. "0316-2038 FB - TN Knox etc"
      */
-    private buildPrivateNote(lead: Lead): string {
+    private buildPrivateNote(lead: Lead, campaign: Campaign | null): string {
         const dt = new Date(lead.created);
         const mm = (dt.getMonth() + 1).toString().padStart(2, '0');
         const dd = dt.getDate().toString().padStart(2, '0');
         const hh = dt.getHours().toString().padStart(2, '0');
         const min = dt.getMinutes().toString().padStart(2, '0');
-        const platform = lead.campaign_platform ?? 'Unknown';
-        const campaign = lead.campaign_name ?? 'Unknown';
-        return `${mm}-${dd} ${hh}:${min} - ${platform} - ${campaign}`;
+        const platform = (campaign?.platform ?? '').toUpperCase() || 'Unknown';
+        const name = campaign?.name ?? 'Unknown';
+        return `${mm}${dd}-${hh}${min} ${platform} - ${name}`;
     }
 }
