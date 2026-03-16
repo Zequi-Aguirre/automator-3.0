@@ -218,16 +218,16 @@ export default class UserResource {
         this.router.get('/permissions', requirePermission(UserPermission.MANAGE), (_req: Request, res: Response) => {
             res.status(200).json({
                 leads: Object.values(LeadPermission),
-                sources: Object.values(SourcePermission),
                 buyers: Object.values(BuyerPermission),
+                sources: Object.values(SourcePermission),
                 managers: Object.values(ManagerPermission),
                 counties: Object.values(CountyPermission),
-                logs: Object.values(LogPermission),
-                worker_settings: Object.values(WorkerSettingsPermission),
-                users: Object.values(UserPermission),
                 activity: Object.values(ActivityPermission),
+                logs: Object.values(LogPermission),
                 trash_reasons: Object.values(TrashReasonPermission),
                 disputes: Object.values(DisputePermission),
+                worker_settings: Object.values(WorkerSettingsPermission),
+                users: Object.values(UserPermission),
             });
         });
     }

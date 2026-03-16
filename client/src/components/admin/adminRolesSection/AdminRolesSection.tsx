@@ -35,8 +35,42 @@ import userService from '../../../services/user.service';
 import { PermissionRole } from '../../../types/roleTypes';
 import { Permission } from '../../../types/userTypes';
 
+const PERMISSION_LABELS: Record<string, string> = {
+    'leads.read':              'View Leads',
+    'leads.verify':            'Verify Leads',
+    'leads.queue':             'Queue Leads',
+    'leads.import':            'Import Leads',
+    'leads.export':            'Export Leads',
+    'leads.send':              'Send Leads',
+    'leads.trash':             'Trash Leads',
+    'leads.edit':              'Edit Leads',
+    'leads.untrash':           'Untrash Leads',
+    'leads.call_request':      'Request Calls',
+    'leads.call_execute':      'Execute Calls',
+    'leads.view_new':          'View Needs Verification Tab',
+    'leads.view_verified':     'View Verified Tab',
+    'leads.view_needs_review': 'View Needs Review Tab',
+    'leads.view_needs_call':   'View Needs Call Tab',
+    'leads.view_sent':         'View Sent Tab',
+    'leads.view_sold':         'View Sold Tab',
+    'leads.view_trash':        'View Trash Tab',
+    'sources.manage':          'Manage Sources',
+    'buyers.manage':           'Manage Buyers',
+    'buyers.hold':             'Hold Buyers',
+    'managers.manage':         'Manage Managers',
+    'counties.manage':         'Manage Counties',
+    'logs.view':               'View Logs',
+    'worker.toggle':           'Toggle Worker',
+    'settings.manage':         'Manage Settings',
+    'users.manage':            'Manage Users',
+    'users.approve':           'Approve Users',
+    'activity.view':           'View Activity',
+    'trash_reasons.manage':    'Manage Trash Reasons',
+    'disputes.create':         'Create Disputes',
+};
+
 const permLabel = (perm: string) =>
-    perm.split('.').slice(1).join(' ').replace(/_/g, ' ');
+    PERMISSION_LABELS[perm] ?? perm.split('.').slice(1).join(' ').replace(/_/g, ' ');
 
 const EMPTY_FORM = { name: '', permissions: [] as Permission[] };
 
