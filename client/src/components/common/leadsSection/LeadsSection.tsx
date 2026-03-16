@@ -17,7 +17,8 @@ import {
     Select,
     FormControl,
     InputLabel,
-    Stack
+    Stack,
+    Badge
 } from "@mui/material";
 import { Lead } from "../../../types/leadTypes.ts";
 import { Buyer } from "../../../types/buyerTypes.ts";
@@ -51,6 +52,9 @@ const LeadsSection = () => {
     const [sendSource, setSendSource] = useState<SendSource | "">("");
     const [sourceId, setSourceId] = useState<string>("");
     const [campaignId, setCampaignId] = useState<string>("");
+
+    // Tab badge counts
+    const [tabCounts, setTabCounts] = useState<{ new: number; verified: number; needs_review: number; needs_call: number }>({ new: 0, verified: 0, needs_review: 0, needs_call: 0 });
 
     // Dropdown options for sent filters
     const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -143,6 +147,15 @@ const LeadsSection = () => {
         }
     }, [can, status]);
 
+    const fetchTabCounts = useCallback(async () => {
+        try {
+            const counts = await LeadsService.getTabCounts();
+            setTabCounts(counts);
+        } catch {
+            // non-fatal
+        }
+    }, []);
+
     // ------------------------------
     // FETCH LEADS when CONTEXT FILTERS CHANGE or sent sub-filters change
     // ------------------------------
@@ -187,7 +200,8 @@ const LeadsSection = () => {
 
     useEffect(() => {
         fetchLeads();
-    }, [fetchLeads]);
+        void fetchTabCounts();
+    }, [fetchLeads, fetchTabCounts]);
 
     // ------------------------------
     // EVENT HANDLERS
@@ -219,6 +233,7 @@ const LeadsSection = () => {
             severity: "success"
         });
         fetchLeads();
+        void fetchTabCounts();
     };
 
     const clearSentFilters = () => {
@@ -269,20 +284,28 @@ const LeadsSection = () => {
                         size="small"
                         onChange={(_e, val) => { if (val !== null) updateStatus(val as LeadStatus); }}
                     >
-                        <ToggleButton value="needs_review">
-                            Needs Review
+                        <ToggleButton value="new" sx={{ pr: tabCounts.new > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.new || null} color="primary">
+                                Needs Verification
+                            </Badge>
                         </ToggleButton>
 
-                        <ToggleButton value="new">
-                            Needs Verification
+                        <ToggleButton value="verified" sx={{ pr: tabCounts.verified > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.verified || null} color="primary">
+                                Verified
+                            </Badge>
                         </ToggleButton>
 
-                        <ToggleButton value="verified">
-                            Verified
+                        <ToggleButton value="needs_review" sx={{ pr: tabCounts.needs_review > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.needs_review || null} color="warning">
+                                Needs Review
+                            </Badge>
                         </ToggleButton>
 
-                        <ToggleButton value="needs_call">
-                            Needs Call
+                        <ToggleButton value="needs_call" sx={{ pr: tabCounts.needs_call > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.needs_call || null} color="error">
+                                Needs Call
+                            </Badge>
                         </ToggleButton>
 
                         {can(Permission.LEADS_SEND) && (

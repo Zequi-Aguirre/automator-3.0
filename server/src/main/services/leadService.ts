@@ -112,6 +112,10 @@ export default class LeadService {
         }
     }
 
+    async getTabCounts(): Promise<{ new: number; verified: number; needs_review: number; needs_call: number }> {
+        return this.leadDAO.getTabCounts();
+    }
+
     async getMany(filters: LeadFilters): Promise<{ leads: Lead[]; count: number }> {
         try {
             return await this.leadDAO.getMany(filters);

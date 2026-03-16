@@ -37,7 +37,7 @@ type DataContextType = {
     setCountyFilters: React.Dispatch<React.SetStateAction<CountyFilters>>;
 };
 
-const CURRENT_VERSION = 6;
+const CURRENT_VERSION = 7;
 
 const defaultLeadFilters: LeadFilters = {
     page: 1,

@@ -210,6 +210,16 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
         }
     };
 
+    const handleUntrashLead = async (leadId: string) => {
+        try {
+            const restored = await leadsService.untrashLead(leadId);
+            setLeads(prev => prev.filter(l => l.id !== restored.id));
+            showNotification("Lead restored", "success");
+        } catch {
+            showNotification("Failed to restore lead", "error");
+        }
+    };
+
     const handleResolveNeedsReview = async (lead: Lead) => {
         try {
             const updated = await leadsService.resolveNeedsReview(lead.id);
@@ -486,6 +496,26 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                 const canTrash = can(Permission.LEADS_TRASH);
                 const canEdit = can(Permission.LEADS_EDIT);
                 const canRequestCall = can(Permission.LEADS_CALL_REQUEST);
+
+                if (currentStatus === "trash") {
+                    return (
+                        <Stack direction="row" spacing={0.25} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>
+                            <Tooltip title={canTrash ? "Restore lead" : "You don't have permission to restore leads"}>
+                                <span>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="success"
+                                        disabled={!canTrash}
+                                        onClick={() => { void handleUntrashLead(lead.id); }}
+                                    >
+                                        Untrash
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        </Stack>
+                    );
+                }
 
                 return (
                     <Stack direction="row" spacing={0.25} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>

@@ -174,6 +174,11 @@ class LeadService {
         const response = await this.api.getApi().post(`/api/leads/${leadId}/execute-call`, { outcome, notes });
         return response.data;
     }
+
+    async getTabCounts(): Promise<{ new: number; verified: number; needs_review: number; needs_call: number }> {
+        const response = await this.api.getApi().get('/api/leads/counts');
+        return response.data;
+    }
 }
 
 const leadsService = new LeadService(authProvider);

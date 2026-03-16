@@ -15,6 +15,20 @@ export default class LeadResource {
     }
 
     private initializeRoutes() {
+        // Get tab counts for badge display
+        this.router.get("/counts", requirePermission(LeadPermission.READ), async (_req: Request, res: Response) => {
+            try {
+                const counts = await this.leadService.getTabCounts();
+                return res.status(200).send(counts);
+            } catch (error) {
+                console.error('Error fetching tab counts:', error);
+                return res.status(500).send({
+                    message: 'Failed to fetch tab counts',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // Get many leads with pagination and oldDatabase support
         this.router.get("/get-many", requirePermission(LeadPermission.READ), async (req: Request, res: Response) => {
             try {
