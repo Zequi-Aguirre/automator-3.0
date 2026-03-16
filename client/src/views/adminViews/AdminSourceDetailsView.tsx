@@ -419,7 +419,7 @@ const AdminSourceDetailsView = () => {
                 </Box>
 
                 {/* Campaigns Table */}
-                <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+                <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
                     <TableContainer component={Paper}>
                         <Table stickyHeader>
                             <TableHead>
