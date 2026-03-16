@@ -97,12 +97,11 @@ export default class LeadDAO {
                 deleted_reason = $[reason],
                 modified = NOW()
             WHERE deleted IS NULL
-              AND sent = FALSE
-              AND verified = FALSE
               AND NOT EXISTS (
                   SELECT 1 FROM send_log
                   WHERE send_log.lead_id = leads.id
-                    AND send_log.status = 'sent'
+                    AND send_log.response_code >= 200
+                    AND send_log.response_code < 300
                     AND send_log.deleted IS NULL
               )
               AND created <= NOW() - ($[expireHours]::int * INTERVAL '1 hour')
@@ -234,6 +233,7 @@ export default class LeadDAO {
                 AND l.needs_review = FALSE
                 AND l.needs_call = FALSE
                 AND l.deleted IS NULL
+                AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = l.id AND sl.response_code >= 200 AND sl.response_code < 300)
             `);
                 break;
 
@@ -692,7 +692,7 @@ export default class LeadDAO {
     async getTabCounts(): Promise<{ new: number; verified: number; needs_review: number; needs_call: number }> {
         const query = `
             SELECT
-                (SELECT COUNT(*)::int FROM leads WHERE verified = FALSE AND needs_review = FALSE AND needs_call = FALSE AND deleted IS NULL) AS "new",
+                (SELECT COUNT(*)::int FROM leads WHERE verified = FALSE AND needs_review = FALSE AND needs_call = FALSE AND deleted IS NULL AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = leads.id AND sl.response_code >= 200 AND sl.response_code < 300)) AS "new",
                 (SELECT COUNT(*)::int FROM leads WHERE verified = TRUE AND deleted IS NULL AND NOT EXISTS (SELECT 1 FROM send_log sl WHERE sl.lead_id = leads.id AND sl.response_code >= 200 AND sl.response_code < 300)) AS "verified",
                 (SELECT COUNT(*)::int FROM leads WHERE needs_review = TRUE AND deleted IS NULL) AS "needs_review",
                 (SELECT COUNT(*)::int FROM leads WHERE needs_call = TRUE AND deleted IS NULL) AS "needs_call";
