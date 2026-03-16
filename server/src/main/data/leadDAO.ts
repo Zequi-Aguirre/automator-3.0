@@ -160,10 +160,11 @@ export default class LeadDAO {
     // Get lead by ID (active only)
     async getById(id: string): Promise<Lead | null> {
         const query = `
-            SELECT *
-            FROM leads
-            WHERE id = $[id]
-            AND deleted IS NULL;
+            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform
+            FROM leads l
+            LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            WHERE l.id = $[id]
+            AND l.deleted IS NULL;
         `;
         return await this.db.oneOrNone<Lead>(query, { id });
     }
@@ -171,9 +172,10 @@ export default class LeadDAO {
     // Get lead by ID including deleted/trashed leads
     async getByIdAny(id: string): Promise<Lead | null> {
         const query = `
-            SELECT *
-            FROM leads
-            WHERE id = $[id];
+            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform
+            FROM leads l
+            LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            WHERE l.id = $[id];
         `;
         return await this.db.oneOrNone<Lead>(query, { id });
     }

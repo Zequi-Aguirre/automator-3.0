@@ -63,38 +63,11 @@ export default class ActivityDAO {
 
     async getRecent(limit = 100): Promise<ActivityLog[]> {
         return this.db.manyOrNone(
-            `SELECT id, user_id, lead_id, entity_type, entity_id, action, action_details, created, user_name
-             FROM (
-                 -- Collapse lead_imported entries: one row per user + minute + method
-                 SELECT
-                     MIN(a.id) as id,
-                     a.user_id,
-                     NULL::uuid as lead_id,
-                     NULL::text as entity_type,
-                     NULL::uuid as entity_id,
-                     a.action,
-                     jsonb_build_object(
-                         'method', MAX(a.action_details->>'method'),
-                         'source_name', MAX(a.action_details->>'source_name'),
-                         'count', COUNT(*)::int
-                     ) as action_details,
-                     date_trunc('minute', MIN(a.created)) as created,
-                     MAX(u.name) as user_name
-                 FROM activity_log a
-                 LEFT JOIN users u ON a.user_id = u.id
-                 WHERE a.action = 'lead_imported'
-                 GROUP BY a.user_id, a.action, date_trunc('minute', a.created), a.action_details->>'method'
-
-                 UNION ALL
-
-                 -- All other actions unchanged
-                 SELECT a.id, a.user_id, a.lead_id, a.entity_type, a.entity_id,
-                        a.action, a.action_details, a.created, u.name as user_name
-                 FROM activity_log a
-                 LEFT JOIN users u ON a.user_id = u.id
-                 WHERE a.action != 'lead_imported'
-             ) combined
-             ORDER BY created DESC
+            `SELECT a.id, a.user_id, a.lead_id, a.entity_type, a.entity_id,
+                    a.action, a.action_details, a.created, u.name AS user_name
+             FROM activity_log a
+             LEFT JOIN users u ON a.user_id = u.id
+             ORDER BY a.created DESC
              LIMIT $[limit]`,
             { limit }
         );
