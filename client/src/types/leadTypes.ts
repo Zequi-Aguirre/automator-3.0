@@ -10,8 +10,6 @@ export type Lead = {
     phone: string;
     email: string;
     created: string;
-    sent_date: string | null;
-    sent: boolean;
     verified: boolean;
     investor_id: string | null;
     campaign_id: string | null;
