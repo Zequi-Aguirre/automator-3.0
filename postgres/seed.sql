@@ -1,10 +1,13 @@
 -- INSERT USERS
+-- Only the owner superadmin and the System service account.
+-- All other users are created via the application UI.
 INSERT INTO public."users" (id, email, encrypted_password, name, role)
 VALUES
+    -- Owner / superadmin (real login account)
     ('123e4567-e89b-12d3-b456-226600000101', 'zequi4real@gmail.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Zequi', 'superadmin'),
-    ('123e4567-e89b-12d3-b456-226600000102', 'admin@admin.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Admin', 'admin'),
-    ('123e4567-e89b-12d3-b456-226600000103', 'user@user.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'User', 'user'),
-    ('123e4567-e89b-12d3-b456-226600000104', 'worker@worker.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Worker', 'worker')
+    -- System service account used by the background worker for activity logging.
+    -- This account cannot log in — it exists only to attribute automated actions.
+    ('123e4567-e89b-12d3-b456-226600000104', 'system@automator', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'System', 'worker')
 ON CONFLICT (id) DO NOTHING;
 
 -- INSERT worker_settings initial row

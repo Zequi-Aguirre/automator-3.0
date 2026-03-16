@@ -36,3 +36,6 @@ credentials.json
 
 # mongo backup
 mongo_backup/
+
+# Production data export (contains PII — never commit)
+prod-export/
