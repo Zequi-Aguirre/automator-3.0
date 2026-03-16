@@ -200,17 +200,27 @@ async function main() {
         // ── Step 1b: Enrich counties with zip_codes from staging ──────────────
         // Match by name + state (natural key). Only updates counties that have
         // no zip_codes yet — never overwrites existing data.
+        // Uses a single UPDATE...FROM(VALUES...) per chunk to avoid per-row round trips.
         if (stagingCounties.length > 0) {
             console.log('Step 1b: Enriching counties with zip_codes from staging...');
+            const CHUNK = 500;
             let zipUpdated = 0;
-            for (const sc of stagingCounties) {
+            for (let i = 0; i < stagingCounties.length; i += CHUNK) {
+                const chunk = stagingCounties.slice(i, i + CHUNK);
+                const values = [];
+                const rows = chunk.map((sc, idx) => {
+                    const base = idx * 3;
+                    values.push(sc.name, sc.state, sc.zip_codes);
+                    return `($${base + 1}, $${base + 2}, $${base + 3}::text[])`;
+                });
                 const result = await client.query(`
-                    UPDATE counties
-                    SET zip_codes = $1
-                    WHERE name = $2 AND state = $3
-                      AND (zip_codes IS NULL OR array_length(zip_codes, 1) = 0)
-                `, [sc.zip_codes, sc.name, sc.state]);
-                if (result.rowCount > 0) zipUpdated += result.rowCount;
+                    UPDATE counties AS c
+                    SET zip_codes = v.zip_codes
+                    FROM (VALUES ${rows.join(', ')}) AS v(name, state, zip_codes)
+                    WHERE c.name = v.name AND c.state::text = v.state
+                      AND (c.zip_codes IS NULL OR array_length(c.zip_codes, 1) = 0)
+                `, values);
+                zipUpdated += result.rowCount;
             }
             console.log(`  ✓ ${zipUpdated} counties updated with zip_codes\n`);
         }
@@ -259,100 +269,82 @@ async function main() {
         // ── Step 4: lead_buyer_outcomes ──────────────────────────────────────
         // One outcome per lead (first successful send to iSpeedToLead)
         console.log('Step 4: Creating lead_buyer_outcomes...');
+        const outcomeRows = [];
         const seenLeads = new Set();
         for (const s of sendLog) {
             if (s.status !== 'sent' || s.response_code !== 200) continue;
             if (seenLeads.has(s.lead_id)) continue;
             seenLeads.add(s.lead_id);
-
-            await client.query(`
-                INSERT INTO lead_buyer_outcomes (lead_id, buyer_id, status, sold_at, allow_resell, created, modified)
-                SELECT $1, $2, 'sold', $3, $4, $3, $3
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM lead_buyer_outcomes
-                    WHERE lead_id = $1 AND buyer_id = $2 AND deleted IS NULL
-                )
-            `, [s.lead_id, newIspeedBuyerId, s.created, ispeedAllowResell]);
-            counts.outcomes++;
+            outcomeRows.push(s);
         }
+        counts.outcomes = await bulkInsert(
+            client,
+            'lead_buyer_outcomes',
+            'lead_id, buyer_id, status, sold_at, allow_resell, created, modified',
+            outcomeRows,
+            s => [s.lead_id, newIspeedBuyerId, 'sold', s.created, ispeedAllowResell, s.created, s.created],
+            'ON CONFLICT DO NOTHING'
+        );
         console.log(`  ✓ ${counts.outcomes} lead_buyer_outcomes\n`);
 
         // ── Step 5: Activity log ─────────────────────────────────────────────
+        // Build all activity rows in memory, then bulk insert in chunks.
         console.log('Step 5: Creating activity_log entries...');
+        const activityRows = [];
 
-        // 5a. private_notes → lead_imported activity (timestamped at lead creation)
+        // 5a. private_notes → lead_imported
         for (const l of leads) {
             if (!l.private_notes || !l.private_notes.trim()) continue;
-            await client.query(`
-                INSERT INTO activity_log (lead_id, entity_type, entity_id, action, action_details, created)
-                SELECT $1, 'lead', $1, 'lead_imported', $2::jsonb, $3
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM activity_log
-                    WHERE lead_id = $1 AND action = 'lead_imported'
-                      AND action_details->>'source' = 'migration'
-                )
-            `, [
-                l.id,
-                JSON.stringify({ notes: l.private_notes.trim(), source: 'migration' }),
-                l.created,
-            ]);
-            counts.activities++;
+            activityRows.push({
+                user_id: null,
+                lead_id: l.id,
+                action: 'lead_imported',
+                action_details: JSON.stringify({ notes: l.private_notes.trim(), source: 'migration' }),
+                created: l.created,
+            });
         }
 
-        // 5b. verified leads → lead_verified (attributed to System user)
-        //     Timestamp is 1 minute before the lead's first send (to ensure correct ordering).
-        //     Falls back to lead.modified if the lead was never sent.
+        // 5b. verified leads → lead_verified (1 min before first send)
         for (const l of leads) {
             if (!l.verified) continue;
-
             const firstSend = minSendByLead.get(l.id);
             const verifiedAt = firstSend
                 ? new Date(new Date(firstSend).getTime() - 60 * 1000).toISOString()
                 : l.modified;
-
-            await client.query(`
-                INSERT INTO activity_log (user_id, lead_id, entity_type, entity_id, action, action_details, created)
-                SELECT $1, $2, 'lead', $2, 'lead_verified', $3::jsonb, $4
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM activity_log
-                    WHERE lead_id = $2 AND action = 'lead_verified'
-                      AND action_details->>'source' = 'migration'
-                )
-            `, [
-                SYSTEM_USER_ID,
-                l.id,
-                JSON.stringify({ source: 'migration', note: 'Verified prior to system migration' }),
-                verifiedAt,
-            ]);
-            counts.activities++;
+            activityRows.push({
+                user_id: SYSTEM_USER_ID,
+                lead_id: l.id,
+                action: 'lead_verified',
+                action_details: JSON.stringify({ source: 'migration', note: 'Verified prior to system migration' }),
+                created: verifiedAt,
+            });
         }
 
-        // 5c. sends → lead_sent (one per send_log entry, attributed to System user)
+        // 5c. sends → lead_sent
         for (const s of sendLog) {
-            await client.query(`
-                INSERT INTO activity_log (user_id, lead_id, entity_type, entity_id, action, action_details, created)
-                SELECT $1, $2, 'lead', $2, 'lead_sent', $3::jsonb, $4
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM activity_log
-                    WHERE lead_id = $2 AND action = 'lead_sent'
-                      AND action_details->>'send_log_id' = $5
-                )
-            `, [
-                SYSTEM_USER_ID,
-                s.lead_id,
-                JSON.stringify({
+            activityRows.push({
+                user_id: SYSTEM_USER_ID,
+                lead_id: s.lead_id,
+                action: 'lead_sent',
+                action_details: JSON.stringify({
                     send_log_id: s.id,
                     buyer_name: 'iSpeedToLead',
                     send_source: 'worker',
                     status: s.status,
                     response_code: s.response_code,
                 }),
-                s.created,
-                s.id,
-            ]);
-            counts.activities++;
+                created: s.created,
+            });
         }
 
+        counts.activities = await bulkInsert(
+            client,
+            'activity_log',
+            'user_id, lead_id, entity_type, entity_id, action, action_details, created',
+            activityRows,
+            a => [a.user_id, a.lead_id, 'lead', a.lead_id, a.action, a.action_details, a.created],
+            'ON CONFLICT DO NOTHING'
+        );
         console.log(`  ✓ ${counts.activities} activity_log entries\n`);
 
         // ── Step 6: Lead form inputs ─────────────────────────────────────────
