@@ -94,11 +94,6 @@ export default class LeadService {
                 throw new Error("Lead not found");
             }
 
-            // Hard block: sent leads cannot be trashed
-            if (lead.sent) {
-                throw new Error("Lead already sent");
-            }
-
             const storedReason = userReason ?? reason;
             const trashed = await this.leadDAO.trashLeadWithReason(leadId, storedReason);
             await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.TRASHED, action_details: { reason: storedReason } });
@@ -137,9 +132,6 @@ export default class LeadService {
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
             throw new Error("Lead not found");
-        }
-        if (lead.sent) {
-            throw new Error("Lead already sent");
         }
         if (lead.verified) {
             throw new Error("Lead is already verified");
@@ -191,9 +183,6 @@ export default class LeadService {
         const lead = await this.leadDAO.getById(leadId);
         if (!lead) {
             throw new Error("Lead not found");
-        }
-        if (lead.sent) {
-            throw new Error("Lead already sent");
         }
         if (!lead.verified) {
             throw new Error("Lead is not verified");

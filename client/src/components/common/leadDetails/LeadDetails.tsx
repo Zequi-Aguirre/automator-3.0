@@ -140,7 +140,7 @@ const LeadDetails = () => {
         void fetchActivity();
     }, [fetchLead, fetchActivity]);
 
-    const isLocked = lead ? (lead.verified || lead.sent || !!lead.deleted) : false;
+    const isLocked = lead ? (lead.verified || !!lead.deleted) : false;
     const isTrashed = !!lead?.deleted;
 
     const handleEditClick = () => {
@@ -306,13 +306,13 @@ const LeadDetails = () => {
                                     )}
                                     {!isTrashed && !editMode && canTrash && (
                                         <Tooltip title="Trash lead">
-                                            <IconButton size="small" color="error" onClick={() => { void handleOpenTrashDialog(); }} disabled={lead.sent}>
+                                            <IconButton size="small" color="error" onClick={() => { void handleOpenTrashDialog(); }}>
                                                 <Cancel fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
                                     )}
                                     {!isTrashed && !editMode && (
-                                        <Tooltip title={!canEdit ? "You don't have permission to edit leads" : isLocked ? "Verified/sent leads cannot be edited" : "Edit lead"}>
+                                        <Tooltip title={!canEdit ? "You don't have permission to edit leads" : isLocked ? "Verified leads cannot be edited" : "Edit lead"}>
                                             <span>
                                                 <IconButton size="small" disabled={!canEdit || isLocked} onClick={handleEditClick}>
                                                     <Edit fontSize="small" />

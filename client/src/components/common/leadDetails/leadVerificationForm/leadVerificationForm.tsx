@@ -55,7 +55,7 @@ interface Props {
 
 const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => {
     const { can } = usePermissions();
-    const canEdit = can(Permission.LEADS_EDIT) && !lead.verified && !lead.sent;
+    const canEdit = can(Permission.LEADS_EDIT) && !lead.verified;
     const canVerify = can(Permission.LEADS_VERIFY);
     const canQueue = can(Permission.LEADS_QUEUE);
     const [loading, setLoading] = useState(true);
@@ -70,8 +70,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     const [confirmTrashModalOpen, setConfirmTrashModalOpen] = useState(false);
     const navigate = useNavigate();
     const isVerified = lead.verified;
-    const isSent = lead.sent;
-    const isLocked = isVerified || isSent;
+    const isLocked = isVerified;
 
     const fetchForm = useCallback(async () => {
         setLoading(true);
@@ -226,7 +225,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     };
 
     const handleUnverify = async () => {
-        if (!form || !isVerified || isSent) return;
+        if (!form || !isVerified) return;
         try {
             setError(null);
             setVerifyError(null);
@@ -557,7 +556,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                                 </Stack>
                             )}
 
-                            {isVerified && !isSent && (
+                            {isVerified && (
                                 <Stack direction="row" spacing={2}>
                                     {canVerify && (
                                         <Button variant="contained" color="warning" onClick={() => { void handleUnverify(); }}>
