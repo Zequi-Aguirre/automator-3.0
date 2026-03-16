@@ -533,6 +533,8 @@ export default class BuyerDispatchService {
      * @returns Payload object ready for webhook
      */
     private buildPayload(lead: Lead, buyer: Buyer): Record<string, unknown> {
+        const privateNote = buyer.send_private_note ? this.buildPrivateNote(lead) : undefined;
+
         if (buyer.payload_format === 'northstar') {
             return {
                 name: `${lead.first_name} ${lead.last_name}`.trim(),
@@ -543,10 +545,12 @@ export default class BuyerDispatchService {
                 state: lead.state,
                 zip_code: lead.zipcode,
                 county: lead.county ?? '',
+                ...(buyer.send_lead_id ? { lead_id: lead.id } : {}),
+                ...(privateNote !== undefined ? { private_note: privateNote } : {}),
             };
         }
 
-        // Default format
+        // Default format (lead_id is always included in default format)
         return {
             lead_id: lead.id,
             first_name: lead.first_name,
@@ -559,6 +563,22 @@ export default class BuyerDispatchService {
             county: lead.county,
             zipcode: lead.zipcode,
             verified: lead.verified,
+            ...(privateNote !== undefined ? { private_note: privateNote } : {}),
         };
+    }
+
+    /**
+     * Build private note string for payload
+     * Format: MM-DD HH:mm - Platform - Campaign Name
+     */
+    private buildPrivateNote(lead: Lead): string {
+        const dt = new Date(lead.created);
+        const mm = (dt.getMonth() + 1).toString().padStart(2, '0');
+        const dd = dt.getDate().toString().padStart(2, '0');
+        const hh = dt.getHours().toString().padStart(2, '0');
+        const min = dt.getMinutes().toString().padStart(2, '0');
+        const platform = lead.campaign_platform ?? 'Unknown';
+        const campaign = lead.campaign_name ?? 'Unknown';
+        return `${mm}-${dd} ${hh}:${min} - ${platform} - ${campaign}`;
     }
 }

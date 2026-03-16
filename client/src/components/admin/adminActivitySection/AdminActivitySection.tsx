@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+    Alert,
     Box,
     Card,
     CardContent,
@@ -35,13 +36,18 @@ export default function AdminActivitySection() {
     const [stats, setStats] = useState<UserActivityStats[]>([]);
     const [loadingFeed, setLoadingFeed] = useState(true);
     const [loadingStats, setLoadingStats] = useState(true);
+    const [feedError, setFeedError] = useState<string | null>(null);
     const [days, setDays] = useState(30);
 
     const fetchFeed = useCallback(async () => {
         setLoadingFeed(true);
+        setFeedError(null);
         try {
             setLogs(await activityService.getRecent());
         } catch (err) {
+            const e = err as { response?: { data?: { message?: string } }; message?: string };
+            const msg = e.response?.data?.message ?? e.message ?? 'Unknown error';
+            setFeedError(msg);
             console.error("Failed to fetch activity feed", err);
         } finally {
             setLoadingFeed(false);
@@ -79,7 +85,16 @@ export default function AdminActivitySection() {
                             <CardHeader title="Recent Activity" titleTypographyProps={{ variant: "h6" }} />
                             <Divider />
                             <CardContent sx={{ flexGrow: 1, overflow: "auto", p: 0 }}>
-                                <ActivityFeed logs={logs} loading={loadingFeed} />
+                                {feedError
+                                    ? (
+                                        <Box sx={{ p: 2 }}>
+                                            <Alert severity="error">Failed to load activity: {feedError}</Alert>
+                                        </Box>
+                                    )
+                                    : (
+                                        <ActivityFeed logs={logs} loading={loadingFeed} />
+                                    )
+                                }
                             </CardContent>
                         </Card>
                     </Grid>
