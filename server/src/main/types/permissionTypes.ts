@@ -77,9 +77,11 @@ export type Permission =
     | TrashReasonPermission
     | DisputePermission;
 
-export type UserRole = 'user' | 'admin' | 'superadmin';
+export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
+    // System service account — no UI permissions; exists only for activity attribution
+    worker: [],
     user: [
         LeadPermission.READ,
         LeadPermission.VERIFY,

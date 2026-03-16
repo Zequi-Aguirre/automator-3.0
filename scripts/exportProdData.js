@@ -83,7 +83,27 @@ async function main() {
     writeJSON(outputDir, 'send_log.json', sendLog);
     console.log(`  ✓ ${sendLog.length} send_log entries\n`);
 
-    // ── 4. Meta ──────────────────────────────────────────────────────────────
+    // ── 4. Lead form inputs ───────────────────────────────────────────────────
+    console.log('Exporting lead_form_inputs...');
+    const { rows: formInputs } = await client.query(`
+        SELECT
+            id, lead_id,
+            form_unit, form_multifamily, form_square, form_year, form_garage,
+            form_bedrooms, form_bathrooms, form_repairs, form_occupied,
+            form_sell_fast, form_goal, form_goal2, form_call_time,
+            form_owner, form_owned_years, form_listed, form_scenario,
+            form_source, activeprospect_certificate_url,
+            last_post_status, last_post_payload, last_post_at,
+            created, modified, deleted
+        FROM lead_form_inputs
+        WHERE lead_id = ANY($1::uuid[])
+          AND deleted IS NULL
+        ORDER BY created ASC
+    `, [leadIds]);
+    writeJSON(outputDir, 'form_inputs.json', formInputs);
+    console.log(`  ✓ ${formInputs.length} form input records\n`);
+
+    // ── 5. Meta ──────────────────────────────────────────────────────────────
     const { rows: buyerRows } = await client.query(
         `SELECT id FROM buyers WHERE name = 'iSpeedToLead' LIMIT 1`
     );
@@ -93,6 +113,7 @@ async function main() {
         lead_count: leads.length,
         send_log_count: sendLog.length,
         county_count: counties.length,
+        form_input_count: formInputs.length,
     };
     writeJSON(outputDir, 'meta.json', meta);
 

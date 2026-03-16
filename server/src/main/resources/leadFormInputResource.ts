@@ -66,6 +66,17 @@ export default class LeadFormInputResource {
 
                 const updated = await this.leadFormInputService.update(leadId, updates);
 
+                // If verification_started was never logged for this lead (e.g. imported
+                // leads that already have form data), log it now before the first save.
+                const alreadyStarted = await this.activityService.hasActivity(leadId, VerificationAction.STARTED);
+                if (!alreadyStarted) {
+                    await this.activityService.log({
+                        user_id: req.user?.id,
+                        lead_id: leadId,
+                        action: VerificationAction.STARTED,
+                    });
+                }
+
                 // Only include non-empty form_* fields in action_details
                 const filledFields = Object.fromEntries(
                     Object.entries(updates).filter(([k, v]) => k.startsWith('form_') && v !== null && v !== undefined && v !== '')

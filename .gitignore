@@ -39,3 +39,6 @@ mongo_backup/
 
 # Production data export (contains PII — never commit)
 prod-export/
+
+# Staging data export (contains PII — never commit)
+staging-export/

@@ -76,7 +76,9 @@ export default class WorkerService {
         const trashedIds = await this.leadDAO.trashExpiredLeads(expireHours, reason);
 
         if (trashedIds.length > 0) {
+            const systemUserId = await this.activityService.getSystemUserId();
             await this.activityService.log({
+                user_id: systemUserId,
                 action: WorkerAction.LEADS_EXPIRED,
                 action_details: { count: trashedIds.length, expire_hours: expireHours }
             });
