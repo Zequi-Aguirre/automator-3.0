@@ -36,6 +36,11 @@ class BuyerService {
         return res.data;
     }
 
+    async setOnHold(id: string, onHold: boolean): Promise<Buyer> {
+        const res = await this.api.getApi().put(`/api/buyers/${id}/hold`, { on_hold: onHold });
+        return res.data;
+    }
+
     async reorderPriority(
         buyerId: string,
         oldPriority: number,

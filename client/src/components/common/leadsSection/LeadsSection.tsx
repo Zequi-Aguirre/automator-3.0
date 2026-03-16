@@ -11,13 +11,29 @@ import {
     Snackbar,
     Alert,
     TextField,
-    Stack
+    ToggleButtonGroup,
+    ToggleButton,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel,
+    Stack,
+    Badge
 } from "@mui/material";
 import { Lead } from "../../../types/leadTypes.ts";
+import { Buyer } from "../../../types/buyerTypes.ts";
+import { Source } from "../../../types/sourceTypes.ts";
+import { Campaign } from "../../../types/campaignTypes.ts";
 import ImportLeadsDialog from "./importLeadsDialog/importLeadsDialog.tsx";
 import DataContext from "../../../context/DataContext";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { Permission } from "../../../types/userTypes";
+import buyerService from "../../../services/buyer.service.tsx";
+import sourceService from "../../../services/source.service.tsx";
+import campaignService from "../../../services/campaign.service.tsx";
+
+type LeadStatus = "needs_review" | "needs_call" | "new" | "verified" | "sent" | "sold" | "trash";
+type SendSource = "manual" | "worker" | "auto_send";
 
 const LeadsSection = () => {
     const { leadFilters, setLeadFilters } = useContext(DataContext);
@@ -26,10 +42,24 @@ const LeadsSection = () => {
     // ------------------------------
     // LOCAL FILTER STATE (UI-driven)
     // ------------------------------
-    const [status, setStatus] = useState(leadFilters.status);
+    const [status, setStatus] = useState<LeadStatus>(leadFilters.status as LeadStatus);
     const [search, setSearch] = useState(leadFilters.search);
     const [page, setPage] = useState(leadFilters.page);
     const [limit, setLimit] = useState(leadFilters.limit);
+
+    // Sent tab sub-filters (local only, not persisted)
+    const [buyerId, setBuyerId] = useState<string>("");
+    const [sendSource, setSendSource] = useState<SendSource | "">("");
+    const [sourceId, setSourceId] = useState<string>("");
+    const [campaignId, setCampaignId] = useState<string>("");
+
+    // Tab badge counts
+    const [tabCounts, setTabCounts] = useState<{ new: number; verified: number; needs_review: number; needs_call: number }>({ new: 0, verified: 0, needs_review: 0, needs_call: 0 });
+
+    // Dropdown options for sent filters
+    const [buyers, setBuyers] = useState<Buyer[]>([]);
+    const [sources, setSources] = useState<Source[]>([]);
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
     // ------------------------------
     // DATA STATES
@@ -44,6 +74,43 @@ const LeadsSection = () => {
         message: "",
         severity: "success"
     });
+
+    // Load dropdown data when entering sent tab
+    useEffect(() => {
+        if (status !== "sent") return;
+
+        const load = async () => {
+            try {
+                const [buyersData, sourcesData] = await Promise.all([
+                    buyerService.getAll({ page: 1, limit: 200 }),
+                    sourceService.getAll({ page: 1, limit: 200 })
+                ]);
+                setBuyers(buyersData.items);
+                setSources(sourcesData.items);
+            } catch {
+                // non-fatal
+            }
+        };
+        void load();
+    }, [status]);
+
+    // Load campaigns when source changes
+    useEffect(() => {
+        if (status !== "sent" || !sourceId) {
+            setCampaigns([]);
+            setCampaignId("");
+            return;
+        }
+        const load = async () => {
+            try {
+                const data = await campaignService.getBySource(sourceId);
+                setCampaigns(data.campaigns);
+            } catch {
+                setCampaigns([]);
+            }
+        };
+        void load();
+    }, [status, sourceId]);
 
     // ------------------------------
     // SYNC LOCAL FILTERS -> CONTEXT FILTERS
@@ -80,22 +147,42 @@ const LeadsSection = () => {
         }
     }, [can, status]);
 
+    const fetchTabCounts = useCallback(async () => {
+        try {
+            const counts = await LeadsService.getTabCounts();
+            setTabCounts(counts);
+        } catch {
+            // non-fatal
+        }
+    }, []);
+
     // ------------------------------
-    // FETCH LEADS when CONTEXT FILTERS CHANGE
+    // FETCH LEADS when CONTEXT FILTERS CHANGE or sent sub-filters change
     // ------------------------------
     const fetchLeads = useCallback(async () => {
         setLoading(true);
 
         try {
-            const { status, ...rest } = leadFilters;
-            const verifiedStatus = (
-                status === "new" || status === "verified" ||
-                (can(Permission.LEADS_SEND) && (status === "sent" || status === "sold")) ||
-                (can(Permission.LEADS_TRASH) && status === "trash")
-            ) ? status : "new";
+            const { status: ctxStatus, ...rest } = leadFilters;
+            const allowedStatuses: LeadStatus[] = [
+                "needs_review", "new", "verified",
+                "needs_call",
+            ...(can(Permission.LEADS_SEND) ? (["sent", "sold"] as LeadStatus[]) : []),
+                ...(can(Permission.LEADS_TRASH) ? (["trash"] as LeadStatus[]) : [])
+            ];
+            const safeStatus: LeadStatus = allowedStatuses.includes(ctxStatus as LeadStatus)
+                ? (ctxStatus as LeadStatus)
+                : "new";
+
             const response = await LeadsService.getMany({
                 ...rest,
-                status: verifiedStatus
+                status: safeStatus,
+                ...(safeStatus === "sent" && {
+                    buyer_id: buyerId || undefined,
+                    send_source: (sendSource || undefined) as SendSource | undefined,
+                    source_id: sourceId || undefined,
+                    campaign_id: campaignId || undefined
+                })
             });
 
             setLeads(response.leads);
@@ -109,19 +196,27 @@ const LeadsSection = () => {
         } finally {
             setLoading(false);
         }
-    }, [leadFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [leadFilters, buyerId, sendSource, sourceId, campaignId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         fetchLeads();
-    }, [fetchLeads]);
+        void fetchTabCounts();
+    }, [fetchLeads, fetchTabCounts]);
 
     // ------------------------------
     // EVENT HANDLERS
     // ------------------------------
 
-    const updateStatus = (newStatus: string) => {
-        setStatus(newStatus as "new" | "verified" | "sent" | "sold" | "trash");
+    const updateStatus = (newStatus: LeadStatus) => {
+        setStatus(newStatus);
         setPage(1);
+        // Reset sent sub-filters when switching tabs
+        if (newStatus !== "sent") {
+            setBuyerId("");
+            setSendSource("");
+            setSourceId("");
+            setCampaignId("");
+        }
     };
 
     const handleImportSuccess = (summary: { imported?: number; rejected?: number }) => {
@@ -138,10 +233,15 @@ const LeadsSection = () => {
             severity: "success"
         });
         fetchLeads();
+        void fetchTabCounts();
     };
 
-    const currentVariant = (cond: boolean): "contained" | "outlined" =>
-        cond ? "contained" : "outlined";
+    const clearSentFilters = () => {
+        setBuyerId("");
+        setSendSource("");
+        setSourceId("");
+        setCampaignId("");
+    };
 
     // ------------------------------
     // RENDER
@@ -176,48 +276,56 @@ const LeadsSection = () => {
                     )}
                 </Box>
 
-                {/* FILTERS */}
-                <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: "center" }}>
-                    <Button
-                        variant={currentVariant(status === "new")}
-                        onClick={() => { updateStatus("new"); }}
+                {/* STAGE TABS */}
+                <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                    <ToggleButtonGroup
+                        value={status}
+                        exclusive
+                        size="small"
+                        onChange={(_e, val) => { if (val !== null) updateStatus(val as LeadStatus); }}
                     >
-                        New
-                    </Button>
+                        <ToggleButton value="new" sx={{ pr: tabCounts.new > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.new || null} color="primary">
+                                Needs Verification
+                            </Badge>
+                        </ToggleButton>
 
-                    <Button
-                        variant={currentVariant(status === "verified")}
-                        onClick={() => { updateStatus("verified"); }}
-                    >
-                        Verified
-                    </Button>
+                        <ToggleButton value="verified" sx={{ pr: tabCounts.verified > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.verified || null} color="primary">
+                                Verified
+                            </Badge>
+                        </ToggleButton>
 
-                    { can(Permission.LEADS_SEND) && (
-                        <>
-                            <Button
-                                variant={currentVariant(status === "sent")}
-                                onClick={() => { updateStatus("sent"); }}
-                            >
+                        <ToggleButton value="needs_review" sx={{ pr: tabCounts.needs_review > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.needs_review || null} color="warning">
+                                Needs Review
+                            </Badge>
+                        </ToggleButton>
+
+                        <ToggleButton value="needs_call" sx={{ pr: tabCounts.needs_call > 0 ? 2.5 : undefined }}>
+                            <Badge badgeContent={tabCounts.needs_call || null} color="error">
+                                Needs Call
+                            </Badge>
+                        </ToggleButton>
+
+                        {can(Permission.LEADS_SEND) && (
+                            <ToggleButton value="sent">
                                 Sent
-                            </Button>
+                            </ToggleButton>
+                        )}
 
-                            <Button
-                                variant={currentVariant(status === "sold")}
-                                onClick={() => { updateStatus("sold"); }}
-                            >
+                        {can(Permission.LEADS_SEND) && (
+                            <ToggleButton value="sold">
                                 Sold
-                            </Button>
-                        </>
-                    )}
+                            </ToggleButton>
+                        )}
 
-                    { can(Permission.LEADS_TRASH) && (
-                        <Button
-                            variant={currentVariant(status === "trash")}
-                            onClick={() => { updateStatus("trash"); }}
-                        >
-                            Trash
-                        </Button>
-                    )}
+                        {can(Permission.LEADS_TRASH) && (
+                            <ToggleButton value="trash">
+                                Trash
+                            </ToggleButton>
+                        )}
+                    </ToggleButtonGroup>
 
                     <TextField
                         size="small"
@@ -229,7 +337,76 @@ const LeadsSection = () => {
                         }}
                         sx={{ width: 200 }}
                     />
-                </Stack>
+                </Box>
+
+                {/* SENT TAB SUB-FILTERS */}
+                {status === "sent" && (
+                    <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: "wrap" }} alignItems="center">
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                            <InputLabel>Buyer</InputLabel>
+                            <Select
+                                value={buyerId}
+                                label="Buyer"
+                                onChange={(e) => { setBuyerId(e.target.value); setPage(1); }}
+                            >
+                                <MenuItem value="">All buyers</MenuItem>
+                                {buyers.map(b => (
+                                    <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                            <InputLabel>Dispatch method</InputLabel>
+                            <Select
+                                value={sendSource}
+                                label="Dispatch method"
+                                onChange={(e) => { setSendSource(e.target.value as SendSource | ""); setPage(1); }}
+                            >
+                                <MenuItem value="">All methods</MenuItem>
+                                <MenuItem value="manual">Manual</MenuItem>
+                                <MenuItem value="worker">Worker</MenuItem>
+                                <MenuItem value="auto_send">Auto-send</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                            <InputLabel>Source</InputLabel>
+                            <Select
+                                value={sourceId}
+                                label="Source"
+                                onChange={(e) => { setSourceId(e.target.value); setPage(1); }}
+                            >
+                                <MenuItem value="">All sources</MenuItem>
+                                {sources.map(s => (
+                                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        {sourceId && (
+                            <FormControl size="small" sx={{ minWidth: 180 }}>
+                                <InputLabel>Campaign</InputLabel>
+                                <Select
+                                    value={campaignId}
+                                    label="Campaign"
+                                    onChange={(e) => { setCampaignId(e.target.value); setPage(1); }}
+                                >
+                                    <MenuItem value="">All campaigns</MenuItem>
+                                    {campaigns.map(c => (
+                                        <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        )}
+
+                        {(buyerId || sendSource || sourceId || campaignId) && (
+                            <Button size="small" onClick={clearSentFilters}>
+                                Clear filters
+                            </Button>
+                        )}
+                    </Stack>
+                )}
 
                 {/* CONTENT */}
                 { loading
@@ -241,7 +418,7 @@ const LeadsSection = () => {
                     : (
                     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
                         <Box sx={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
-                            <LeadsTable leads={leads} setLeads={setLeads} />
+                            <LeadsTable leads={leads} setLeads={setLeads} currentStatus={status} />
                         </Box>
 
                         <Box sx={{ backgroundColor: "background.paper" }}>

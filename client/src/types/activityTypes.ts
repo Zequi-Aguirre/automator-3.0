@@ -33,6 +33,8 @@ export enum SourceAction {
 export enum BuyerAction {
     CREATED = 'buyer_created',
     UPDATED = 'buyer_updated',
+    PUT_ON_HOLD = 'buyer_put_on_hold',
+    REMOVED_FROM_HOLD = 'buyer_removed_from_hold',
 }
 
 export enum CampaignAction {
@@ -84,6 +86,7 @@ export type ActivityLog = {
     entity_type: string | null;
     entity_id: string | null;
     action: ActivityAction;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     action_details: Record<string, any> | null;
     created: string;
     user_name?: string | null;
@@ -129,6 +132,8 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     // Buyer
     [BuyerAction.CREATED]: 'Buyer Created',
     [BuyerAction.UPDATED]: 'Buyer Updated',
+    [BuyerAction.PUT_ON_HOLD]: 'Buyer Put on Hold',
+    [BuyerAction.REMOVED_FROM_HOLD]: 'Buyer Removed from Hold',
 
     // Campaign
     [CampaignAction.MANAGER_ASSIGNED]: 'Manager Assigned',

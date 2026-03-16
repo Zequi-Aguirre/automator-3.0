@@ -8,6 +8,7 @@ export interface SendLog {
     county_id: string | null;
 
     status: "sent" | "failed";
+    send_source: "manual" | "worker" | "auto_send" | null;
 
     response_code: number | null;
     response_body: string | null;
@@ -40,6 +41,7 @@ export interface SendLogInsert {
     source_id: string | null;  // TICKET-046: Renamed from affiliate_id
     campaign_id: string | null;
     status: "sent" | "failed";
+    send_source?: "manual" | "worker" | "auto_send" | null;
 }
 
 export interface SendLogUpdate {

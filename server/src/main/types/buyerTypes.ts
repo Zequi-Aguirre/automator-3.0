@@ -23,6 +23,7 @@ export type Buyer = {
     enforce_county_cooldown: boolean;
     enforce_state_cooldown: boolean;
     payload_format: 'default' | 'northstar';
+    on_hold: boolean;
     created: string;
     modified: string;
     deleted: string | null;
@@ -73,6 +74,7 @@ export type BuyerUpdateDTO = {
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
     payload_format?: 'default' | 'northstar';
+    on_hold?: boolean;
 };
 
 export type BuyerTimingUpdate = {

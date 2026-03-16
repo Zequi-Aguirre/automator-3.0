@@ -28,9 +28,12 @@ import {
     FormControlLabel,
     Checkbox,
     Switch,
-    Chip
+    Chip,
+    Tooltip
 } from '@mui/material';
-import { Edit, Delete, DragIndicator } from '@mui/icons-material';
+import { Edit, Delete, DragIndicator, PauseCircle, PlayCircle } from '@mui/icons-material';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { Permission } from '../../../types/userTypes';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -70,11 +73,13 @@ interface SortableRowProps {
     buyer: Buyer;
     onEdit: (buyer: Buyer) => void;
     onDelete: (id: string) => void;
+    onToggleHold: (buyer: Buyer) => void;
     onOpenDatePicker: (buyer: Buyer) => void;
     onNavigate: (id: string) => void;
+    canHold: boolean;
 }
 
-const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker, onNavigate }: SortableRowProps) => {
+const SortableRow = ({ buyer, onEdit, onDelete, onToggleHold, onOpenDatePicker, onNavigate, canHold }: SortableRowProps) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: buyer.id });
 
     const style = {
@@ -97,13 +102,16 @@ const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker, onNavigate }: 
                 </Box>
             </TableCell>
             <TableCell>
-                <Typography
-                    variant="body2"
-                    sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => onNavigate(buyer.id)}
-                >
-                    {buyer.name}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography
+                        variant="body2"
+                        sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+                        onClick={() => onNavigate(buyer.id)}
+                    >
+                        {buyer.name}
+                    </Typography>
+                    {buyer.on_hold && <Chip label="on hold" size="small" color="warning" />}
+                </Box>
             </TableCell>
             <TableCell>
                 <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
@@ -136,6 +144,13 @@ const SortableRow = ({ buyer, onEdit, onDelete, onOpenDatePicker, onNavigate }: 
                 <IconButton size="small" onClick={() => onEdit(buyer)}>
                     <Edit />
                 </IconButton>
+                {canHold && (
+                    <Tooltip title={buyer.on_hold ? 'Resume' : 'Put on Hold'}>
+                        <IconButton size="small" color={buyer.on_hold ? 'success' : 'warning'} onClick={() => onToggleHold(buyer)}>
+                            {buyer.on_hold ? <PlayCircle /> : <PauseCircle />}
+                        </IconButton>
+                    </Tooltip>
+                )}
                 <IconButton size="small" onClick={() => onDelete(buyer.id)}>
                     <Delete />
                 </IconButton>
@@ -168,6 +183,7 @@ const defaultForm = (): BuyerCreateDTO => ({
 
 const AdminBuyersSection = () => {
     const navigate = useNavigate();
+    const { can } = usePermissions();
     const [buyers, setBuyers] = useState<Buyer[]>([]);
     const [count, setCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -178,6 +194,8 @@ const AdminBuyersSection = () => {
     const [editingBuyer, setEditingBuyer] = useState<Buyer | null>(null);
     const [formData, setFormData] = useState<BuyerCreateDTO | BuyerUpdateDTO>(defaultForm());
     const [showStates, setShowStates] = useState(false);
+    const [requiresAuth, setRequiresAuth] = useState(false);
+    const [authPreset, setAuthPreset] = useState<'bearer' | 'apikey' | 'custom'>('bearer');
 
     const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
@@ -203,10 +221,19 @@ const AdminBuyersSection = () => {
 
     useEffect(() => { fetchBuyers(); }, [page, limit]);
 
+    const detectAuthPreset = (headerName: string, prefix: string | null): 'bearer' | 'apikey' | 'custom' => {
+        if (headerName === 'Authorization' && prefix === 'Bearer') return 'bearer';
+        if (!prefix) return 'apikey';
+        return 'custom';
+    };
+
     const handleOpenDialog = (buyer?: Buyer) => {
         if (buyer) {
             setEditingBuyer(buyer);
             setShowStates((buyer.states_on_hold || []).length > 0);
+            const hasAuth = !!(buyer.auth_token_encrypted || buyer.auth_header_prefix || buyer.auth_header_name !== 'Authorization');
+            setRequiresAuth(hasAuth);
+            setAuthPreset(detectAuthPreset(buyer.auth_header_name, buyer.auth_header_prefix));
             setFormData({
                 name: buyer.name,
                 webhook_url: buyer.webhook_url,
@@ -231,6 +258,8 @@ const AdminBuyersSection = () => {
         } else {
             setEditingBuyer(null);
             setShowStates(false);
+            setRequiresAuth(false);
+            setAuthPreset('bearer');
             setFormData(defaultForm());
         }
         setDialogOpen(true);
@@ -265,6 +294,17 @@ const AdminBuyersSection = () => {
         } catch (error: any) {
             const msg = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
             setSnack({ open: true, message: `Failed to delete buyer: ${msg}`, severity: 'error' });
+        }
+    };
+
+    const handleToggleHold = async (buyer: Buyer) => {
+        try {
+            const updated = await buyerService.setOnHold(buyer.id, !buyer.on_hold);
+            setBuyers(prev => prev.map(b => b.id === updated.id ? updated : b));
+            setSnack({ open: true, message: updated.on_hold ? `${updated.name} put on hold` : `${updated.name} resumed`, severity: 'success' });
+        } catch (error: any) {
+            const msg = error.response?.data?.message || error.message || 'Unknown error';
+            setSnack({ open: true, message: `Failed to update hold status: ${msg}`, severity: 'error' });
         }
     };
 
@@ -351,8 +391,10 @@ const AdminBuyersSection = () => {
                                                 buyer={buyer}
                                                 onEdit={handleOpenDialog}
                                                 onDelete={handleDelete}
+                                                onToggleHold={handleToggleHold}
                                                 onOpenDatePicker={handleOpenDatePicker}
                                                 onNavigate={(id) => navigate(`/buyers/${id}`)}
+                                                canHold={can(Permission.BUYERS_HOLD)}
                                             />
                                         ))}
                                     </TableBody>
@@ -424,32 +466,29 @@ const AdminBuyersSection = () => {
                         />
 
                         {/* States on Hold toggle + collapse */}
-                        <Box>
-                            <FormControlLabel
-                                control={<Switch size="small" checked={showStates} onChange={(e) => {
-                                    setShowStates(e.target.checked);
-                                    if (!e.target.checked) setFormData({ ...formData, states_on_hold: [] });
-                                }} />}
-                                label={<Typography variant="body2">
-                                    States on Hold {(fd.states_on_hold?.length ?? 0) > 0 && <Chip label={fd.states_on_hold.length} size="small" sx={{ ml: 0.5, height: 18, fontSize: '0.65rem' }} />}
-                                </Typography>}
-                            />
-                            {showStates && (
-                                <TextField
-                                    select
-                                    size="small"
-                                    fullWidth
-                                    label="States on Hold"
-                                    SelectProps={{ multiple: true, value: fd.states_on_hold || [] }}
-                                    onChange={(e) => setFormData({ ...formData, states_on_hold: e.target.value as any })}
-                                    sx={{ mt: 1 }}
-                                >
-                                    {US_STATES.map((state) => (
-                                        <MenuItem key={state} value={state}>{state}</MenuItem>
-                                    ))}
-                                </TextField>
-                            )}
-                        </Box>
+                        <FormControlLabel
+                            control={<Switch size="small" checked={showStates} onChange={(e) => {
+                                setShowStates(e.target.checked);
+                                if (!e.target.checked) setFormData({ ...formData, states_on_hold: [] });
+                            }} />}
+                            label={<Typography variant="body2">
+                                States on Hold {(fd.states_on_hold?.length ?? 0) > 0 && <Chip label={fd.states_on_hold.length} size="small" sx={{ ml: 0.5, height: 18, fontSize: '0.65rem' }} />}
+                            </Typography>}
+                        />
+                        {showStates && (
+                            <TextField
+                                select
+                                size="small"
+                                fullWidth
+                                label="States on Hold"
+                                SelectProps={{ multiple: true, value: fd.states_on_hold || [] }}
+                                onChange={(e) => setFormData({ ...formData, states_on_hold: e.target.value as any })}
+                            >
+                                {US_STATES.map((state) => (
+                                    <MenuItem key={state} value={state}>{state}</MenuItem>
+                                ))}
+                            </TextField>
+                        )}
 
                         <FormControlLabel
                             control={<Switch size="small" checked={!!fd.enforce_county_cooldown} onChange={(e) => setFormData({ ...formData, enforce_county_cooldown: e.target.checked })} />}
@@ -467,9 +506,75 @@ const AdminBuyersSection = () => {
                             <TextField size="small" fullWidth label="State Cooldown (hours)" type="number" value={fd.delay_same_state ?? 0} onChange={(e) => setFormData({ ...formData, delay_same_state: parseInt(e.target.value) })} />
                         )}
 
-                        <TextField size="small" fullWidth label="Auth Header Name" value={fd.auth_header_name || 'Authorization'} onChange={(e) => setFormData({ ...formData, auth_header_name: e.target.value })} />
-                        <TextField size="small" fullWidth label="Auth Header Prefix" value={fd.auth_header_prefix || ''} onChange={(e) => setFormData({ ...formData, auth_header_prefix: e.target.value || null })} />
-                        <TextField size="small" fullWidth label="Auth Token" type="password" value={fd.auth_token || ''} onChange={(e) => setFormData({ ...formData, auth_token: e.target.value || null })} helperText={editingBuyer ? 'Leave empty to keep current token' : ''} />
+                        {/* Authentication — collapsed behind toggle */}
+                        <FormControlLabel
+                            control={<Switch size="small" checked={requiresAuth} onChange={(e) => {
+                                setRequiresAuth(e.target.checked);
+                                if (!e.target.checked) {
+                                    setAuthPreset('bearer');
+                                    setFormData({ ...formData, auth_header_name: 'Authorization', auth_header_prefix: null, auth_token: null });
+                                } else {
+                                    setAuthPreset('bearer');
+                                    setFormData({ ...formData, auth_header_name: 'Authorization', auth_header_prefix: 'Bearer' });
+                                }
+                            }} />}
+                            label={<Typography variant="body2">Requires Authentication</Typography>}
+                        />
+                        {requiresAuth && (
+                            <>
+                                <FormControl size="small" fullWidth>
+                                    <InputLabel>Auth Preset</InputLabel>
+                                    <Select
+                                        value={authPreset}
+                                        label="Auth Preset"
+                                        onChange={(e) => {
+                                            const preset = e.target.value as 'bearer' | 'apikey' | 'custom';
+                                            setAuthPreset(preset);
+                                            if (preset === 'bearer') {
+                                                setFormData({ ...formData, auth_header_name: 'Authorization', auth_header_prefix: 'Bearer' });
+                                            } else if (preset === 'apikey') {
+                                                setFormData({ ...formData, auth_header_name: 'X-Api-Key', auth_header_prefix: null });
+                                            }
+                                        }}
+                                    >
+                                        <MenuItem value="bearer">Bearer Token</MenuItem>
+                                        <MenuItem value="apikey">API Key</MenuItem>
+                                        <MenuItem value="custom">Custom</MenuItem>
+                                    </Select>
+                                </FormControl>
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    label="Header Name"
+                                    value={fd.auth_header_name || ''}
+                                    onChange={(e) => {
+                                        setAuthPreset('custom');
+                                        setFormData({ ...formData, auth_header_name: e.target.value });
+                                    }}
+                                />
+                                {authPreset !== 'apikey' && (
+                                    <TextField
+                                        size="small"
+                                        fullWidth
+                                        label="Header Prefix"
+                                        value={fd.auth_header_prefix || ''}
+                                        onChange={(e) => {
+                                            setAuthPreset('custom');
+                                            setFormData({ ...formData, auth_header_prefix: e.target.value || null });
+                                        }}
+                                    />
+                                )}
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    label="Auth Token"
+                                    type="password"
+                                    value={fd.auth_token || ''}
+                                    onChange={(e) => setFormData({ ...formData, auth_token: e.target.value || null })}
+                                    helperText={editingBuyer ? 'Leave empty to keep current token' : ''}
+                                />
+                            </>
+                        )}
                     </Stack>
                 </DialogContent>
                 <DialogActions>

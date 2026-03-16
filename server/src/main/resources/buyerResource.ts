@@ -125,6 +125,36 @@ export default class BuyerResource {
             }
         });
 
+        // PUT /api/buyers/:id/hold - Toggle buyer on hold
+        this.router.put('/:id/hold', requirePermission(BuyerPermission.HOLD), async (req: Request, res: Response) => {
+            try {
+                const { id } = req.params;
+                const { on_hold } = req.body;
+
+                if (typeof on_hold !== 'boolean') {
+                    return res.status(400).json({ error: 'on_hold (boolean) is required' });
+                }
+
+                const buyer = await this.buyerService.setOnHold(id, on_hold);
+
+                await this.activityService.log({
+                    user_id: req.user?.id,
+                    entity_type: EntityType.BUYER,
+                    entity_id: buyer.id,
+                    action: on_hold ? BuyerAction.PUT_ON_HOLD : BuyerAction.REMOVED_FROM_HOLD,
+                    action_details: { name: buyer.name }
+                });
+
+                res.status(200).json(this.maskAuthToken(buyer));
+            } catch (error) {
+                console.error('Error toggling buyer hold:', error);
+                res.status(500).json({
+                    error: 'Failed to update buyer hold status',
+                    message: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // PUT /api/buyers/:id - Update buyer
         this.router.put('/:id', requirePermission(BuyerPermission.MANAGE), async (req: Request, res: Response) => {
             try {

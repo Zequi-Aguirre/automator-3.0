@@ -110,7 +110,7 @@ export default function NavBar() {
         }
     };
 
-    if (!role) return null;
+    if (!role || location.pathname.toLowerCase() === '/login') return null;
 
     const initials = loggedInUser?.name ? getInitials(loggedInUser.name) : '?';
 
@@ -142,7 +142,7 @@ export default function NavBar() {
                         variant="subtitle2"
                         sx={{ color: "white", fontWeight: 700, letterSpacing: 1.5, fontSize: 13, whiteSpace: "nowrap" }}
                     >
-                        AUTOMATOR
+                        AUTOMATOR 3.0
                     </Typography>
                 )}
                 <Tooltip title={isCollapsed ? "Expand" : "Collapse"} placement="right">
@@ -211,7 +211,12 @@ export default function NavBar() {
             <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
 
             {/* User avatar */}
-            <Tooltip title={isCollapsed ? (loggedInUser?.name ?? '') : ''} placement="right">
+            <Tooltip
+                title={isCollapsed
+                    ? <Box><div>{`${loggedInUser?.name ?? ''}${loggedInUser?.email ? ` · ${loggedInUser.email}` : ''}`}</div><div style={{ opacity: 0.7, textTransform: 'capitalize' }}>{loggedInUser?.role ?? ''}</div></Box>
+                    : (loggedInUser?.email ?? '')}
+                placement="right"
+            >
                 <Box
                     sx={{
                         display: "flex",
@@ -315,7 +320,7 @@ export default function NavBar() {
                         variant="subtitle2"
                         sx={{ color: "white", fontWeight: 700, letterSpacing: 1.5, fontSize: 13, ml: 1 }}
                     >
-                        AUTOMATOR
+                        AUTOMATOR 3.0
                     </Typography>
                 </Box>
                 <Drawer

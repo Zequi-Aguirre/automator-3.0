@@ -20,6 +20,11 @@ export enum LeadAction {
     QUEUED = 'lead_queued',
     AUTO_QUEUED = 'lead_auto_queued',
     UNQUEUED = 'lead_unqueued',
+    NEEDS_REVIEW_RESOLVED = 'lead_needs_review_resolved',
+    // TICKET-065: Call tracking
+    CALL_REQUESTED = 'lead_call_requested',
+    CALL_EXECUTED = 'lead_call_executed',
+    CALL_RESOLVED = 'lead_call_resolved',
 }
 
 export enum VerificationAction {
@@ -45,6 +50,8 @@ export enum SourceAction {
 export enum BuyerAction {
     CREATED = 'buyer_created',
     UPDATED = 'buyer_updated',
+    PUT_ON_HOLD = 'buyer_put_on_hold',
+    REMOVED_FROM_HOLD = 'buyer_removed_from_hold',
 }
 
 export enum CampaignAction {
