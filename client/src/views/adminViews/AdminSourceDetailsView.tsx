@@ -276,7 +276,7 @@ const AdminSourceDetailsView = () => {
 
     return (
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
-            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'auto' }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
                     <IconButton onClick={() => navigate('/sources')} title="Back to sources">
@@ -419,7 +419,7 @@ const AdminSourceDetailsView = () => {
                 </Box>
 
                 {/* Campaigns Table */}
-                <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+                <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
                     <TableContainer component={Paper}>
                         <Table stickyHeader>
                             <TableHead>

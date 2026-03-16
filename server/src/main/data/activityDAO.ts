@@ -69,9 +69,9 @@ export default class ActivityDAO {
                  SELECT
                      MIN(a.id) as id,
                      a.user_id,
-                     NULL as lead_id,
-                     NULL as entity_type,
-                     NULL as entity_id,
+                     NULL::uuid as lead_id,
+                     NULL::text as entity_type,
+                     NULL::uuid as entity_id,
                      a.action,
                      jsonb_build_object(
                          'method', MAX(a.action_details->>'method'),

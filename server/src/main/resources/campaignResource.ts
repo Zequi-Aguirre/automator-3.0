@@ -200,6 +200,13 @@ export default class CampaignResource {
                 res.status(204).send();
             } catch (error) {
                 console.error('Error deleting campaign:', error);
+
+                if (error instanceof Error && error.message === 'CAMPAIGN_HAS_LEADS') {
+                    return res.status(409).json({
+                        message: 'This campaign has already received leads and cannot be deleted.'
+                    });
+                }
+
                 res.status(500).json({
                     error: 'Failed to delete campaign',
                     message: error instanceof Error ? error.message : 'Unknown error'
