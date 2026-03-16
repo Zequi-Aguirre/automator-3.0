@@ -11,6 +11,10 @@ export enum LeadPermission {
     // TICKET-065: Call tracking permissions
     CALL_REQUEST = 'leads.call_request',
     CALL_EXECUTE = 'leads.call_execute',
+    // TICKET-105: Per-tab visibility permissions
+    VIEW_VERIFIED = 'leads.view_verified',
+    VIEW_NEEDS_REVIEW = 'leads.view_needs_review',
+    VIEW_NEEDS_CALL = 'leads.view_needs_call',
 }
 
 export enum WorkerSettingsPermission {
@@ -79,6 +83,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.EDIT,
         LeadPermission.CALL_REQUEST,
         LeadPermission.CALL_EXECUTE,
+        LeadPermission.VIEW_VERIFIED,
+        LeadPermission.VIEW_NEEDS_REVIEW,
+        LeadPermission.VIEW_NEEDS_CALL,
         ActivityPermission.VIEW,
         DisputePermission.CREATE,
     ],
@@ -94,6 +101,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.UNTRASH,
         LeadPermission.CALL_REQUEST,
         LeadPermission.CALL_EXECUTE,
+        LeadPermission.VIEW_VERIFIED,
+        LeadPermission.VIEW_NEEDS_REVIEW,
+        LeadPermission.VIEW_NEEDS_CALL,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         CountyPermission.MANAGE,
@@ -115,6 +125,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LeadPermission.UNTRASH,
         LeadPermission.CALL_REQUEST,
         LeadPermission.CALL_EXECUTE,
+        LeadPermission.VIEW_VERIFIED,
+        LeadPermission.VIEW_NEEDS_REVIEW,
+        LeadPermission.VIEW_NEEDS_CALL,
         SourcePermission.MANAGE,
         ManagerPermission.MANAGE,
         BuyerPermission.MANAGE,

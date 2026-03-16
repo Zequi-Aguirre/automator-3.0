@@ -145,6 +145,18 @@ const LeadsSection = () => {
             setStatus("new");
             setPage(1);
         }
+        if (!can(Permission.LEADS_VIEW_VERIFIED) && status === "verified") {
+            setStatus("new");
+            setPage(1);
+        }
+        if (!can(Permission.LEADS_VIEW_NEEDS_REVIEW) && status === "needs_review") {
+            setStatus("new");
+            setPage(1);
+        }
+        if (!can(Permission.LEADS_VIEW_NEEDS_CALL) && status === "needs_call") {
+            setStatus("new");
+            setPage(1);
+        }
     }, [can, status]);
 
     const fetchTabCounts = useCallback(async () => {
@@ -290,23 +302,29 @@ const LeadsSection = () => {
                             </Badge>
                         </ToggleButton>
 
-                        <ToggleButton value="verified" sx={{ pr: tabCounts.verified > 0 ? 2.5 : undefined }}>
-                            <Badge badgeContent={tabCounts.verified || null} color="primary">
-                                Verified
-                            </Badge>
-                        </ToggleButton>
+                        {can(Permission.LEADS_VIEW_VERIFIED) && (
+                            <ToggleButton value="verified" sx={{ pr: tabCounts.verified > 0 ? 2.5 : undefined }}>
+                                <Badge badgeContent={tabCounts.verified || null} color="primary">
+                                    Verified
+                                </Badge>
+                            </ToggleButton>
+                        )}
 
-                        <ToggleButton value="needs_review" sx={{ pr: tabCounts.needs_review > 0 ? 2.5 : undefined }}>
-                            <Badge badgeContent={tabCounts.needs_review || null} color="warning">
-                                Needs Review
-                            </Badge>
-                        </ToggleButton>
+                        {can(Permission.LEADS_VIEW_NEEDS_REVIEW) && (
+                            <ToggleButton value="needs_review" sx={{ pr: tabCounts.needs_review > 0 ? 2.5 : undefined }}>
+                                <Badge badgeContent={tabCounts.needs_review || null} color="warning">
+                                    Needs Review
+                                </Badge>
+                            </ToggleButton>
+                        )}
 
-                        <ToggleButton value="needs_call" sx={{ pr: tabCounts.needs_call > 0 ? 2.5 : undefined }}>
-                            <Badge badgeContent={tabCounts.needs_call || null} color="error">
-                                Needs Call
-                            </Badge>
-                        </ToggleButton>
+                        {can(Permission.LEADS_VIEW_NEEDS_CALL) && (
+                            <ToggleButton value="needs_call" sx={{ pr: tabCounts.needs_call > 0 ? 2.5 : undefined }}>
+                                <Badge badgeContent={tabCounts.needs_call || null} color="error">
+                                    Needs Call
+                                </Badge>
+                            </ToggleButton>
+                        )}
 
                         {can(Permission.LEADS_SEND) && (
                             <ToggleButton value="sent">
