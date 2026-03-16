@@ -23,7 +23,13 @@
     "db-migrate": "cd postgres && ./migrate.sh",
     "db-migrate-stg": "cd postgres && ./migrate.sh",
     "counties-script": "doppler run -c dev --scope automator -- node scripts/load-counties-script/loadCountyData.js",
-    "counties-deploy": "node scripts/load-counties-script/loadCountyData.js"
+    "counties-deploy": "node scripts/load-counties-script/loadCountyData.js",
+    "export-prod-data": "doppler run -c prd --scope automator -- node scripts/exportProdData.js",
+    "export-staging-data": "doppler run -c stg --scope automator -- node scripts/exportStagingData.js",
+    "import-prod-data-dev": "doppler run -c dev --scope automator -- node scripts/importProdData.js",
+    "import-prod-data-stg": "doppler run -c stg --scope automator -- node scripts/importProdData.js",
+    "import-prod-data-prd": "doppler run -c prd --scope automator -- node scripts/importProdData.js",
+    "delete-prod-db": "doppler run -c prd --scope automator -- node scripts/wipeDb.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

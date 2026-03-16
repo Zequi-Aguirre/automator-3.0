@@ -12,6 +12,17 @@ export default class ActivityDAO {
         this.db = db.database();
     }
 
+    async hasForLead(leadId: string, action: string): Promise<boolean> {
+        const row = await this.db.oneOrNone<{ exists: boolean }>(
+            `SELECT EXISTS(
+                SELECT 1 FROM activity_log
+                WHERE lead_id = $[leadId] AND action = $[action]
+             ) AS exists`,
+            { leadId, action }
+        );
+        return row?.exists ?? false;
+    }
+
     async log(dto: ActivityCreateDTO): Promise<void> {
         await this.db.none(
             `INSERT INTO activity_log (user_id, lead_id, entity_type, entity_id, action, action_details)

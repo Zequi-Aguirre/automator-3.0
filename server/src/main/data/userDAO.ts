@@ -44,6 +44,14 @@ export default class UserDAO {
         );
     }
 
+    async getIdByEmail(email: string): Promise<string | null> {
+        const row = await this.db.oneOrNone<{ id: string }>(
+            `SELECT id FROM users WHERE email = $[email] AND deleted IS NULL`,
+            { email }
+        );
+        return row?.id ?? null;
+    }
+
     async getAll(): Promise<User[]> {
         return this.db.manyOrNone(
             `SELECT u.id, u.name, u.email, u.role, u.permission_role_id, u.must_change_password, u.status,

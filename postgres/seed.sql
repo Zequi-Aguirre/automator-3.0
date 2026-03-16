@@ -1,14 +1,12 @@
 -- INSERT USERS
+-- Only the owner/superadmin. All other users must request access via the application.
+-- The system@automator service account is created via migration 20260317030000.
 INSERT INTO public."users" (id, email, encrypted_password, name, role)
 VALUES
-    ('123e4567-e89b-12d3-b456-226600000101', 'zequi4real@gmail.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Zequi', 'superadmin'),
-    ('123e4567-e89b-12d3-b456-226600000102', 'admin@admin.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Admin', 'admin'),
-    ('123e4567-e89b-12d3-b456-226600000103', 'user@user.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'User', 'user'),
-    ('123e4567-e89b-12d3-b456-226600000104', 'worker@worker.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Worker', 'worker')
+    ('123e4567-e89b-12d3-b456-226600000101', 'zequi4real@gmail.com', '$2a$10$sBzl26chOVAX51kMMXBJz.Mh5CV7Jyzcsge1nZqVIDPIqnXJsvDBG', 'Zequi', 'superadmin')
 ON CONFLICT (id) DO NOTHING;
 
 -- INSERT worker_settings initial row
--- Note: Cooldown/timing fields moved to buyers table in Sprint 3
 INSERT INTO public."worker_settings" (
     id,
     name,
@@ -17,7 +15,8 @@ INSERT INTO public."worker_settings" (
     cron_schedule,
     expire_after_hours,
     enforce_expiration,
-    worker_enabled
+    worker_enabled,
+    auto_queue_on_verify
 )
 VALUES (
     '123e4567-e89b-12d3-b456-226600000501',
@@ -25,9 +24,10 @@ VALUES (
     360,  -- 6:00 AM
     1380, -- 11:00 PM
     '* * * * *', -- Every minute
-    18,   -- Expire after 18 hours
+    60,   -- Expire after 60 hours
     true, -- Enforce expiration
-    false -- Worker disabled by default
+    false,-- Worker disabled by default
+    true  -- Auto-queue leads on verification
 )
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
@@ -36,4 +36,5 @@ ON CONFLICT (id) DO UPDATE SET
     cron_schedule = EXCLUDED.cron_schedule,
     expire_after_hours = EXCLUDED.expire_after_hours,
     enforce_expiration = EXCLUDED.enforce_expiration,
-    worker_enabled = EXCLUDED.worker_enabled;
+    worker_enabled = EXCLUDED.worker_enabled,
+    auto_queue_on_verify = EXCLUDED.auto_queue_on_verify;

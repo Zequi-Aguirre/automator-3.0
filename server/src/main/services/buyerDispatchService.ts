@@ -124,9 +124,10 @@ export default class BuyerDispatchService {
             await this.scheduleBuyerNext(buyer.id);
         }
 
-        // Log activity — worker/system sends use null (no user row exists for worker)
+        // Log activity — worker/system sends are attributed to the System service account
+        const systemUserId = isWorkerSend ? await this.activityService.getSystemUserId() : null;
         await this.activityService.log({
-            user_id: isWorkerSend ? null : (userId ?? null),
+            user_id: isWorkerSend ? systemUserId : (userId ?? null),
             lead_id: lead.id,
             action: LeadAction.SENT,
             action_details: {
