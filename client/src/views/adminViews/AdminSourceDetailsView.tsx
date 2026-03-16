@@ -276,7 +276,11 @@ const AdminSourceDetailsView = () => {
 
     return (
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
-            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+                {/* Static top section — flexShrink: 0 so campaigns never compress it */}
+                <Box sx={{ flexShrink: 0, px: 4, pt: 4 }}>
+
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
                     <IconButton onClick={() => navigate('/sources')} title="Back to sources">
@@ -404,7 +408,7 @@ const AdminSourceDetailsView = () => {
                     </CardContent>
                 </Card>
 
-                {/* Campaigns Section */}
+                {/* Campaigns Section header */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                         Campaigns ({campaigns.length})
@@ -418,9 +422,11 @@ const AdminSourceDetailsView = () => {
                     </Button>
                 </Box>
 
-                {/* Campaigns Table */}
-                <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
-                    <TableContainer component={Paper}>
+                </Box>{/* end static top section */}
+
+                {/* Campaigns Table — takes all remaining height, scrolls internally */}
+                <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0, px: 4, pb: 4 }}>
+                    <TableContainer component={Paper} sx={{ height: '100%' }}>
                         <Table stickyHeader>
                             <TableHead>
                                 <TableRow>
