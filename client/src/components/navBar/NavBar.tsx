@@ -110,7 +110,7 @@ export default function NavBar() {
         }
     };
 
-    if (!role) return null;
+    if (!role || location.pathname.toLowerCase() === '/login') return null;
 
     const initials = loggedInUser?.name ? getInitials(loggedInUser.name) : '?';
 
