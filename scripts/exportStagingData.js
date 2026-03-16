@@ -68,6 +68,18 @@ async function main() {
 
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
+    // ── 0. Counties (zip_codes enrichment) ───────────────────────────────────
+    // Export all staging counties that have zip_codes populated.
+    // The import script will match by name+state and copy zip_codes onto prod counties.
+    console.log('Exporting counties with zip_codes...');
+    const { rows: stagingCounties } = await client.query(`
+        SELECT name, state, zip_codes
+        FROM counties
+        WHERE zip_codes IS NOT NULL AND array_length(zip_codes, 1) > 0
+    `);
+    writeJSON(outputDir, 'counties.json', stagingCounties);
+    console.log(`  ✓ ${stagingCounties.length} counties with zip_codes\n`);
+
     // ── 1. Lead → source/campaign mappings (matched by phone number) ─────────
     // Query staging by phone; map results back to production UUIDs.
     console.log('Exporting lead → source/campaign mappings (matching by phone)...');
@@ -91,12 +103,6 @@ async function main() {
 
     writeJSON(outputDir, 'lead_mappings.json', leadMappings);
     console.log(`  ✓ ${stagingMatches.length} staging matches → ${leadMappings.length} leads mapped to production UUIDs\n`);
-
-    if (leadMappings.length === 0) {
-        console.log('No phone-number matches with source/campaign data found in staging. Exiting.');
-        await client.end();
-        return;
-    }
 
     // Collect referenced source and campaign IDs
     const campaignIds = [...new Set(leadMappings.map(m => m.campaign_id).filter(Boolean))];
@@ -134,6 +140,7 @@ async function main() {
         staging_host: process.env.DB_HOST,
         prod_leads_cross_referenced: prodLeads.length,
         leads_matched_by_phone: leadMappings.length,
+        counties_with_zip_codes: stagingCounties.length,
         sources_count: sources.length,
         campaigns_count: campaigns.length,
     };

@@ -51,6 +51,32 @@ function buildClient() {
     });
 }
 
+// ── Bulk insert helper ────────────────────────────────────────────────────────
+// Inserts rows in chunks to avoid per-row network round trips.
+// buildRow(item) returns an array of values for one row.
+// columns is the SQL column list string.
+// onConflict is the ON CONFLICT clause (default: DO NOTHING).
+async function bulkInsert(client, table, columns, rows, buildRow, onConflict = 'ON CONFLICT DO NOTHING') {
+    const CHUNK = 500;
+    let count = 0;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const values = [];
+        const placeholders = chunk.map((item, idx) => {
+            const row = buildRow(item);
+            const base = idx * row.length;
+            values.push(...row);
+            return `(${row.map((_, j) => `$${base + j + 1}`).join(', ')})`;
+        });
+        await client.query(
+            `INSERT INTO ${table} (${columns}) VALUES ${placeholders.join(', ')} ${onConflict}`,
+            values
+        );
+        count += chunk.length;
+    }
+    return count;
+}
+
 // ── File helpers ─────────────────────────────────────────────────────────────
 
 function readJSON(filename) {
@@ -88,12 +114,13 @@ async function main() {
     try { formInputs = readJSON('form_inputs.json'); } catch (_) { /* older export */ }
 
     // Staging enrichment data is optional — only used if staging-export/ exists
-    let stagingSources = [], stagingCampaigns = [], stagingLeadMappings = [];
+    let stagingSources = [], stagingCampaigns = [], stagingLeadMappings = [], stagingCounties = [];
     try {
         stagingSources      = readFromDir('staging-export', 'sources.json');
         stagingCampaigns    = readFromDir('staging-export', 'campaigns.json');
         stagingLeadMappings = readFromDir('staging-export', 'lead_mappings.json');
-        console.log(`Staging enrichment data loaded: ${stagingSources.length} sources, ${stagingCampaigns.length} campaigns, ${stagingLeadMappings.length} lead mappings\n`);
+        try { stagingCounties = readFromDir('staging-export', 'counties.json'); } catch (_) {}
+        console.log(`Staging enrichment data loaded: ${stagingSources.length} sources, ${stagingCampaigns.length} campaigns, ${stagingLeadMappings.length} lead mappings, ${stagingCounties.length} counties with zip_codes\n`);
     } catch (_) {
         console.log('No staging-export/ found — skipping source/campaign enrichment.\n');
     }
@@ -161,16 +188,32 @@ async function main() {
 
         // ── Step 1: Counties ─────────────────────────────────────────────────
         console.log('Step 1: Inserting counties...');
-        for (const c of counties) {
-            await client.query(`
-                INSERT INTO counties (id, name, state, population, timezone, blacklisted, whitelisted, created, modified, deleted)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                ON CONFLICT (id) DO NOTHING
-            `, [c.id, c.name, c.state, c.population, c.timezone, c.blacklisted, c.whitelisted,
-                c.created, c.modified, c.deleted]);
-            counts.counties++;
-        }
+        counts.counties = await bulkInsert(
+            client,
+            'counties',
+            'id, name, state, population, timezone, blacklisted, whitelisted, created, modified, deleted',
+            counties,
+            c => [c.id, c.name, c.state, c.population, c.timezone, c.blacklisted, c.whitelisted, c.created, c.modified, c.deleted]
+        );
         console.log(`  ✓ ${counts.counties} counties\n`);
+
+        // ── Step 1b: Enrich counties with zip_codes from staging ──────────────
+        // Match by name + state (natural key). Only updates counties that have
+        // no zip_codes yet — never overwrites existing data.
+        if (stagingCounties.length > 0) {
+            console.log('Step 1b: Enriching counties with zip_codes from staging...');
+            let zipUpdated = 0;
+            for (const sc of stagingCounties) {
+                const result = await client.query(`
+                    UPDATE counties
+                    SET zip_codes = $1
+                    WHERE name = $2 AND state = $3
+                      AND (zip_codes IS NULL OR array_length(zip_codes, 1) = 0)
+                `, [sc.zip_codes, sc.name, sc.state]);
+                if (result.rowCount > 0) zipUpdated += result.rowCount;
+            }
+            console.log(`  ✓ ${zipUpdated} counties updated with zip_codes\n`);
+        }
 
         // ── Step 2: Leads ────────────────────────────────────────────────────
         // Mappings:
@@ -179,61 +222,38 @@ async function main() {
         //   private_notes  → NOT stored   (goes to activity_log instead)
         //   new columns    → safe defaults (needs_review=false, needs_call=false)
         console.log('Step 2: Inserting leads...');
-        for (const l of leads) {
-            await client.query(`
-                INSERT INTO leads (
-                    id, address, city, state, zipcode, county, county_id,
-                    first_name, last_name, phone, email,
-                    created, modified, deleted,
-                    verified, sent, sent_date,
-                    campaign_id, source_id, deleted_reason,
-                    queued, needs_review, needs_call
-                ) VALUES (
-                    $1,  $2,  $3,  $4,  $5,  $6,  $7,
-                    $8,  $9,  $10, $11,
-                    $12, $13, $14,
-                    $15, $16, $17,
-                    NULL, $18, $19,
-                    $20, false, false
-                )
-                ON CONFLICT (id) DO NOTHING
-            `, [
+        counts.leads = await bulkInsert(
+            client,
+            'leads',
+            `id, address, city, state, zipcode, county, county_id,
+             first_name, last_name, phone, email,
+             created, modified, deleted,
+             verified, sent, sent_date,
+             campaign_id, source_id, deleted_reason,
+             queued, needs_review, needs_call`,
+            leads,
+            l => [
                 l.id, l.address, l.city, l.state, l.zipcode, l.county, l.county_id,
                 l.first_name, l.last_name, l.phone, l.email,
                 l.created, l.modified, l.deleted,
                 l.verified, l.sent, l.sent_date,
-                l.source_id, l.deleted_reason,
-                l.verified,  // → queued (only verified leads enter the queue)
-            ]);
-            counts.leads++;
-        }
+                null, l.source_id, l.deleted_reason,
+                l.verified, false, false,
+            ]
+        );
         console.log(`  ✓ ${counts.leads} leads\n`);
 
         // ── Step 3: Send log ─────────────────────────────────────────────────
         // All sends go to iSpeedToLead (old buyer_id or NULL → new iSpeedToLead UUID)
         // send_source = 'worker' for all historical records
         console.log('Step 3: Inserting send_log...');
-        for (const s of sendLog) {
-            await client.query(`
-                INSERT INTO send_log (
-                    id, lead_id, buyer_id, source_id, campaign_id,
-                    status, response_code, response_body, payout_cents,
-                    created, modified, deleted,
-                    send_source, disputed
-                ) VALUES (
-                    $1, $2, $3, NULL, NULL,
-                    $4, $5, $6, $7,
-                    $8, $9, $10,
-                    'worker', false
-                )
-                ON CONFLICT (id) DO NOTHING
-            `, [
-                s.id, s.lead_id, newIspeedBuyerId,
-                s.status, s.response_code, s.response_body, s.payout_cents,
-                s.created, s.modified, s.deleted,
-            ]);
-            counts.sendLog++;
-        }
+        counts.sendLog = await bulkInsert(
+            client,
+            'send_log',
+            'id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, payout_cents, created, modified, deleted, send_source, disputed',
+            sendLog,
+            s => [s.id, s.lead_id, newIspeedBuyerId, null, null, s.status, s.response_code, s.response_body, s.payout_cents, s.created, s.modified, s.deleted, 'worker', false]
+        );
         console.log(`  ✓ ${counts.sendLog} send_log entries\n`);
 
         // ── Step 4: lead_buyer_outcomes ──────────────────────────────────────
@@ -338,29 +358,19 @@ async function main() {
         // ── Step 6: Lead form inputs ─────────────────────────────────────────
         if (formInputs.length > 0) {
             console.log('Step 6: Inserting lead_form_inputs...');
-            for (const f of formInputs) {
-                await client.query(`
-                    INSERT INTO lead_form_inputs (
-                        id, lead_id,
-                        form_unit, form_multifamily, form_square, form_year, form_garage,
-                        form_bedrooms, form_bathrooms, form_repairs, form_occupied,
-                        form_sell_fast, form_goal, form_goal2, form_call_time,
-                        form_owner, form_owned_years, form_listed, form_scenario,
-                        form_source, activeprospect_certificate_url,
-                        last_post_status, last_post_payload, last_post_at,
-                        created, modified, deleted
-                    ) VALUES (
-                        $1, $2,
-                        $3, $4, $5, $6, $7,
-                        $8, $9, $10, $11,
-                        $12, $13, $14, $15,
-                        $16, $17, $18, $19,
-                        $20, $21,
-                        $22, $23, $24,
-                        $25, $26, $27
-                    )
-                    ON CONFLICT (id) DO NOTHING
-                `, [
+            counts.formInputs = await bulkInsert(
+                client,
+                'lead_form_inputs',
+                `id, lead_id,
+                 form_unit, form_multifamily, form_square, form_year, form_garage,
+                 form_bedrooms, form_bathrooms, form_repairs, form_occupied,
+                 form_sell_fast, form_goal, form_goal2, form_call_time,
+                 form_owner, form_owned_years, form_listed, form_scenario,
+                 form_source, activeprospect_certificate_url,
+                 last_post_status, last_post_payload, last_post_at,
+                 created, modified, deleted`,
+                formInputs,
+                f => [
                     f.id, f.lead_id,
                     f.form_unit, f.form_multifamily, f.form_square, f.form_year, f.form_garage,
                     f.form_bedrooms, f.form_bathrooms, f.form_repairs, f.form_occupied,
@@ -369,9 +379,8 @@ async function main() {
                     f.form_source, f.activeprospect_certificate_url,
                     f.last_post_status, f.last_post_payload, f.last_post_at,
                     f.created, f.modified, f.deleted,
-                ]);
-                counts.formInputs++;
-            }
+                ]
+            );
             console.log(`  ✓ ${counts.formInputs} form_input records\n`);
         } else {
             console.log('Step 6: No form_inputs to import (file empty or missing)\n');
