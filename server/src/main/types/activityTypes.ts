@@ -89,6 +89,9 @@ export enum TrashReasonAction {
     CREATED = 'trash_reason_created',
     ACTIVATED = 'trash_reason_activated',
     DEACTIVATED = 'trash_reason_deactivated',
+    COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
+    DELETED = 'trash_reason_deleted',
 }
 
 export enum CallRequestReasonAction {
@@ -97,6 +100,7 @@ export enum CallRequestReasonAction {
     DEACTIVATED = 'call_request_reason_deactivated',
     COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+    DELETED = 'call_request_reason_deleted',
 }
 
 export enum DisputeAction {

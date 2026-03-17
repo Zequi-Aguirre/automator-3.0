@@ -2,6 +2,7 @@ import { Container, Divider, Typography } from "@mui/material";
 import { usePermissions } from "../../hooks/usePermissions";
 import { Permission } from "../../types/userTypes";
 import AdminCallRequestReasonsSection from "../../components/admin/adminCallRequestReasonsSection/AdminCallRequestReasonsSection";
+import AdminTrashReasonsSection from "../../components/admin/adminTrashReasonsSection/AdminTrashReasonsSection";
 
 export default function AdminListsView() {
     const { can } = usePermissions();
@@ -19,7 +20,13 @@ export default function AdminListsView() {
                 </>
             )}
 
-            {/* TICKET-106: Trash Reasons section goes here */}
+            {can(Permission.TRASH_REASONS_MANAGE) && (
+                <>
+                    <AdminTrashReasonsSection embedded />
+                    <Divider sx={{ my: 4 }} />
+                </>
+            )}
+
             {/* TICKET-108: Call Outcomes section goes here */}
         </Container>
     );

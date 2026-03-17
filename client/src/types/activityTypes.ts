@@ -68,6 +68,9 @@ export enum TrashReasonAction {
     CREATED = 'trash_reason_created',
     ACTIVATED = 'trash_reason_activated',
     DEACTIVATED = 'trash_reason_deactivated',
+    COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
+    DELETED = 'trash_reason_deleted',
 }
 
 export enum CallRequestReasonAction {
@@ -76,6 +79,7 @@ export enum CallRequestReasonAction {
     DEACTIVATED = 'call_request_reason_deactivated',
     COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+    DELETED = 'call_request_reason_deleted',
 }
 
 export enum RoleAction {
@@ -181,6 +185,9 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [TrashReasonAction.CREATED]: 'Trash Reason Created',
     [TrashReasonAction.ACTIVATED]: 'Trash Reason Activated',
     [TrashReasonAction.DEACTIVATED]: 'Trash Reason Deactivated',
+    [TrashReasonAction.COMMENT_REQUIRED_ON]: 'Trash Reason — Comment Made Mandatory',
+    [TrashReasonAction.COMMENT_REQUIRED_OFF]: 'Trash Reason — Comment Made Optional',
+    [TrashReasonAction.DELETED]: 'Trash Reason Deleted',
 
     // Call request reasons
     [CallRequestReasonAction.CREATED]: 'Call Request Reason Created',
@@ -188,6 +195,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [CallRequestReasonAction.DEACTIVATED]: 'Call Request Reason Deactivated',
     [CallRequestReasonAction.COMMENT_REQUIRED_ON]: 'Call Request Reason — Comment Made Mandatory',
     [CallRequestReasonAction.COMMENT_REQUIRED_OFF]: 'Call Request Reason — Comment Made Optional',
+    [CallRequestReasonAction.DELETED]: 'Call Request Reason Deleted',
 
     // Permission roles
     [RoleAction.CREATED]: 'Role Created',

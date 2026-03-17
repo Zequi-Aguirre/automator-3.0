@@ -51,4 +51,14 @@ export default class CallRequestReasonService {
         });
         return reason;
     }
+
+    async delete(id: string, userId?: string | null): Promise<CallRequestReason> {
+        const reason = await this.callRequestReasonDAO.delete(id);
+        await this.activityService.log({
+            user_id: userId,
+            action: CallRequestReasonAction.DELETED,
+            action_details: { label: reason.label },
+        });
+        return reason;
+    }
 }

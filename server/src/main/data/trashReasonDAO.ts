@@ -42,4 +42,21 @@ export default class TrashReasonDAO {
             RETURNING *;
         `, { id, active });
     }
+
+    async setCommentRequired(id: string, commentRequired: boolean): Promise<TrashReason> {
+        return this.db.one<TrashReason>(`
+            UPDATE trash_reasons
+            SET comment_required = $[commentRequired]
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id, commentRequired });
+    }
+
+    async delete(id: string): Promise<TrashReason> {
+        return this.db.one<TrashReason>(`
+            DELETE FROM trash_reasons
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id });
+    }
 }

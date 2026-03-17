@@ -51,4 +51,12 @@ export default class CallRequestReasonDAO {
             RETURNING *;
         `, { id, commentRequired });
     }
+
+    async delete(id: string): Promise<CallRequestReason> {
+        return this.db.one<CallRequestReason>(`
+            DELETE FROM call_request_reasons
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id });
+    }
 }

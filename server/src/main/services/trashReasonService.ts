@@ -41,4 +41,24 @@ export default class TrashReasonService {
         });
         return reason;
     }
+
+    async setCommentRequired(id: string, commentRequired: boolean, userId?: string | null): Promise<TrashReason> {
+        const reason = await this.trashReasonDAO.setCommentRequired(id, commentRequired);
+        await this.activityService.log({
+            user_id: userId,
+            action: commentRequired ? TrashReasonAction.COMMENT_REQUIRED_ON : TrashReasonAction.COMMENT_REQUIRED_OFF,
+            action_details: { label: reason.label },
+        });
+        return reason;
+    }
+
+    async delete(id: string, userId?: string | null): Promise<TrashReason> {
+        const reason = await this.trashReasonDAO.delete(id);
+        await this.activityService.log({
+            user_id: userId,
+            action: TrashReasonAction.DELETED,
+            action_details: { label: reason.label },
+        });
+        return reason;
+    }
 }

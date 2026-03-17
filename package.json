@@ -10,6 +10,7 @@
     "dev-db-stop": "cd postgres && ./stop.sh",
     "dev-db-reset": "npm run dev-db-stop && npm run dev-db-start && npm run dev-db-migrate && npm run dev-db-seed",
     "dev-db-seed": "doppler run --scope automator --project automator --config dev --command 'cd postgres && ./seed.sh'",
+    "load-test-data": "podman cp postgres/seed-test-data.sql automator-dev:/tmp/ && podman exec automator-dev psql -U automator -d automator -f /tmp/seed-test-data.sql",
     "create-migration": "node postgres/createMigration.js",
     "dev-css": "npx tailwindcss -i ./client/src/tailwind.css -o ./client/src/landing/style.css --watch",
     "build": "npx tailwindcss -i ./client/src/tailwind.css -o ./client/src/landing/style.css && npm run build-fe && npm run build-be",
