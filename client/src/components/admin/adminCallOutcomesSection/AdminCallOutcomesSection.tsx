@@ -25,6 +25,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Add, DeleteOutline, ToggleOff, ToggleOn } from '@mui/icons-material';
+import Checkbox from '@mui/material/Checkbox';
 import callOutcomeService, { CallOutcome } from '../../../services/callOutcome.service';
 
 interface Props {
@@ -81,6 +82,15 @@ const AdminCallOutcomesSection = ({ embedded = false }: Props) => {
         }
     };
 
+    const handleToggleCommentRequired = async (outcome: CallOutcome) => {
+        try {
+            const updated = await callOutcomeService.setCommentRequired(outcome.id, !outcome.comment_required);
+            setOutcomes(prev => prev.map(o => o.id === updated.id ? updated : o));
+        } catch {
+            setSnack({ message: 'Failed to update comment setting', severity: 'error' });
+        }
+    };
+
     const handleDelete = async () => {
         if (!deleteTarget) return;
         setDeleting(true);
@@ -127,13 +137,18 @@ const AdminCallOutcomesSection = ({ embedded = false }: Props) => {
                             <TableRow>
                                 <TableCell>Label</TableCell>
                                 <TableCell>Status</TableCell>
+                                <TableCell>
+                                    <Tooltip title="When checked, agents must enter a comment when selecting this outcome">
+                                        <span>Comment Required</span>
+                                    </Tooltip>
+                                </TableCell>
                                 <TableCell align="right">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {outcomes.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                                         No outcomes yet. Add one above.
                                     </TableCell>
                                 </TableRow>
@@ -152,6 +167,16 @@ const AdminCallOutcomesSection = ({ embedded = false }: Props) => {
                                             color={outcome.active ? 'success' : 'default'}
                                             variant="outlined"
                                         />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Tooltip title={outcome.comment_required ? 'Comment mandatory — click to make optional' : 'Comment optional — click to make mandatory'}>
+                                            <Checkbox
+                                                size="small"
+                                                checked={outcome.comment_required}
+                                                onChange={() => { void handleToggleCommentRequired(outcome); }}
+                                                sx={{ p: 0.5 }}
+                                            />
+                                        </Tooltip>
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" justifyContent="flex-end">

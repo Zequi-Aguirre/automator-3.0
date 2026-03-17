@@ -60,6 +60,20 @@ export default class CallOutcomeResource {
             }
         });
 
+        // PATCH /api/call-outcomes/:id/comment-required — toggle comment required
+        this.router.patch('/:id/comment-required', requirePermission(CallOutcomePermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { comment_required } = req.body;
+                if (typeof comment_required !== 'boolean') {
+                    return res.status(400).json({ error: 'comment_required must be a boolean' });
+                }
+                const outcome = await this.callOutcomeService.setCommentRequired(req.params.id, comment_required, req.user?.id);
+                res.status(200).json(outcome);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
         // DELETE /api/call-outcomes/:id — permanently delete an outcome
         this.router.delete('/:id', requirePermission(CallOutcomePermission.MANAGE), async (req: Request, res: Response) => {
             try {

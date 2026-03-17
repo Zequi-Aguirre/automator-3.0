@@ -43,6 +43,15 @@ export default class CallOutcomeDAO {
         `, { id, active });
     }
 
+    async setCommentRequired(id: string, commentRequired: boolean): Promise<CallOutcome> {
+        return this.db.one<CallOutcome>(`
+            UPDATE call_outcomes
+            SET comment_required = $[commentRequired]
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id, commentRequired });
+    }
+
     async delete(id: string): Promise<CallOutcome> {
         return this.db.one<CallOutcome>(`
             DELETE FROM call_outcomes

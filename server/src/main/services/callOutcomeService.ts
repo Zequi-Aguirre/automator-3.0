@@ -42,6 +42,16 @@ export default class CallOutcomeService {
         return outcome;
     }
 
+    async setCommentRequired(id: string, commentRequired: boolean, userId?: string | null): Promise<CallOutcome> {
+        const outcome = await this.callOutcomeDAO.setCommentRequired(id, commentRequired);
+        await this.activityService.log({
+            user_id: userId,
+            action: commentRequired ? CallOutcomeAction.COMMENT_REQUIRED_ON : CallOutcomeAction.COMMENT_REQUIRED_OFF,
+            action_details: { label: outcome.label },
+        });
+        return outcome;
+    }
+
     async delete(id: string, userId?: string | null): Promise<CallOutcome> {
         const outcome = await this.callOutcomeDAO.delete(id);
         await this.activityService.log({
