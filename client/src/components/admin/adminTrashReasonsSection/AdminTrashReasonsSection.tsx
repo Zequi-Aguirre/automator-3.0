@@ -184,7 +184,7 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
                                                 <IconButton
                                                     size="small"
                                                     onClick={() => { void handleToggleActive(reason); }}
-                                                    color={reason.active ? 'error' : 'success'}
+                                                    color={reason.active ? 'success' : 'default'}
                                                 >
                                                     {reason.active ? <ToggleOn /> : <ToggleOff />}
                                                 </IconButton>

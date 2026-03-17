@@ -79,6 +79,7 @@ export enum CallRequestReasonAction {
     DEACTIVATED = 'call_request_reason_deactivated',
     COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+    DELETED = 'call_request_reason_deleted',
 }
 
 export enum RoleAction {
@@ -194,6 +195,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [CallRequestReasonAction.DEACTIVATED]: 'Call Request Reason Deactivated',
     [CallRequestReasonAction.COMMENT_REQUIRED_ON]: 'Call Request Reason — Comment Made Mandatory',
     [CallRequestReasonAction.COMMENT_REQUIRED_OFF]: 'Call Request Reason — Comment Made Optional',
+    [CallRequestReasonAction.DELETED]: 'Call Request Reason Deleted',
 
     // Permission roles
     [RoleAction.CREATED]: 'Role Created',

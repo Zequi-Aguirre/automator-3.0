@@ -100,6 +100,7 @@ export enum CallRequestReasonAction {
     DEACTIVATED = 'call_request_reason_deactivated',
     COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+    DELETED = 'call_request_reason_deleted',
 }
 
 export enum DisputeAction {

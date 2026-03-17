@@ -36,6 +36,11 @@ class CallRequestReasonService {
         const res = await this.api.getApi().patch(`/api/call-request-reasons/${id}/comment-required`, { comment_required });
         return res.data;
     }
+
+    async delete(id: string): Promise<CallRequestReason> {
+        const res = await this.api.getApi().delete(`/api/call-request-reasons/${id}`);
+        return res.data;
+    }
 }
 
 const callRequestReasonService = new CallRequestReasonService(authProvider);

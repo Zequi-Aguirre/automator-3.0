@@ -73,6 +73,16 @@ export default class CallRequestReasonResource {
                 res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
             }
         });
+
+        // DELETE /api/call-request-reasons/:id — permanently delete a reason
+        this.router.delete('/:id', requirePermission(CallRequestReasonPermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const reason = await this.callRequestReasonService.delete(req.params.id, req.user?.id);
+                res.status(200).json(reason);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
     }
 
     public routes(): Router {
