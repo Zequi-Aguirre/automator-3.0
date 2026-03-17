@@ -60,6 +60,20 @@ export enum UserAction {
     PERMISSIONS_CHANGED = 'user_permissions_changed',
 }
 
+export enum TrashReasonAction {
+    CREATED = 'trash_reason_created',
+    ACTIVATED = 'trash_reason_activated',
+    DEACTIVATED = 'trash_reason_deactivated',
+}
+
+export enum CallRequestReasonAction {
+    CREATED = 'call_request_reason_created',
+    ACTIVATED = 'call_request_reason_activated',
+    DEACTIVATED = 'call_request_reason_deactivated',
+    COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+}
+
 export enum RoleAction {
     CREATED = 'role_created',
     UPDATED = 'role_updated',
@@ -77,6 +91,8 @@ export type ActivityAction =
     | CountyAction
     | AuthAction
     | UserAction
+    | TrashReasonAction
+    | CallRequestReasonAction
     | RoleAction;
 
 export type ActivityLog = {
@@ -152,6 +168,18 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     // User management
     [UserAction.ROLE_CHANGED]: 'Role Changed',
     [UserAction.PERMISSIONS_CHANGED]: 'Permissions Changed',
+
+    // Trash reasons
+    [TrashReasonAction.CREATED]: 'Trash Reason Created',
+    [TrashReasonAction.ACTIVATED]: 'Trash Reason Activated',
+    [TrashReasonAction.DEACTIVATED]: 'Trash Reason Deactivated',
+
+    // Call request reasons
+    [CallRequestReasonAction.CREATED]: 'Call Request Reason Created',
+    [CallRequestReasonAction.ACTIVATED]: 'Call Request Reason Activated',
+    [CallRequestReasonAction.DEACTIVATED]: 'Call Request Reason Deactivated',
+    [CallRequestReasonAction.COMMENT_REQUIRED_ON]: 'Call Request Reason — Comment Made Mandatory',
+    [CallRequestReasonAction.COMMENT_REQUIRED_OFF]: 'Call Request Reason — Comment Made Optional',
 
     // Permission roles
     [RoleAction.CREATED]: 'Role Created',

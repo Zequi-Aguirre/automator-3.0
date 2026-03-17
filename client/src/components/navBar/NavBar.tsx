@@ -23,6 +23,7 @@ import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 import GroupIcon from "@mui/icons-material/Group";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -77,6 +78,7 @@ export default function NavBar() {
         { label: "Lead Managers", icon: <ManageAccountsIcon />, path: "/lead-managers", pathMatch: "/lead-managers", permission: Permission.MANAGERS_MANAGE },
         { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.COUNTIES_MANAGE },
         { label: "Activity", icon: <TimelineIcon />, path: "/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
+        { label: "Lists", icon: <ListAltIcon />, path: "/lists", pathMatch: "/lists", permission: Permission.CALL_REQUEST_REASONS_MANAGE },
         { label: "Worker Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.WORKER_SETTINGS_MANAGE },
         { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
     ], []);

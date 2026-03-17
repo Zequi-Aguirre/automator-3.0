@@ -614,11 +614,12 @@ export default class LeadDAO {
         return result;
     }
 
-    async requestCall(id: string, reason: string, requestedBy: string): Promise<Lead> {
+    async requestCall(id: string, reason: string, requestedBy: string, note?: string | null): Promise<Lead> {
         const query = `
             UPDATE leads
             SET needs_call = TRUE,
                 call_reason = $[reason],
+                call_request_note = $[note],
                 call_requested_at = NOW(),
                 call_requested_by = $[requestedBy],
                 modified = NOW()
@@ -626,7 +627,7 @@ export default class LeadDAO {
             AND deleted IS NULL
             RETURNING *;
         `;
-        const result = await this.db.oneOrNone<Lead>(query, { id, reason, requestedBy });
+        const result = await this.db.oneOrNone<Lead>(query, { id, reason, note: note ?? null, requestedBy });
         if (!result) {
             throw new Error('Lead not found');
         }

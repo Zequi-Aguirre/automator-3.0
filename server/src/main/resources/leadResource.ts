@@ -314,11 +314,11 @@ export default class LeadResource {
         this.router.post("/:leadId/request-call", requirePermission(LeadPermission.CALL_REQUEST), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const { reason } = req.body;
+                const { reason, note } = req.body;
                 if (!reason) {
                     return res.status(400).send({ message: 'reason is required' });
                 }
-                const lead = await this.leadService.requestCall(leadId, reason, req.user.id);
+                const lead = await this.leadService.requestCall(leadId, reason, req.user.id, note ?? null);
                 return res.status(200).send(lead);
             } catch (error) {
                 console.error('Error requesting call:', error);

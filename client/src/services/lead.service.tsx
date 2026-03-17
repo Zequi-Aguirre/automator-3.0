@@ -164,8 +164,8 @@ class LeadService {
     }
 
     // TICKET-065: Request a call for a lead
-    async requestCall(leadId: string, reason: string): Promise<Lead> {
-        const response = await this.api.getApi().post(`/api/leads/${leadId}/request-call`, { reason });
+    async requestCall(leadId: string, reason: string, note?: string): Promise<Lead> {
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/request-call`, { reason, note: note || undefined });
         return response.data;
     }
 

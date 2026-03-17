@@ -49,6 +49,7 @@ import BuyerSendModal from "../../leadDetails/buyerSendModal/BuyerSendModal.tsx"
 import { usePermissions } from "../../../../hooks/usePermissions.ts";
 import { Permission } from "../../../../types/userTypes.ts";
 import trashReasonService, { TrashReason } from "../../../../services/trashReason.service.tsx";
+import callRequestReasonService, { CallRequestReason } from "../../../../services/callRequestReason.service.tsx";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -167,14 +168,25 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
     const [callDialogMode, setCallDialogMode] = useState<"request" | "execute">("request");
     const [callTargetLead, setCallTargetLead] = useState<Lead | null>(null);
     const [callReason, setCallReason] = useState("");
+    const [callRequestNote, setCallRequestNote] = useState("");
     const [callOutcome, setCallOutcome] = useState("reached");
     const [callNotes, setCallNotes] = useState("");
+    const [callRequestReasons, setCallRequestReasons] = useState<CallRequestReason[]>([]);
 
-    const openRequestCallDialog = (lead: Lead) => {
+    const selectedReason = callRequestReasons.find(r => r.label === callReason) ?? null;
+
+    const openRequestCallDialog = async (lead: Lead) => {
         setCallTargetLead(lead);
         setCallReason("");
+        setCallRequestNote("");
         setCallDialogMode("request");
         setCallDialogOpen(true);
+        try {
+            const reasons = await callRequestReasonService.getActive();
+            setCallRequestReasons(reasons);
+        } catch {
+            setCallRequestReasons([]);
+        }
     };
 
     const openExecuteCallDialog = (lead: Lead) => {
@@ -189,7 +201,7 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
         if (!callTargetLead) return;
         try {
             if (callDialogMode === "request") {
-                const updated = await leadsService.requestCall(callTargetLead.id, callReason);
+                const updated = await leadsService.requestCall(callTargetLead.id, callReason, callRequestNote || undefined);
                 setLeads(prev => prev.filter(l => l.id !== updated.id));
                 showNotification("Lead flagged for call", "success");
             } else {
@@ -529,7 +541,7 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         {currentStatus !== "needs_call" && (
                             <Tooltip title={canRequestCall ? "Request a call for this lead" : "You don't have permission to request calls"}>
                                 <span>
-                                    <IconButton size="small" color="warning" disabled={!canRequestCall} onClick={() => { openRequestCallDialog(lead); }}>
+                                    <IconButton size="small" color="warning" disabled={!canRequestCall} onClick={() => { void openRequestCallDialog(lead); }}>
                                         <PhoneCallbackIcon fontSize="small" />
                                     </IconButton>
                                 </span>
@@ -627,17 +639,37 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                 <DialogTitle>Request a Call</DialogTitle>
                 <DialogContent>
                     <DialogContentText sx={{ mb: 2 }}>
-                        Describe why this lead needs a call. It will be moved to the "Needs Call" tab.
+                        Select a reason why this lead needs a call. It will be moved to the "Needs Call" tab.
                     </DialogContentText>
-                    <TextField
-                        label="Reason"
-                        multiline
-                        rows={3}
-                        fullWidth
-                        value={callReason}
-                        onChange={(e) => { setCallReason(e.target.value); }}
-                        size="small"
-                    />
+                    <Stack spacing={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Reason</InputLabel>
+                            <Select
+                                label="Reason"
+                                value={callReason}
+                                onChange={(e) => { setCallReason(e.target.value); setCallRequestNote(""); }}
+                            >
+                                {callRequestReasons.map(r => (
+                                    <MenuItem key={r.id} value={r.label}>{r.label}</MenuItem>
+                                ))}
+                                {callRequestReasons.length === 0 && (
+                                    <MenuItem disabled value="">No reasons configured</MenuItem>
+                                )}
+                            </Select>
+                        </FormControl>
+                        {selectedReason && (
+                            <TextField
+                                label={selectedReason.comment_required ? 'Comment (required)' : 'Comment (optional)'}
+                                multiline
+                                rows={3}
+                                fullWidth
+                                size="small"
+                                value={callRequestNote}
+                                onChange={(e) => { setCallRequestNote(e.target.value); }}
+                                required={selectedReason.comment_required}
+                            />
+                        )}
+                    </Stack>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => { setCallDialogOpen(false); }}>Cancel</Button>
@@ -645,7 +677,7 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         onClick={() => { void handleSubmitCallDialog(); }}
                         color="warning"
                         variant="contained"
-                        disabled={!callReason.trim()}
+                        disabled={!callReason || (!!selectedReason?.comment_required && !callRequestNote.trim())}
                     >
                         Request Call
                     </Button>
