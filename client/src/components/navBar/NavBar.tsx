@@ -78,7 +78,7 @@ export default function NavBar() {
         { label: "Lead Managers", icon: <ManageAccountsIcon />, path: "/lead-managers", pathMatch: "/lead-managers", permission: Permission.MANAGERS_MANAGE },
         { label: "Counties", icon: <LocationCityIcon />, path: "/counties", pathMatch: "/counties", permission: Permission.COUNTIES_MANAGE },
         { label: "Activity", icon: <TimelineIcon />, path: "/activity", pathMatch: "/activity", permission: Permission.ACTIVITY_VIEW },
-        { label: "Call Request Reasons", icon: <ListAltIcon />, path: "/call-request-reasons", pathMatch: "/call-request-reasons", permission: Permission.CALL_REQUEST_REASONS_MANAGE },
+        { label: "Lists", icon: <ListAltIcon />, path: "/lists", pathMatch: "/lists", permission: Permission.CALL_REQUEST_REASONS_MANAGE },
         { label: "Worker Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.WORKER_SETTINGS_MANAGE },
         { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
     ], []);

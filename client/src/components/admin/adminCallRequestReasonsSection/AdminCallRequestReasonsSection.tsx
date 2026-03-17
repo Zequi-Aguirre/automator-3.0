@@ -27,7 +27,11 @@ import {
 import { Add, ToggleOff, ToggleOn } from '@mui/icons-material';
 import callRequestReasonService, { CallRequestReason } from '../../../services/callRequestReason.service';
 
-const AdminCallRequestReasonsSection = () => {
+interface Props {
+    embedded?: boolean;
+}
+
+const AdminCallRequestReasonsSection = ({ embedded = false }: Props) => {
     const [reasons, setReasons] = useState<CallRequestReason[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -75,8 +79,8 @@ const AdminCallRequestReasonsSection = () => {
         }
     };
 
-    return (
-        <Container maxWidth="md" sx={{ py: 3 }}>
+    const inner = (
+        <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                 <Box>
                     <Typography variant="h6" fontWeight={600}>Call Request Reasons</Typography>
@@ -187,8 +191,10 @@ const AdminCallRequestReasonsSection = () => {
                     {snack?.message}
                 </Alert>
             </Snackbar>
-        </Container>
+        </Box>
     );
+
+    return embedded ? inner : <Container maxWidth="md" sx={{ py: 3 }}>{inner}</Container>;
 };
 
 export default AdminCallRequestReasonsSection;
