@@ -52,6 +52,20 @@ export default class CallOutcomeService {
         return outcome;
     }
 
+    async setResolvesCall(id: string, resolvesCall: boolean, userId?: string | null): Promise<CallOutcome> {
+        const outcome = await this.callOutcomeDAO.setResolvesCall(id, resolvesCall);
+        await this.activityService.log({
+            user_id: userId,
+            action: resolvesCall ? CallOutcomeAction.RESOLVES_CALL_ON : CallOutcomeAction.RESOLVES_CALL_OFF,
+            action_details: { label: outcome.label },
+        });
+        return outcome;
+    }
+
+    async getById(id: string): Promise<CallOutcome | null> {
+        return this.callOutcomeDAO.getById(id);
+    }
+
     async delete(id: string, userId?: string | null): Promise<CallOutcome> {
         const outcome = await this.callOutcomeDAO.delete(id);
         await this.activityService.log({

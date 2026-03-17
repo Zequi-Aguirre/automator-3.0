@@ -344,15 +344,15 @@ export default class LeadResource {
             }
         });
 
-        // TICKET-065: Log a call attempt and outcome
+        // TICKET-065/123: Log a call attempt and outcome
         this.router.post("/:leadId/execute-call", requirePermission(LeadPermission.CALL_EXECUTE), async (req: Request, res: Response) => {
             try {
                 const { leadId } = req.params;
-                const { outcome, notes } = req.body;
-                if (!outcome) {
-                    return res.status(400).send({ message: 'outcome is required' });
+                const { outcomeId, notes } = req.body;
+                if (!outcomeId) {
+                    return res.status(400).send({ message: 'outcomeId is required' });
                 }
-                const lead = await this.leadService.executeCall(leadId, outcome, notes ?? null, req.user.id);
+                const lead = await this.leadService.executeCall(leadId, outcomeId, notes ?? null, req.user.id);
                 return res.status(200).send(lead);
             } catch (error) {
                 console.error('Error executing call:', error);

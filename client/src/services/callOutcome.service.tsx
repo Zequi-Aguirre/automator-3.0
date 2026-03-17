@@ -5,6 +5,7 @@ export interface CallOutcome {
     label: string;
     active: boolean;
     comment_required: boolean;
+    resolves_call: boolean;
     sort_order: number;
     created: string;
 }
@@ -34,6 +35,11 @@ class CallOutcomeService {
 
     async setCommentRequired(id: string, comment_required: boolean): Promise<CallOutcome> {
         const res = await this.api.getApi().patch(`/api/call-outcomes/${id}/comment-required`, { comment_required });
+        return res.data;
+    }
+
+    async setResolvesCall(id: string, resolves_call: boolean): Promise<CallOutcome> {
+        const res = await this.api.getApi().patch(`/api/call-outcomes/${id}/resolves-call`, { resolves_call });
         return res.data;
     }
 
