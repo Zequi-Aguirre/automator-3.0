@@ -7,6 +7,8 @@ import {
     CardHeader,
     CircularProgress,
     Divider,
+    FormControl,
+    InputLabel,
     MenuItem,
     Stack,
     TextField,
@@ -27,6 +29,7 @@ import { LeadFormInput } from "../../../../types/leadFormInputTypes.ts";
 import { Lead } from "../../../../types/leadTypes";
 import leadFormInputService from "../../../../services/leadFormInput.service.tsx";
 import leadsService from "../../../../services/lead.service";
+import callRequestReasonService, { CallRequestReason } from "../../../../services/callRequestReason.service";
 import { usePermissions } from "../../../../hooks/usePermissions.ts";
 import { Permission } from "../../../../types/userTypes.ts";
 
@@ -58,6 +61,7 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     const canEdit = can(Permission.LEADS_EDIT) && !lead.verified;
     const canVerify = can(Permission.LEADS_VERIFY);
     const canQueue = can(Permission.LEADS_QUEUE);
+    const canRequestCall = can(Permission.LEADS_CALL_REQUEST);
     const [loading, setLoading] = useState(true);
     const [exists, setExists] = useState(false);
     const [form, setForm] = useState<LeadFormInput | null>(null);
@@ -68,6 +72,11 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
     const [askListedModalOpen, setAskListedModalOpen] = useState(false);
     const [confirmTrashModalOpen, setConfirmTrashModalOpen] = useState(false);
+    const [callDialogOpen, setCallDialogOpen] = useState(false);
+    const [callReason, setCallReason] = useState('');
+    const [callRequestNote, setCallRequestNote] = useState('');
+    const [callRequestReasons, setCallRequestReasons] = useState<CallRequestReason[]>([]);
+    const selectedReason = callRequestReasons.find(r => r.label === callReason) ?? null;
     const navigate = useNavigate();
     const isVerified = lead.verified;
     const isLocked = isVerified;
@@ -251,6 +260,40 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
             refreshActivity?.();
         } catch {
             setError("Failed to update queue");
+        }
+    };
+
+    const openCallRequestDialog = async () => {
+        setCallReason('');
+        setCallRequestNote('');
+        setCallDialogOpen(true);
+        try {
+            const reasons = await callRequestReasonService.getActive();
+            setCallRequestReasons(reasons);
+        } catch {
+            setCallRequestReasons([]);
+        }
+    };
+
+    const handleSubmitCallRequest = async () => {
+        if (!callReason) return;
+        try {
+            await leadsService.requestCall(lead.id, callReason, callRequestNote || undefined);
+            setCallDialogOpen(false);
+            await Promise.resolve(refreshLead());
+            refreshActivity?.();
+        } catch {
+            setError('Failed to request call');
+        }
+    };
+
+    const handleCancelCallRequest = async () => {
+        try {
+            await leadsService.cancelCallRequest(lead.id);
+            await Promise.resolve(refreshLead());
+            refreshActivity?.();
+        } catch {
+            setError('Failed to cancel call request');
         }
     };
 
@@ -550,7 +593,18 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                                             color={lead.queued ? "error" : "primary"}
                                             onClick={() => { void handleQueueToggle(); }}
                                         >
-                                            {lead.queued ? "Remove from Queue" : "Add to Queue"}
+                                            {lead.queued ? "Remove from Worker" : "Send via Worker"}
+                                        </Button>
+                                    )}
+                                    {canRequestCall && (
+                                        <Button
+                                            variant={lead.needs_call ? "contained" : "outlined"}
+                                            color={lead.needs_call ? "warning" : "warning"}
+                                            onClick={lead.needs_call
+                                                ? () => { void handleCancelCallRequest(); }
+                                                : () => { void openCallRequestDialog(); }}
+                                        >
+                                            {lead.needs_call ? "Cancel Call Request" : "Request Call"}
                                         </Button>
                                     )}
                                 </Stack>
@@ -569,7 +623,18 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                                             color={lead.queued ? "error" : "primary"}
                                             onClick={() => { void handleQueueToggle(); }}
                                         >
-                                            {lead.queued ? "Remove from Queue" : "Add to Queue"}
+                                            {lead.queued ? "Remove from Worker" : "Send via Worker"}
+                                        </Button>
+                                    )}
+                                    {canRequestCall && (
+                                        <Button
+                                            variant={lead.needs_call ? "contained" : "outlined"}
+                                            color={lead.needs_call ? "warning" : "warning"}
+                                            onClick={lead.needs_call
+                                                ? () => { void handleCancelCallRequest(); }
+                                                : () => { void openCallRequestDialog(); }}
+                                        >
+                                            {lead.needs_call ? "Cancel Call Request" : "Request Call"}
                                         </Button>
                                     )}
                                 </Stack>
@@ -604,6 +669,54 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                 <DialogActions>
                     <Button onClick={() => { setConfirmTrashModalOpen(false); }}>Cancel</Button>
                     <Button onClick={() => { void handleConfirmTrash(); }} color="error" variant="contained">Move to Trash</Button>
+                </DialogActions>
+            </Dialog>
+            {/* ── Request Call dialog ─────────────────────────────────────── */}
+            <Dialog open={callDialogOpen} onClose={() => { setCallDialogOpen(false); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Request a Call</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Select a reason why this lead needs a call. It will be moved to the "Needs Call" tab.
+                    </DialogContentText>
+                    <Stack spacing={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Reason</InputLabel>
+                            <Select
+                                label="Reason"
+                                value={callReason}
+                                onChange={(e) => { setCallReason(e.target.value); setCallRequestNote(''); }}
+                            >
+                                {callRequestReasons.map(r => (
+                                    <MenuItem key={r.id} value={r.label}>{r.label}</MenuItem>
+                                ))}
+                                {callRequestReasons.length === 0 && (
+                                    <MenuItem disabled value="">No reasons configured</MenuItem>
+                                )}
+                            </Select>
+                        </FormControl>
+                        {selectedReason && (
+                            <TextField
+                                label={selectedReason.comment_required ? 'Comment (required)' : 'Comment (optional)'}
+                                multiline
+                                rows={3}
+                                fullWidth
+                                size="small"
+                                value={callRequestNote}
+                                onChange={(e) => { setCallRequestNote(e.target.value); }}
+                            />
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setCallDialogOpen(false); }}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="warning"
+                        onClick={() => { void handleSubmitCallRequest(); }}
+                        disabled={!callReason || (!!selectedReason?.comment_required && !callRequestNote.trim())}
+                    >
+                        Request Call
+                    </Button>
                 </DialogActions>
             </Dialog>
         </>

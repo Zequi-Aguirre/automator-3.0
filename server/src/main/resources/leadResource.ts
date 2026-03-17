@@ -329,6 +329,21 @@ export default class LeadResource {
             }
         });
 
+        // TICKET-065: Cancel a pending call request
+        this.router.post("/:leadId/cancel-call-request", requirePermission(LeadPermission.CALL_REQUEST), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const lead = await this.leadService.cancelCallRequest(leadId, req.user.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                console.error('Error cancelling call request:', error);
+                return res.status(500).send({
+                    message: 'Failed to cancel call request',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // TICKET-065: Log a call attempt and outcome
         this.router.post("/:leadId/execute-call", requirePermission(LeadPermission.CALL_EXECUTE), async (req: Request, res: Response) => {
             try {

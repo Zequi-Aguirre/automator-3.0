@@ -9,6 +9,10 @@ export enum LeadAction {
     QUEUED = 'lead_queued',
     AUTO_QUEUED = 'lead_auto_queued',
     UNQUEUED = 'lead_unqueued',
+    CALL_REQUESTED = 'lead_call_requested',
+    CALL_REQUEST_CANCELLED = 'lead_call_request_cancelled',
+    CALL_EXECUTED = 'lead_call_executed',
+    CALL_RESOLVED = 'lead_call_resolved',
 }
 
 export enum VerificationAction {
@@ -125,9 +129,13 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [LeadAction.TRASHED]: 'Lead Trashed',
     [LeadAction.DOWNLOADED]: 'Lead Downloaded',
     [LeadAction.SENT]: 'Lead Sent',
-    [LeadAction.QUEUED]: 'Lead Queued',
-    [LeadAction.AUTO_QUEUED]: 'Lead Auto-Queued on Verify',
-    [LeadAction.UNQUEUED]: 'Lead Unqueued',
+    [LeadAction.QUEUED]: 'Lead Sent to Worker',
+    [LeadAction.AUTO_QUEUED]: 'Lead Auto-Sent to Worker on Verify',
+    [LeadAction.UNQUEUED]: 'Lead Removed from Worker',
+    [LeadAction.CALL_REQUESTED]: 'Call Requested',
+    [LeadAction.CALL_REQUEST_CANCELLED]: 'Call Request Cancelled',
+    [LeadAction.CALL_EXECUTED]: 'Call Logged',
+    [LeadAction.CALL_RESOLVED]: 'Call Resolved',
 
     // Verification
     [VerificationAction.STARTED]: 'Verification Started',

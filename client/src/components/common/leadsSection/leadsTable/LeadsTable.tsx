@@ -111,11 +111,11 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
             if (lead.queued) {
                 const updated = await leadsService.unqueueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-                showNotification("Lead removed from queue", "success");
+                showNotification("Lead removed from worker", "success");
             } else {
                 const updated = await leadsService.queueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-                showNotification("Lead queued for worker", "success");
+                showNotification("Lead sent to worker", "success");
             }
         } catch {
             showNotification("Failed to update queue", "error");
@@ -385,13 +385,13 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         </Tooltip>
                         <Tooltip title={
                             !canQueue
-                                ? "You don't have permission to queue leads"
-                                : lead.queued ? "Click to remove from queue" : "Click to queue for worker"
+                                ? "You don't have permission to send via worker"
+                                : lead.queued ? "Remove from Worker" : "Send via Worker"
                         }>
                             <span>
                                 <Chip
                                     icon={lead.queued ? <StopIcon /> : <PlayArrowIcon />}
-                                    label={lead.queued ? "Queued" : "Queue"}
+                                    label={lead.queued ? "In Worker" : "Worker"}
                                     color={lead.queued ? "success" : "default"}
                                     variant={lead.queued ? "filled" : "outlined"}
                                     size="small"
