@@ -454,9 +454,11 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                 return (
                     <Stack spacing={0.5} onClick={(e) => { e.stopPropagation(); }}>
                         {lead.call_reason && (
-                            <Typography variant="caption" color="text.secondary">
-                                <strong>Reason:</strong> {lead.call_reason}
-                            </Typography>
+                            <Tooltip title={lead.call_request_note ?? ""} disableHoverListener={!lead.call_request_note}>
+                                <Typography variant="caption" color="text.secondary" sx={{ cursor: lead.call_request_note ? "help" : "default" }}>
+                                    <strong>Reason:</strong> {lead.call_reason}
+                                </Typography>
+                            </Tooltip>
                         )}
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Chip
