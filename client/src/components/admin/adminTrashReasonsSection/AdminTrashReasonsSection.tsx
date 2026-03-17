@@ -25,6 +25,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Add, ToggleOff, ToggleOn } from '@mui/icons-material';
+import Checkbox from '@mui/material/Checkbox';
 import trashReasonService, { TrashReason } from '../../../services/trashReason.service';
 
 interface Props {
@@ -69,6 +70,15 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
         }
     };
 
+    const handleToggleCommentRequired = async (reason: TrashReason) => {
+        try {
+            const updated = await trashReasonService.setCommentRequired(reason.id, !reason.comment_required);
+            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
+        } catch {
+            setSnack({ message: 'Failed to update comment setting', severity: 'error' });
+        }
+    };
+
     const handleToggleActive = async (reason: TrashReason) => {
         try {
             const updated = await trashReasonService.setActive(reason.id, !reason.active);
@@ -110,13 +120,18 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
                             <TableRow>
                                 <TableCell>Label</TableCell>
                                 <TableCell>Status</TableCell>
+                                <TableCell>
+                                    <Tooltip title="When checked, agents must enter a comment when selecting this reason">
+                                        <span>Comment Required</span>
+                                    </Tooltip>
+                                </TableCell>
                                 <TableCell align="right">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {reasons.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                                         No reasons yet. Add one above.
                                     </TableCell>
                                 </TableRow>
@@ -135,6 +150,16 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
                                             color={reason.active ? 'success' : 'default'}
                                             variant="outlined"
                                         />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Tooltip title={reason.comment_required ? 'Comment mandatory — click to make optional' : 'Comment optional — click to make mandatory'}>
+                                            <Checkbox
+                                                size="small"
+                                                checked={reason.comment_required}
+                                                onChange={() => { void handleToggleCommentRequired(reason); }}
+                                                sx={{ p: 0.5 }}
+                                            />
+                                        </Tooltip>
                                     </TableCell>
                                     <TableCell align="right">
                                         <Tooltip title={reason.active ? 'Deactivate' : 'Activate'}>

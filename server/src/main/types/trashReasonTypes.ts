@@ -2,6 +2,7 @@ export type TrashReason = {
     id: string;
     label: string;
     active: boolean;
+    comment_required: boolean;
     sort_order: number;
     created: string;
 };

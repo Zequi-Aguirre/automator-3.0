@@ -68,6 +68,8 @@ export enum TrashReasonAction {
     CREATED = 'trash_reason_created',
     ACTIVATED = 'trash_reason_activated',
     DEACTIVATED = 'trash_reason_deactivated',
+    COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
 }
 
 export enum CallRequestReasonAction {
@@ -181,6 +183,8 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [TrashReasonAction.CREATED]: 'Trash Reason Created',
     [TrashReasonAction.ACTIVATED]: 'Trash Reason Activated',
     [TrashReasonAction.DEACTIVATED]: 'Trash Reason Deactivated',
+    [TrashReasonAction.COMMENT_REQUIRED_ON]: 'Trash Reason — Comment Made Mandatory',
+    [TrashReasonAction.COMMENT_REQUIRED_OFF]: 'Trash Reason — Comment Made Optional',
 
     // Call request reasons
     [CallRequestReasonAction.CREATED]: 'Call Request Reason Created',
