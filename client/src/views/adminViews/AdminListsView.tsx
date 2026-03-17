@@ -9,8 +9,8 @@ import AdminCallOutcomesSection from "../../components/admin/adminCallOutcomesSe
 
 export default function AdminListsView() {
     const { can } = usePermissions();
-    const [callRequestCount, setCallRequestCount] = useState<number | null>(null);
     const [trashCount, setTrashCount] = useState<number | null>(null);
+    const [callRequestCount, setCallRequestCount] = useState<number | null>(null);
     const [callOutcomeCount, setCallOutcomeCount] = useState<number | null>(null);
 
     return (
@@ -18,22 +18,6 @@ export default function AdminListsView() {
             <Typography variant="h5" fontWeight={700} mb={3}>
                 Managed Lists
             </Typography>
-
-            {can(Permission.CALL_REQUEST_REASONS_MANAGE) && (
-                <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Stack direction="row" alignItems="center" gap={1.5}>
-                            <Typography fontWeight={600}>Call Request Reasons</Typography>
-                            {callRequestCount !== null && (
-                                <Chip label={callRequestCount} size="small" variant="outlined" />
-                            )}
-                        </Stack>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                        <AdminCallRequestReasonsSection embedded onCountChange={setCallRequestCount} />
-                    </AccordionDetails>
-                </Accordion>
-            )}
 
             {can(Permission.TRASH_REASONS_MANAGE) && (
                 <Accordion>
@@ -47,6 +31,22 @@ export default function AdminListsView() {
                     </AccordionSummary>
                     <AccordionDetails>
                         <AdminTrashReasonsSection embedded onCountChange={setTrashCount} />
+                    </AccordionDetails>
+                </Accordion>
+            )}
+
+            {can(Permission.CALL_REQUEST_REASONS_MANAGE) && (
+                <Accordion>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Stack direction="row" alignItems="center" gap={1.5}>
+                            <Typography fontWeight={600}>Call Request Reasons</Typography>
+                            {callRequestCount !== null && (
+                                <Chip label={callRequestCount} size="small" variant="outlined" />
+                            )}
+                        </Stack>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <AdminCallRequestReasonsSection embedded onCountChange={setCallRequestCount} />
                     </AccordionDetails>
                 </Accordion>
             )}
