@@ -4,6 +4,7 @@ export interface CallRequestReason {
     id: string;
     label: string;
     active: boolean;
+    comment_required: boolean;
     sort_order: number;
     created: string;
 }
@@ -28,6 +29,11 @@ class CallRequestReasonService {
 
     async setActive(id: string, active: boolean): Promise<CallRequestReason> {
         const res = await this.api.getApi().patch(`/api/call-request-reasons/${id}/active`, { active });
+        return res.data;
+    }
+
+    async setCommentRequired(id: string, comment_required: boolean): Promise<CallRequestReason> {
+        const res = await this.api.getApi().patch(`/api/call-request-reasons/${id}/comment-required`, { comment_required });
         return res.data;
     }
 }

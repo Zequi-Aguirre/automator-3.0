@@ -41,4 +41,14 @@ export default class CallRequestReasonService {
         });
         return reason;
     }
+
+    async setCommentRequired(id: string, commentRequired: boolean, userId?: string | null): Promise<CallRequestReason> {
+        const reason = await this.callRequestReasonDAO.setCommentRequired(id, commentRequired);
+        await this.activityService.log({
+            user_id: userId,
+            action: commentRequired ? CallRequestReasonAction.COMMENT_REQUIRED_ON : CallRequestReasonAction.COMMENT_REQUIRED_OFF,
+            action_details: { label: reason.label },
+        });
+        return reason;
+    }
 }

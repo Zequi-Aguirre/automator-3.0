@@ -42,4 +42,13 @@ export default class CallRequestReasonDAO {
             RETURNING *;
         `, { id, active });
     }
+
+    async setCommentRequired(id: string, commentRequired: boolean): Promise<CallRequestReason> {
+        return this.db.one<CallRequestReason>(`
+            UPDATE call_request_reasons
+            SET comment_required = $[commentRequired]
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id, commentRequired });
+    }
 }

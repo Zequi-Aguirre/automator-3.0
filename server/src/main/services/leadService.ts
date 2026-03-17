@@ -522,13 +522,13 @@ export default class LeadService {
     /**
      * TICKET-065: Flag a lead as needing a phone call.
      */
-    async requestCall(leadId: string, reason: string, userId: string): Promise<Lead> {
-        const lead = await this.leadDAO.requestCall(leadId, reason, userId);
+    async requestCall(leadId: string, reason: string, userId: string, note?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.requestCall(leadId, reason, userId, note);
         await this.activityService.log({
             user_id: userId,
             lead_id: leadId,
             action: LeadAction.CALL_REQUESTED,
-            action_details: { reason }
+            action_details: { reason, ...(note ? { note } : {}) }
         });
         return lead;
     }

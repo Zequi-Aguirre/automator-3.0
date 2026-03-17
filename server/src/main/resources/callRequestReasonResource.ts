@@ -59,6 +59,20 @@ export default class CallRequestReasonResource {
                 res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
             }
         });
+
+        // PATCH /api/call-request-reasons/:id/comment-required — toggle comment required
+        this.router.patch('/:id/comment-required', requirePermission(CallRequestReasonPermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { comment_required } = req.body;
+                if (typeof comment_required !== 'boolean') {
+                    return res.status(400).json({ error: 'comment_required must be a boolean' });
+                }
+                const reason = await this.callRequestReasonService.setCommentRequired(req.params.id, comment_required, req.user?.id);
+                res.status(200).json(reason);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
     }
 
     public routes(): Router {
