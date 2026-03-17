@@ -1,4 +1,4 @@
-CREATE TABLE call_outcomes (
+CREATE TABLE IF NOT EXISTS call_outcomes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     label VARCHAR NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -6,7 +6,7 @@ CREATE TABLE call_outcomes (
     created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX call_outcomes_label_key ON call_outcomes (label);
+CREATE UNIQUE INDEX IF NOT EXISTS call_outcomes_label_key ON call_outcomes (label);
 
 INSERT INTO call_outcomes (label, sort_order) VALUES
     ('Resolved',          10),
@@ -15,4 +15,5 @@ INSERT INTO call_outcomes (label, sort_order) VALUES
     ('Wrong number',      40),
     ('Scheduled callback',50),
     ('Not interested',    60),
-    ('Other',             70);
+    ('Other',             70)
+ON CONFLICT (label) DO NOTHING;
