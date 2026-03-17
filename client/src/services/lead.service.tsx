@@ -165,7 +165,13 @@ class LeadService {
 
     // TICKET-065: Request a call for a lead
     async requestCall(leadId: string, reason: string, note?: string): Promise<Lead> {
-        const response = await this.api.getApi().post(`/api/leads/${leadId}/request-call`, { reason, note: note || undefined });
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/request-call`, { reason, note: note ?? undefined });
+        return response.data;
+    }
+
+    // TICKET-065: Cancel a pending call request
+    async cancelCallRequest(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/cancel-call-request`);
         return response.data;
     }
 

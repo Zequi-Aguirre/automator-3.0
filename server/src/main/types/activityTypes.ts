@@ -23,6 +23,7 @@ export enum LeadAction {
     NEEDS_REVIEW_RESOLVED = 'lead_needs_review_resolved',
     // TICKET-065: Call tracking
     CALL_REQUESTED = 'lead_call_requested',
+    CALL_REQUEST_CANCELLED = 'lead_call_request_cancelled',
     CALL_EXECUTED = 'lead_call_executed',
     CALL_RESOLVED = 'lead_call_resolved',
 }

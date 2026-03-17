@@ -533,6 +533,16 @@ export default class LeadService {
         return lead;
     }
 
+    async cancelCallRequest(leadId: string, userId: string): Promise<Lead> {
+        const lead = await this.leadDAO.cancelCallRequest(leadId);
+        await this.activityService.log({
+            user_id: userId,
+            lead_id: leadId,
+            action: LeadAction.CALL_REQUEST_CANCELLED,
+        });
+        return lead;
+    }
+
     /**
      * TICKET-065: Log a call attempt and its outcome.
      * If outcome is 'resolved', the needs_call flag is cleared.
