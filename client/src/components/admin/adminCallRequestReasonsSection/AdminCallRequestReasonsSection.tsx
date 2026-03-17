@@ -30,9 +30,10 @@ import callRequestReasonService, { CallRequestReason } from '../../../services/c
 
 interface Props {
     embedded?: boolean;
+    onCountChange?: (count: number) => void;
 }
 
-const AdminCallRequestReasonsSection = ({ embedded = false }: Props) => {
+const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Props) => {
     const [reasons, setReasons] = useState<CallRequestReason[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,6 +56,7 @@ const AdminCallRequestReasonsSection = ({ embedded = false }: Props) => {
     };
 
     useEffect(() => { void load(); }, []);
+    useEffect(() => { onCountChange?.(reasons.length); }, [reasons.length]);
 
     const handleCreate = async () => {
         if (!newLabel.trim()) return;

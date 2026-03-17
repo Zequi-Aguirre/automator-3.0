@@ -30,9 +30,10 @@ import callOutcomeService, { CallOutcome } from '../../../services/callOutcome.s
 
 interface Props {
     embedded?: boolean;
+    onCountChange?: (count: number) => void;
 }
 
-const AdminCallOutcomesSection = ({ embedded = false }: Props) => {
+const AdminCallOutcomesSection = ({ embedded = false, onCountChange }: Props) => {
     const [outcomes, setOutcomes] = useState<CallOutcome[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,6 +56,7 @@ const AdminCallOutcomesSection = ({ embedded = false }: Props) => {
     };
 
     useEffect(() => { void load(); }, []);
+    useEffect(() => { onCountChange?.(outcomes.length); }, [outcomes.length]);
 
     const handleCreate = async () => {
         if (!newLabel.trim()) return;

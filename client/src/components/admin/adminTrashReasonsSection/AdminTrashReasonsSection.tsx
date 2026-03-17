@@ -30,9 +30,10 @@ import trashReasonService, { TrashReason } from '../../../services/trashReason.s
 
 interface Props {
     embedded?: boolean;
+    onCountChange?: (count: number) => void;
 }
 
-const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
+const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) => {
     const [reasons, setReasons] = useState<TrashReason[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,6 +56,7 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
     };
 
     useEffect(() => { void load(); }, []);
+    useEffect(() => { onCountChange?.(reasons.length); }, [reasons.length]);
 
     const handleCreate = async () => {
         if (!newLabel.trim()) return;

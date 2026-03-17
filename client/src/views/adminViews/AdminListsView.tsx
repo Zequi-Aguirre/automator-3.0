@@ -1,4 +1,5 @@
-import { Accordion, AccordionDetails, AccordionSummary, Container, Typography } from "@mui/material";
+import { useState } from "react";
+import { Accordion, AccordionDetails, AccordionSummary, Chip, Container, Stack, Typography } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 import { usePermissions } from "../../hooks/usePermissions";
 import { Permission } from "../../types/userTypes";
@@ -8,6 +9,9 @@ import AdminCallOutcomesSection from "../../components/admin/adminCallOutcomesSe
 
 export default function AdminListsView() {
     const { can } = usePermissions();
+    const [callRequestCount, setCallRequestCount] = useState<number | null>(null);
+    const [trashCount, setTrashCount] = useState<number | null>(null);
+    const [callOutcomeCount, setCallOutcomeCount] = useState<number | null>(null);
 
     return (
         <Container maxWidth="md" sx={{ py: 3 }}>
@@ -16,34 +20,49 @@ export default function AdminListsView() {
             </Typography>
 
             {can(Permission.CALL_REQUEST_REASONS_MANAGE) && (
-                <Accordion defaultExpanded>
+                <Accordion>
                     <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography fontWeight={600}>Call Request Reasons</Typography>
+                        <Stack direction="row" alignItems="center" gap={1.5}>
+                            <Typography fontWeight={600}>Call Request Reasons</Typography>
+                            {callRequestCount !== null && (
+                                <Chip label={callRequestCount} size="small" variant="outlined" />
+                            )}
+                        </Stack>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <AdminCallRequestReasonsSection embedded />
+                        <AdminCallRequestReasonsSection embedded onCountChange={setCallRequestCount} />
                     </AccordionDetails>
                 </Accordion>
             )}
 
             {can(Permission.TRASH_REASONS_MANAGE) && (
-                <Accordion defaultExpanded>
+                <Accordion>
                     <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography fontWeight={600}>Trash Reasons</Typography>
+                        <Stack direction="row" alignItems="center" gap={1.5}>
+                            <Typography fontWeight={600}>Trash Reasons</Typography>
+                            {trashCount !== null && (
+                                <Chip label={trashCount} size="small" variant="outlined" />
+                            )}
+                        </Stack>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <AdminTrashReasonsSection embedded />
+                        <AdminTrashReasonsSection embedded onCountChange={setTrashCount} />
                     </AccordionDetails>
                 </Accordion>
             )}
 
             {can(Permission.CALL_OUTCOMES_MANAGE) && (
-                <Accordion defaultExpanded>
+                <Accordion>
                     <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography fontWeight={600}>Call Outcomes</Typography>
+                        <Stack direction="row" alignItems="center" gap={1.5}>
+                            <Typography fontWeight={600}>Call Outcomes</Typography>
+                            {callOutcomeCount !== null && (
+                                <Chip label={callOutcomeCount} size="small" variant="outlined" />
+                            )}
+                        </Stack>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <AdminCallOutcomesSection embedded />
+                        <AdminCallOutcomesSection embedded onCountChange={setCallOutcomeCount} />
                     </AccordionDetails>
                 </Accordion>
             )}
