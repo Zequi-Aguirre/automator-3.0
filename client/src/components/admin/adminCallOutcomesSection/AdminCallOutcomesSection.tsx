@@ -26,51 +26,70 @@ import {
 } from '@mui/material';
 import { Add, DeleteOutline, ToggleOff, ToggleOn } from '@mui/icons-material';
 import Checkbox from '@mui/material/Checkbox';
-import trashReasonService, { TrashReason } from '../../../services/trashReason.service';
+import callOutcomeService, { CallOutcome } from '../../../services/callOutcome.service';
 
 interface Props {
     embedded?: boolean;
     onCountChange?: (count: number) => void;
 }
 
-const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) => {
-    const [reasons, setReasons] = useState<TrashReason[]>([]);
+const AdminCallOutcomesSection = ({ embedded = false, onCountChange }: Props) => {
+    const [outcomes, setOutcomes] = useState<CallOutcome[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newLabel, setNewLabel] = useState('');
     const [saving, setSaving] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<TrashReason | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<CallOutcome | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [snack, setSnack] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
     const load = async () => {
         setLoading(true);
         try {
-            const data = await trashReasonService.getAll();
-            setReasons(data);
+            const data = await callOutcomeService.getAll();
+            setOutcomes(data);
         } catch {
-            setSnack({ message: 'Failed to load reasons', severity: 'error' });
+            setSnack({ message: 'Failed to load outcomes', severity: 'error' });
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => { void load(); }, []);
-    useEffect(() => { onCountChange?.(reasons.length); }, [reasons.length]);
+    useEffect(() => { onCountChange?.(outcomes.length); }, [outcomes.length]);
 
     const handleCreate = async () => {
         if (!newLabel.trim()) return;
         setSaving(true);
         try {
-            const created = await trashReasonService.create(newLabel.trim());
-            setReasons(prev => [...prev, created]);
+            const created = await callOutcomeService.create(newLabel.trim());
+            setOutcomes(prev => [...prev, created]);
             setDialogOpen(false);
             setNewLabel('');
-            setSnack({ message: 'Reason created', severity: 'success' });
+            setSnack({ message: 'Outcome created', severity: 'success' });
         } catch {
-            setSnack({ message: 'Failed to create reason', severity: 'error' });
+            setSnack({ message: 'Failed to create outcome', severity: 'error' });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleToggleActive = async (outcome: CallOutcome) => {
+        try {
+            const updated = await callOutcomeService.setActive(outcome.id, !outcome.active);
+            setOutcomes(prev => prev.map(o => o.id === updated.id ? updated : o));
+            setSnack({ message: `Outcome ${updated.active ? 'activated' : 'deactivated'}`, severity: 'success' });
+        } catch {
+            setSnack({ message: 'Failed to update outcome', severity: 'error' });
+        }
+    };
+
+    const handleToggleCommentRequired = async (outcome: CallOutcome) => {
+        try {
+            const updated = await callOutcomeService.setCommentRequired(outcome.id, !outcome.comment_required);
+            setOutcomes(prev => prev.map(o => o.id === updated.id ? updated : o));
+        } catch {
+            setSnack({ message: 'Failed to update comment setting', severity: 'error' });
         }
     };
 
@@ -78,33 +97,14 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
         if (!deleteTarget) return;
         setDeleting(true);
         try {
-            await trashReasonService.delete(deleteTarget.id);
-            setReasons(prev => prev.filter(r => r.id !== deleteTarget.id));
-            setSnack({ message: 'Reason deleted', severity: 'success' });
+            await callOutcomeService.delete(deleteTarget.id);
+            setOutcomes(prev => prev.filter(o => o.id !== deleteTarget.id));
+            setSnack({ message: 'Outcome deleted', severity: 'success' });
         } catch {
-            setSnack({ message: 'Failed to delete reason', severity: 'error' });
+            setSnack({ message: 'Failed to delete outcome', severity: 'error' });
         } finally {
             setDeleting(false);
             setDeleteTarget(null);
-        }
-    };
-
-    const handleToggleCommentRequired = async (reason: TrashReason) => {
-        try {
-            const updated = await trashReasonService.setCommentRequired(reason.id, !reason.comment_required);
-            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
-        } catch {
-            setSnack({ message: 'Failed to update comment setting', severity: 'error' });
-        }
-    };
-
-    const handleToggleActive = async (reason: TrashReason) => {
-        try {
-            const updated = await trashReasonService.setActive(reason.id, !reason.active);
-            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
-            setSnack({ message: `Reason ${updated.active ? 'activated' : 'deactivated'}`, severity: 'success' });
-        } catch {
-            setSnack({ message: 'Failed to update reason', severity: 'error' });
         }
     };
 
@@ -113,9 +113,9 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                 {!embedded && (
                     <Box>
-                        <Typography variant="h6" fontWeight={600}>Trash Reasons</Typography>
+                        <Typography variant="h6" fontWeight={600}>Call Outcomes</Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Reasons available when trashing a lead.
+                            Outcomes available when logging a call result.
                         </Typography>
                     </Box>
                 )}
@@ -125,7 +125,7 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
                     onClick={() => { setDialogOpen(true); }}
                     size="small"
                 >
-                    Add Reason
+                    Add Outcome
                 </Button>
             </Stack>
 
@@ -142,7 +142,7 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
                                 <TableCell>Label</TableCell>
                                 <TableCell>Status</TableCell>
                                 <TableCell>
-                                    <Tooltip title="When checked, agents must enter a comment when selecting this reason">
+                                    <Tooltip title="When checked, agents must enter a comment when selecting this outcome">
                                         <span>Comment Required</span>
                                     </Tooltip>
                                 </TableCell>
@@ -150,53 +150,53 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {reasons.length === 0 && (
+                            {outcomes.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                        No reasons yet. Add one above.
+                                        No outcomes yet. Add one above.
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {reasons.map(reason => (
-                                <TableRow key={reason.id} hover>
+                            {outcomes.map(outcome => (
+                                <TableRow key={outcome.id} hover>
                                     <TableCell>
-                                        <Typography variant="body2" sx={{ opacity: reason.active ? 1 : 0.45 }}>
-                                            {reason.label}
+                                        <Typography variant="body2" sx={{ opacity: outcome.active ? 1 : 0.45 }}>
+                                            {outcome.label}
                                         </Typography>
                                     </TableCell>
                                     <TableCell>
                                         <Chip
-                                            label={reason.active ? 'Active' : 'Inactive'}
+                                            label={outcome.active ? 'Active' : 'Inactive'}
                                             size="small"
-                                            color={reason.active ? 'success' : 'default'}
+                                            color={outcome.active ? 'success' : 'default'}
                                             variant="outlined"
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Tooltip title={reason.comment_required ? 'Comment mandatory — click to make optional' : 'Comment optional — click to make mandatory'}>
+                                        <Tooltip title={outcome.comment_required ? 'Comment mandatory — click to make optional' : 'Comment optional — click to make mandatory'}>
                                             <Checkbox
                                                 size="small"
-                                                checked={reason.comment_required}
-                                                onChange={() => { void handleToggleCommentRequired(reason); }}
+                                                checked={outcome.comment_required}
+                                                onChange={() => { void handleToggleCommentRequired(outcome); }}
                                                 sx={{ p: 0.5 }}
                                             />
                                         </Tooltip>
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" justifyContent="flex-end">
-                                            <Tooltip title={reason.active ? 'Deactivate' : 'Activate'}>
+                                            <Tooltip title={outcome.active ? 'Deactivate' : 'Activate'}>
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => { void handleToggleActive(reason); }}
-                                                    color={reason.active ? 'success' : 'default'}
+                                                    onClick={() => { void handleToggleActive(outcome); }}
+                                                    color={outcome.active ? 'success' : 'default'}
                                                 >
-                                                    {reason.active ? <ToggleOn /> : <ToggleOff />}
+                                                    {outcome.active ? <ToggleOn /> : <ToggleOff />}
                                                 </IconButton>
                                             </Tooltip>
                                             <Tooltip title="Delete permanently">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => { setDeleteTarget(reason); }}
+                                                    onClick={() => { setDeleteTarget(outcome); }}
                                                     color="error"
                                                 >
                                                     <DeleteOutline />
@@ -213,7 +213,7 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
 
             {/* Delete confirmation dialog */}
             <Dialog open={!!deleteTarget} onClose={() => { setDeleteTarget(null); }} maxWidth="xs" fullWidth>
-                <DialogTitle>Delete Reason</DialogTitle>
+                <DialogTitle>Delete Outcome</DialogTitle>
                 <DialogContent>
                     <Typography>
                         Are you sure you want to permanently delete <strong>"{deleteTarget?.label}"</strong>? This cannot be undone.
@@ -232,8 +232,9 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
                 </DialogActions>
             </Dialog>
 
+            {/* Create dialog */}
             <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); setNewLabel(''); }} maxWidth="xs" fullWidth>
-                <DialogTitle>Add Trash Reason</DialogTitle>
+                <DialogTitle>Add Call Outcome</DialogTitle>
                 <DialogContent>
                     <TextField
                         label="Label"
@@ -274,4 +275,4 @@ const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) =>
     return embedded ? inner : <Container maxWidth="md" sx={{ py: 3 }}>{inner}</Container>;
 };
 
-export default AdminTrashReasonsSection;
+export default AdminCallOutcomesSection;

@@ -94,6 +94,15 @@ export enum TrashReasonAction {
     DELETED = 'trash_reason_deleted',
 }
 
+export enum CallOutcomeAction {
+    CREATED = 'call_outcome_created',
+    ACTIVATED = 'call_outcome_activated',
+    DEACTIVATED = 'call_outcome_deactivated',
+    COMMENT_REQUIRED_ON = 'call_outcome_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'call_outcome_comment_required_off',
+    DELETED = 'call_outcome_deleted',
+}
+
 export enum CallRequestReasonAction {
     CREATED = 'call_request_reason_created',
     ACTIVATED = 'call_request_reason_activated',
@@ -126,6 +135,7 @@ export type ActivityAction =
     | AuthAction
     | UserAction
     | TrashReasonAction
+    | CallOutcomeAction
     | CallRequestReasonAction
     | DisputeAction
     | RoleAction;

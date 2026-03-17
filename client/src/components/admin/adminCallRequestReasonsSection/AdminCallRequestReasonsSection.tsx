@@ -30,9 +30,10 @@ import callRequestReasonService, { CallRequestReason } from '../../../services/c
 
 interface Props {
     embedded?: boolean;
+    onCountChange?: (count: number) => void;
 }
 
-const AdminCallRequestReasonsSection = ({ embedded = false }: Props) => {
+const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Props) => {
     const [reasons, setReasons] = useState<CallRequestReason[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,6 +56,7 @@ const AdminCallRequestReasonsSection = ({ embedded = false }: Props) => {
     };
 
     useEffect(() => { void load(); }, []);
+    useEffect(() => { onCountChange?.(reasons.length); }, [reasons.length]);
 
     const handleCreate = async () => {
         if (!newLabel.trim()) return;
@@ -109,12 +111,14 @@ const AdminCallRequestReasonsSection = ({ embedded = false }: Props) => {
     const inner = (
         <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Box>
-                    <Typography variant="h6" fontWeight={600}>Call Request Reasons</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Reasons available when flagging a lead for a callback.
-                    </Typography>
-                </Box>
+                {!embedded && (
+                    <Box>
+                        <Typography variant="h6" fontWeight={600}>Call Request Reasons</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Reasons available when flagging a lead for a callback.
+                        </Typography>
+                    </Box>
+                )}
                 <Button
                     variant="contained"
                     startIcon={<Add />}
