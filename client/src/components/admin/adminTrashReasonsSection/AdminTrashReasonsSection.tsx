@@ -109,12 +109,14 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
     const inner = (
         <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Box>
-                    <Typography variant="h6" fontWeight={600}>Trash Reasons</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Reasons available when trashing a lead.
-                    </Typography>
-                </Box>
+                {!embedded && (
+                    <Box>
+                        <Typography variant="h6" fontWeight={600}>Trash Reasons</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Reasons available when trashing a lead.
+                        </Typography>
+                    </Box>
+                )}
                 <Button
                     variant="contained"
                     startIcon={<Add />}

@@ -109,12 +109,14 @@ const AdminCallOutcomesSection = ({ embedded = false }: Props) => {
     const inner = (
         <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Box>
-                    <Typography variant="h6" fontWeight={600}>Call Outcomes</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Outcomes available when logging a call result.
-                    </Typography>
-                </Box>
+                {!embedded && (
+                    <Box>
+                        <Typography variant="h6" fontWeight={600}>Call Outcomes</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Outcomes available when logging a call result.
+                        </Typography>
+                    </Box>
+                )}
                 <Button
                     variant="contained"
                     startIcon={<Add />}

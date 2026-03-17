@@ -1,4 +1,5 @@
-import { Container, Divider, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Container, Typography } from "@mui/material";
+import { ExpandMore } from "@mui/icons-material";
 import { usePermissions } from "../../hooks/usePermissions";
 import { Permission } from "../../types/userTypes";
 import AdminCallRequestReasonsSection from "../../components/admin/adminCallRequestReasonsSection/AdminCallRequestReasonsSection";
@@ -15,24 +16,36 @@ export default function AdminListsView() {
             </Typography>
 
             {can(Permission.CALL_REQUEST_REASONS_MANAGE) && (
-                <>
-                    <AdminCallRequestReasonsSection embedded />
-                    <Divider sx={{ my: 4 }} />
-                </>
+                <Accordion defaultExpanded>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography fontWeight={600}>Call Request Reasons</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <AdminCallRequestReasonsSection embedded />
+                    </AccordionDetails>
+                </Accordion>
             )}
 
             {can(Permission.TRASH_REASONS_MANAGE) && (
-                <>
-                    <AdminTrashReasonsSection embedded />
-                    <Divider sx={{ my: 4 }} />
-                </>
+                <Accordion defaultExpanded>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography fontWeight={600}>Trash Reasons</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <AdminTrashReasonsSection embedded />
+                    </AccordionDetails>
+                </Accordion>
             )}
 
             {can(Permission.CALL_OUTCOMES_MANAGE) && (
-                <>
-                    <AdminCallOutcomesSection embedded />
-                    <Divider sx={{ my: 4 }} />
-                </>
+                <Accordion defaultExpanded>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography fontWeight={600}>Call Outcomes</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <AdminCallOutcomesSection embedded />
+                    </AccordionDetails>
+                </Accordion>
             )}
         </Container>
     );
