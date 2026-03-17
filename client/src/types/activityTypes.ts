@@ -70,6 +70,7 @@ export enum TrashReasonAction {
     DEACTIVATED = 'trash_reason_deactivated',
     COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
+    DELETED = 'trash_reason_deleted',
 }
 
 export enum CallRequestReasonAction {
@@ -185,6 +186,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [TrashReasonAction.DEACTIVATED]: 'Trash Reason Deactivated',
     [TrashReasonAction.COMMENT_REQUIRED_ON]: 'Trash Reason — Comment Made Mandatory',
     [TrashReasonAction.COMMENT_REQUIRED_OFF]: 'Trash Reason — Comment Made Optional',
+    [TrashReasonAction.DELETED]: 'Trash Reason Deleted',
 
     // Call request reasons
     [CallRequestReasonAction.CREATED]: 'Call Request Reason Created',

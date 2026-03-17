@@ -36,6 +36,11 @@ class TrashReasonService {
         const res = await this.api.getApi().patch(`/api/trash-reasons/${id}/comment-required`, { comment_required });
         return res.data;
     }
+
+    async delete(id: string): Promise<TrashReason> {
+        const res = await this.api.getApi().delete(`/api/trash-reasons/${id}`);
+        return res.data;
+    }
 }
 
 const trashReasonService = new TrashReasonService(authProvider);

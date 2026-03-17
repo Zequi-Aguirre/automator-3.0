@@ -51,4 +51,12 @@ export default class TrashReasonDAO {
             RETURNING *;
         `, { id, commentRequired });
     }
+
+    async delete(id: string): Promise<TrashReason> {
+        return this.db.one<TrashReason>(`
+            DELETE FROM trash_reasons
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id });
+    }
 }

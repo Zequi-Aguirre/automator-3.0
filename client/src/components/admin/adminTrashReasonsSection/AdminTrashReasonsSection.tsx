@@ -24,7 +24,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { Add, ToggleOff, ToggleOn } from '@mui/icons-material';
+import { Add, DeleteOutline, ToggleOff, ToggleOn } from '@mui/icons-material';
 import Checkbox from '@mui/material/Checkbox';
 import trashReasonService, { TrashReason } from '../../../services/trashReason.service';
 
@@ -38,6 +38,8 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newLabel, setNewLabel] = useState('');
     const [saving, setSaving] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<TrashReason | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const [snack, setSnack] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
     const load = async () => {
@@ -67,6 +69,21 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
             setSnack({ message: 'Failed to create reason', severity: 'error' });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
+        try {
+            await trashReasonService.delete(deleteTarget.id);
+            setReasons(prev => prev.filter(r => r.id !== deleteTarget.id));
+            setSnack({ message: 'Reason deleted', severity: 'success' });
+        } catch {
+            setSnack({ message: 'Failed to delete reason', severity: 'error' });
+        } finally {
+            setDeleting(false);
+            setDeleteTarget(null);
         }
     };
 
@@ -162,15 +179,26 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
                                         </Tooltip>
                                     </TableCell>
                                     <TableCell align="right">
-                                        <Tooltip title={reason.active ? 'Deactivate' : 'Activate'}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => { void handleToggleActive(reason); }}
-                                                color={reason.active ? 'error' : 'success'}
-                                            >
-                                                {reason.active ? <ToggleOn /> : <ToggleOff />}
-                                            </IconButton>
-                                        </Tooltip>
+                                        <Stack direction="row" justifyContent="flex-end">
+                                            <Tooltip title={reason.active ? 'Deactivate' : 'Activate'}>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => { void handleToggleActive(reason); }}
+                                                    color={reason.active ? 'error' : 'success'}
+                                                >
+                                                    {reason.active ? <ToggleOn /> : <ToggleOff />}
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Delete permanently">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => { setDeleteTarget(reason); }}
+                                                    color="error"
+                                                >
+                                                    <DeleteOutline />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Stack>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -178,6 +206,27 @@ const AdminTrashReasonsSection = ({ embedded = false }: Props) => {
                     </Table>
                 </TableContainer>
             )}
+
+            {/* Delete confirmation dialog */}
+            <Dialog open={!!deleteTarget} onClose={() => { setDeleteTarget(null); }} maxWidth="xs" fullWidth>
+                <DialogTitle>Delete Reason</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to permanently delete <strong>"{deleteTarget?.label}"</strong>? This cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setDeleteTarget(null); }}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() => { void handleDelete(); }}
+                        disabled={deleting}
+                    >
+                        {deleting ? 'Deleting…' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); setNewLabel(''); }} maxWidth="xs" fullWidth>
                 <DialogTitle>Add Trash Reason</DialogTitle>

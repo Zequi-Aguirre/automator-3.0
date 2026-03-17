@@ -91,6 +91,7 @@ export enum TrashReasonAction {
     DEACTIVATED = 'trash_reason_deactivated',
     COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
+    DELETED = 'trash_reason_deleted',
 }
 
 export enum CallRequestReasonAction {
