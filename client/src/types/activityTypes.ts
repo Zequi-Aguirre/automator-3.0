@@ -82,6 +82,13 @@ export enum CallRequestReasonAction {
     DELETED = 'call_request_reason_deleted',
 }
 
+export enum CallOutcomeAction {
+    CREATED = 'call_outcome_created',
+    ACTIVATED = 'call_outcome_activated',
+    DEACTIVATED = 'call_outcome_deactivated',
+    DELETED = 'call_outcome_deleted',
+}
+
 export enum RoleAction {
     CREATED = 'role_created',
     UPDATED = 'role_updated',
@@ -101,6 +108,7 @@ export type ActivityAction =
     | UserAction
     | TrashReasonAction
     | CallRequestReasonAction
+    | CallOutcomeAction
     | RoleAction;
 
 export type ActivityLog = {
@@ -196,6 +204,12 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [CallRequestReasonAction.COMMENT_REQUIRED_ON]: 'Call Request Reason — Comment Made Mandatory',
     [CallRequestReasonAction.COMMENT_REQUIRED_OFF]: 'Call Request Reason — Comment Made Optional',
     [CallRequestReasonAction.DELETED]: 'Call Request Reason Deleted',
+
+    // Call outcomes
+    [CallOutcomeAction.CREATED]: 'Call Outcome Created',
+    [CallOutcomeAction.ACTIVATED]: 'Call Outcome Activated',
+    [CallOutcomeAction.DEACTIVATED]: 'Call Outcome Deactivated',
+    [CallOutcomeAction.DELETED]: 'Call Outcome Deleted',
 
     // Permission roles
     [RoleAction.CREATED]: 'Role Created',

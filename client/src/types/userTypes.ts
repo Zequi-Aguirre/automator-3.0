@@ -32,6 +32,7 @@ export enum Permission {
     ACTIVITY_VIEW = 'activity.view',
     TRASH_REASONS_MANAGE = 'trash_reasons.manage',
     CALL_REQUEST_REASONS_MANAGE = 'call_request_reasons.manage',
+    CALL_OUTCOMES_MANAGE = 'call_outcomes.manage',
     DISPUTES_CREATE = 'disputes.create',
 }
 

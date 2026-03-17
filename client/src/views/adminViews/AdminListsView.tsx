@@ -3,6 +3,7 @@ import { usePermissions } from "../../hooks/usePermissions";
 import { Permission } from "../../types/userTypes";
 import AdminCallRequestReasonsSection from "../../components/admin/adminCallRequestReasonsSection/AdminCallRequestReasonsSection";
 import AdminTrashReasonsSection from "../../components/admin/adminTrashReasonsSection/AdminTrashReasonsSection";
+import AdminCallOutcomesSection from "../../components/admin/adminCallOutcomesSection/AdminCallOutcomesSection";
 
 export default function AdminListsView() {
     const { can } = usePermissions();
@@ -27,7 +28,12 @@ export default function AdminListsView() {
                 </>
             )}
 
-            {/* TICKET-108: Call Outcomes section goes here */}
+            {can(Permission.CALL_OUTCOMES_MANAGE) && (
+                <>
+                    <AdminCallOutcomesSection embedded />
+                    <Divider sx={{ my: 4 }} />
+                </>
+            )}
         </Container>
     );
 }
