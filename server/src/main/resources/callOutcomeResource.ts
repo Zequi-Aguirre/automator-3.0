@@ -74,6 +74,20 @@ export default class CallOutcomeResource {
             }
         });
 
+        // PATCH /api/call-outcomes/:id/resolves-call — toggle resolves_call
+        this.router.patch('/:id/resolves-call', requirePermission(CallOutcomePermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { resolves_call } = req.body;
+                if (typeof resolves_call !== 'boolean') {
+                    return res.status(400).json({ error: 'resolves_call must be a boolean' });
+                }
+                const outcome = await this.callOutcomeService.setResolvesCall(req.params.id, resolves_call, req.user?.id);
+                res.status(200).json(outcome);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
         // DELETE /api/call-outcomes/:id — permanently delete an outcome
         this.router.delete('/:id', requirePermission(CallOutcomePermission.MANAGE), async (req: Request, res: Response) => {
             try {

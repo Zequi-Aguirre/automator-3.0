@@ -52,6 +52,21 @@ export default class CallOutcomeDAO {
         `, { id, commentRequired });
     }
 
+    async setResolvesCall(id: string, resolvesCall: boolean): Promise<CallOutcome> {
+        return this.db.one<CallOutcome>(`
+            UPDATE call_outcomes
+            SET resolves_call = $[resolvesCall]
+            WHERE id = $[id]
+            RETURNING *;
+        `, { id, resolvesCall });
+    }
+
+    async getById(id: string): Promise<CallOutcome | null> {
+        return this.db.oneOrNone<CallOutcome>(`
+            SELECT * FROM call_outcomes WHERE id = $[id];
+        `, { id });
+    }
+
     async delete(id: string): Promise<CallOutcome> {
         return this.db.one<CallOutcome>(`
             DELETE FROM call_outcomes

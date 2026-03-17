@@ -289,6 +289,13 @@ const LeadsSection = () => {
                         exclusive
                         size="small"
                         onChange={(_e, val) => { if (val !== null) updateStatus(val as LeadStatus); }}
+                        sx={{
+                            "& .MuiToggleButton-root.Mui-selected": {
+                                backgroundColor: "primary.main",
+                                color: "primary.contrastText",
+                                "&:hover": { backgroundColor: "primary.dark" },
+                            },
+                        }}
                     >
                         {can(Permission.LEADS_VIEW_NEW) && (
                             <ToggleButton value="new" sx={{ pr: tabCounts.new > 0 ? 2.5 : undefined }}>

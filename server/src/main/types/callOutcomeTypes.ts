@@ -3,6 +3,7 @@ export type CallOutcome = {
     label: string;
     active: boolean;
     comment_required: boolean;
+    resolves_call: boolean;
     sort_order: number;
     created: string;
 };

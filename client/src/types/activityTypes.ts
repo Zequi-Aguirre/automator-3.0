@@ -88,6 +88,8 @@ export enum CallOutcomeAction {
     DEACTIVATED = 'call_outcome_deactivated',
     COMMENT_REQUIRED_ON = 'call_outcome_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_outcome_comment_required_off',
+    RESOLVES_CALL_ON = 'call_outcome_resolves_call_on',
+    RESOLVES_CALL_OFF = 'call_outcome_resolves_call_off',
     DELETED = 'call_outcome_deleted',
 }
 
@@ -213,6 +215,8 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [CallOutcomeAction.DEACTIVATED]: 'Call Outcome Deactivated',
     [CallOutcomeAction.COMMENT_REQUIRED_ON]: 'Call Outcome — Comment Made Mandatory',
     [CallOutcomeAction.COMMENT_REQUIRED_OFF]: 'Call Outcome — Comment Made Optional',
+    [CallOutcomeAction.RESOLVES_CALL_ON]: 'Call Outcome — Resolves Call Enabled',
+    [CallOutcomeAction.RESOLVES_CALL_OFF]: 'Call Outcome — Resolves Call Disabled',
     [CallOutcomeAction.DELETED]: 'Call Outcome Deleted',
 
     // Permission roles

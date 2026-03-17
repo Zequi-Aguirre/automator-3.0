@@ -93,6 +93,15 @@ const AdminCallOutcomesSection = ({ embedded = false, onCountChange }: Props) =>
         }
     };
 
+    const handleToggleResolvesCall = async (outcome: CallOutcome) => {
+        try {
+            const updated = await callOutcomeService.setResolvesCall(outcome.id, !outcome.resolves_call);
+            setOutcomes(prev => prev.map(o => o.id === updated.id ? updated : o));
+        } catch {
+            setSnack({ message: 'Failed to update resolves call setting', severity: 'error' });
+        }
+    };
+
     const handleDelete = async () => {
         if (!deleteTarget) return;
         setDeleting(true);
@@ -146,13 +155,18 @@ const AdminCallOutcomesSection = ({ embedded = false, onCountChange }: Props) =>
                                         <span>Comment Required</span>
                                     </Tooltip>
                                 </TableCell>
+                                <TableCell>
+                                    <Tooltip title="When checked, selecting this outcome closes the Needs Call ticket">
+                                        <span>Resolves Call</span>
+                                    </Tooltip>
+                                </TableCell>
                                 <TableCell align="right">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {outcomes.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                    <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                                         No outcomes yet. Add one above.
                                     </TableCell>
                                 </TableRow>
@@ -178,6 +192,16 @@ const AdminCallOutcomesSection = ({ embedded = false, onCountChange }: Props) =>
                                                 size="small"
                                                 checked={outcome.comment_required}
                                                 onChange={() => { void handleToggleCommentRequired(outcome); }}
+                                                sx={{ p: 0.5 }}
+                                            />
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Tooltip title={outcome.resolves_call ? 'Closes ticket — click to disable' : 'Does not close ticket — click to enable'}>
+                                            <Checkbox
+                                                size="small"
+                                                checked={outcome.resolves_call}
+                                                onChange={() => { void handleToggleResolvesCall(outcome); }}
                                                 sx={{ p: 0.5 }}
                                             />
                                         </Tooltip>

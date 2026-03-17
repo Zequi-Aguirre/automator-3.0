@@ -657,10 +657,10 @@ export default class LeadDAO {
     async executeCall(
         id: string,
         outcome: string,
+        resolvesCall: boolean,
         notes: string | null,
         executedBy: string
     ): Promise<Lead> {
-        const resolved = outcome === 'resolved';
         const query = `
             UPDATE leads
             SET needs_call = $[needsCall],
@@ -676,7 +676,7 @@ export default class LeadDAO {
         `;
         const result = await this.db.oneOrNone<Lead>(query, {
             id,
-            needsCall: !resolved,
+            needsCall: !resolvesCall,
             executedBy,
             outcome,
             notes

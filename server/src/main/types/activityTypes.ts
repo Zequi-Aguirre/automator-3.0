@@ -100,6 +100,8 @@ export enum CallOutcomeAction {
     DEACTIVATED = 'call_outcome_deactivated',
     COMMENT_REQUIRED_ON = 'call_outcome_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_outcome_comment_required_off',
+    RESOLVES_CALL_ON = 'call_outcome_resolves_call_on',
+    RESOLVES_CALL_OFF = 'call_outcome_resolves_call_off',
     DELETED = 'call_outcome_deleted',
 }
 

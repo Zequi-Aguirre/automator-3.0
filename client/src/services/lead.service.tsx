@@ -175,9 +175,9 @@ class LeadService {
         return response.data;
     }
 
-    // TICKET-065: Log a call attempt and outcome
-    async executeCall(leadId: string, outcome: string, notes?: string): Promise<Lead> {
-        const response = await this.api.getApi().post(`/api/leads/${leadId}/execute-call`, { outcome, notes });
+    // TICKET-065/123: Log a call attempt and outcome
+    async executeCall(leadId: string, outcomeId: string, notes?: string): Promise<Lead> {
+        const response = await this.api.getApi().post(`/api/leads/${leadId}/execute-call`, { outcomeId, notes });
         return response.data;
     }
 
