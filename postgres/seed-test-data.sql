@@ -4,6 +4,13 @@
 -- Safe to re-run (ON CONFLICT DO NOTHING / DO UPDATE)
 -- ============================================================
 
+-- Buyers (insert if name doesn't exist yet)
+INSERT INTO buyers (name, webhook_url, priority, auto_send, manual_send, worker_send, allow_resell, requires_validation, payload_format) VALUES
+  ('iSpeedToLead', 'https://example.com/webhooks/ispeedtolead', 1, false, false, true,  false, false, 'json'),
+  ('Compass',      'https://example.com/webhooks/compass',      2, false, true,  true,  false, false, 'json'),
+  ('Sellers',      'https://example.com/webhooks/sellers',      3, false, true,  true,  false, false, 'json')
+ON CONFLICT (name) DO NOTHING;
+
 -- Lead Managers
 INSERT INTO lead_managers (id, name) VALUES
   ('aaaaaaaa-0001-0000-0000-000000000001', 'Sarah Mitchell'),
@@ -133,20 +140,30 @@ INSERT INTO lead_form_inputs (id, lead_id, form_unit, form_multifamily, form_squ
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- Send Logs
+-- Send Logs (buyer_id resolved by name — works with any UUID)
 -- ============================================================
-INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created) VALUES
-  -- Mia: manual → Compass success, Sellers fail
-  ('11111111-0007-0000-0000-000000000001', 'eeeeeeee-0005-0000-0000-000000000050', 'f6529724-0eed-4551-bf60-83645a53496b', 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'success', 200, '{"status":"accepted","lead_id":"cx_9912"}', 'manual', NOW() - INTERVAL '4 days'),
-  ('11111111-0007-0000-0000-000000000002', 'eeeeeeee-0005-0000-0000-000000000050', 'f0ab85ea-226c-44f2-8853-5e9c4500d745', 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'failed',  500, '{"error":"Internal server error"}',         'manual', NOW() - INTERVAL '4 days'),
-  -- Noah: worker → iSpeedToLead success
-  ('11111111-0007-0000-0000-000000000003', 'eeeeeeee-0005-0000-0000-000000000051', '3d3dbe46-5e70-454d-92e1-2dbda91b4feb', 'bbbbbbbb-0002-0000-0000-000000000003', 'dddddddd-0004-0000-0000-000000000003', 'success', 200, '{"status":"ok"}',                           'worker', NOW() - INTERVAL '2 days'),
-  -- Olivia: manual → Compass success (disputed)
-  ('11111111-0007-0000-0000-000000000004', 'eeeeeeee-0005-0000-0000-000000000052', 'f6529724-0eed-4551-bf60-83645a53496b', 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'success', 200, '{"status":"accepted"}',                     'manual', NOW() - INTERVAL '5 days'),
-  -- Paul: manual → Compass success (sold)
-  ('11111111-0007-0000-0000-000000000005', 'eeeeeeee-0005-0000-0000-000000000060', 'f6529724-0eed-4551-bf60-83645a53496b', 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'success', 200, '{"status":"accepted","lead_id":"cx_8844"}', 'manual', NOW() - INTERVAL '7 days'),
-  -- Quinn: worker → iSpeedToLead success (sold)
-  ('11111111-0007-0000-0000-000000000006', 'eeeeeeee-0005-0000-0000-000000000061', '3d3dbe46-5e70-454d-92e1-2dbda91b4feb', 'bbbbbbbb-0002-0000-0000-000000000003', 'dddddddd-0004-0000-0000-000000000003', 'success', 200, '{"status":"ok"}',                           'worker', NOW() - INTERVAL '10 days')
+INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created)
+SELECT '11111111-0007-0000-0000-000000000001', 'eeeeeeee-0005-0000-0000-000000000050', id, 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'success', 200, '{"status":"accepted","lead_id":"cx_9912"}', 'manual', NOW() - INTERVAL '4 days' FROM buyers WHERE name = 'Compass'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created)
+SELECT '11111111-0007-0000-0000-000000000002', 'eeeeeeee-0005-0000-0000-000000000050', id, 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'failed', 500, '{"error":"Internal server error"}', 'manual', NOW() - INTERVAL '4 days' FROM buyers WHERE name = 'Sellers'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created)
+SELECT '11111111-0007-0000-0000-000000000003', 'eeeeeeee-0005-0000-0000-000000000051', id, 'bbbbbbbb-0002-0000-0000-000000000003', 'dddddddd-0004-0000-0000-000000000003', 'success', 200, '{"status":"ok"}', 'worker', NOW() - INTERVAL '2 days' FROM buyers WHERE name = 'iSpeedToLead'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created)
+SELECT '11111111-0007-0000-0000-000000000004', 'eeeeeeee-0005-0000-0000-000000000052', id, 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'success', 200, '{"status":"accepted"}', 'manual', NOW() - INTERVAL '5 days' FROM buyers WHERE name = 'Compass'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created)
+SELECT '11111111-0007-0000-0000-000000000005', 'eeeeeeee-0005-0000-0000-000000000060', id, 'bbbbbbbb-0002-0000-0000-000000000001', 'dddddddd-0004-0000-0000-000000000001', 'success', 200, '{"status":"accepted","lead_id":"cx_8844"}', 'manual', NOW() - INTERVAL '7 days' FROM buyers WHERE name = 'Compass'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO send_log (id, lead_id, buyer_id, source_id, campaign_id, status, response_code, response_body, send_source, created)
+SELECT '11111111-0007-0000-0000-000000000006', 'eeeeeeee-0005-0000-0000-000000000061', id, 'bbbbbbbb-0002-0000-0000-000000000003', 'dddddddd-0004-0000-0000-000000000003', 'success', 200, '{"status":"ok"}', 'worker', NOW() - INTERVAL '10 days' FROM buyers WHERE name = 'iSpeedToLead'
 ON CONFLICT DO NOTHING;
 
 UPDATE send_log SET
@@ -155,11 +172,14 @@ UPDATE send_log SET
   WHERE id = '11111111-0007-0000-0000-000000000004';
 
 -- ============================================================
--- Lead Buyer Outcomes (sold)
+-- Lead Buyer Outcomes (sold — buyer_id resolved by name)
 -- ============================================================
-INSERT INTO lead_buyer_outcomes (id, lead_id, buyer_id, status, sold_at, sold_price) VALUES
-  ('22222222-0008-0000-0000-000000000001', 'eeeeeeee-0005-0000-0000-000000000060', 'f6529724-0eed-4551-bf60-83645a53496b', 'sold', NOW() - INTERVAL '6 days', 25000),
-  ('22222222-0008-0000-0000-000000000002', 'eeeeeeee-0005-0000-0000-000000000061', '3d3dbe46-5e70-454d-92e1-2dbda91b4feb', 'sold', NOW() - INTERVAL '9 days', 18500)
+INSERT INTO lead_buyer_outcomes (id, lead_id, buyer_id, status, sold_at, sold_price)
+SELECT '22222222-0008-0000-0000-000000000001', 'eeeeeeee-0005-0000-0000-000000000060', id, 'sold', NOW() - INTERVAL '6 days', 25000 FROM buyers WHERE name = 'Compass'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO lead_buyer_outcomes (id, lead_id, buyer_id, status, sold_at, sold_price)
+SELECT '22222222-0008-0000-0000-000000000002', 'eeeeeeee-0005-0000-0000-000000000061', id, 'sold', NOW() - INTERVAL '9 days', 18500 FROM buyers WHERE name = 'iSpeedToLead'
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
