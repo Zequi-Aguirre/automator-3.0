@@ -15,6 +15,7 @@ import AdminLeadManagerDetailsView from "../../views/adminViews/AdminLeadManager
 import AdminActivityView from "../../views/adminViews/AdminActivityView.tsx";
 import AdminUsersView from "../../views/adminViews/AdminUsersView.tsx";
 import AdminUserDetailsView from "../../views/adminViews/AdminUserDetailsView.tsx";
+import AdminCallRequestReasonsView from "../../views/adminViews/AdminCallRequestReasonsView.tsx";
 import ChangePasswordView from "../../views/ChangePasswordView";
 
 const AppRoutes = () => {
@@ -35,6 +36,7 @@ const AppRoutes = () => {
             <Route path="/activity" element={<RequireAuth><AdminActivityView /></RequireAuth>} />
             <Route path="/users" element={<RequireAuth><AdminUsersView /></RequireAuth>} />
             <Route path="/users/:id" element={<RequireAuth><AdminUserDetailsView /></RequireAuth>} />
+            <Route path="/call-request-reasons" element={<RequireAuth><AdminCallRequestReasonsView /></RequireAuth>} />
             <Route path="/change-password" element={<RequireAuth><ChangePasswordView /></RequireAuth>} />
         </Routes>
     );

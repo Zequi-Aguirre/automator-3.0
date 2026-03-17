@@ -65,8 +65,9 @@ const PERMISSION_LABELS: Record<string, string> = {
     'users.manage':            'Manage Users',
     'users.approve':           'Approve Users',
     'activity.view':           'View Activity',
-    'trash_reasons.manage':    'Manage Trash Reasons',
-    'disputes.create':         'Create Disputes',
+    'trash_reasons.manage':          'Manage Trash Reasons',
+    'call_request_reasons.manage':   'Manage Call Request Reasons',
+    'disputes.create':               'Create Disputes',
 };
 
 const permLabel = (perm: string) =>

@@ -60,6 +60,10 @@ export enum TrashReasonPermission {
     MANAGE = 'trash_reasons.manage',
 }
 
+export enum CallRequestReasonPermission {
+    MANAGE = 'call_request_reasons.manage',
+}
+
 export enum DisputePermission {
     CREATE = 'disputes.create',
 }
@@ -75,6 +79,7 @@ export type Permission =
     | UserPermission
     | ActivityPermission
     | TrashReasonPermission
+    | CallRequestReasonPermission
     | DisputePermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
@@ -121,6 +126,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         LogPermission.VIEW,
         ActivityPermission.VIEW,
         TrashReasonPermission.MANAGE,
+        CallRequestReasonPermission.MANAGE,
         DisputePermission.CREATE,
         BuyerPermission.HOLD,
     ],
@@ -155,6 +161,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         UserPermission.APPROVE,
         ActivityPermission.VIEW,
         TrashReasonPermission.MANAGE,
+        CallRequestReasonPermission.MANAGE,
         DisputePermission.CREATE,
     ],
 };
