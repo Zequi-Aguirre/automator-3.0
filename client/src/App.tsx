@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import LoginPage from "./views/LoginPage";
 import AppRoutes from "./context/routes/AppRoutes";
 import NavBar from "./components/navBar/NavBar.tsx";
+import EnvBanner, { ENV_BANNER_HEIGHT } from "./components/common/EnvBanner.tsx";
 
 const App: React.FC = () => {
     const theme = createTheme({
@@ -38,16 +39,21 @@ const App: React.FC = () => {
         },
     });
 
+    const appEnv = import.meta.env.VITE_APP_ENV as string | undefined;
+    const isProduction = appEnv === "production";
+    const bannerOffset = isProduction ? 0 : ENV_BANNER_HEIGHT;
+
     return (
         <ThemeProvider theme={theme}>
-            <Box sx={{ display: "flex", minHeight: "100vh" }}>
+            <EnvBanner />
+            <Box sx={{ display: "flex", minHeight: "100vh", mt: `${bannerOffset}px` }}>
                 <NavBar />
                 <Box
                     component="main"
                     sx={{
                         flexGrow: 1,
                         overflow: "auto",
-                        pt: { xs: "48px", md: 0 },
+                        pt: { xs: `${48 + bannerOffset}px`, md: 0 },
                     }}
                 >
                     <Routes>
