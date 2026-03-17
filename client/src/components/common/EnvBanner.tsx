@@ -18,18 +18,14 @@ const ENV_CONFIGS: Record<string, EnvConfig> = {
     },
 };
 
-const FALLBACK_CONFIG: EnvConfig = {
-    message: "NON-PRODUCTION ENVIRONMENT",
-    bgcolor: "#f59e0b",
-    color: "#78350f",
-};
-
 const appEnv = import.meta.env.VITE_APP_ENV as string | undefined;
 
 export default function EnvBanner() {
     if (appEnv === "production") return null;
+    const config = appEnv ? ENV_CONFIGS[appEnv] : undefined;
+    if (!config) return null;
 
-    const { message, bgcolor, color } = (appEnv && ENV_CONFIGS[appEnv]) ?? FALLBACK_CONFIG;
+    const { message, bgcolor, color } = config;
 
     return (
         <Box
