@@ -133,8 +133,11 @@ export default class LeadResource {
         this.router.patch("/trash/:leadId", requirePermission(LeadPermission.TRASH), async (req: Request, res: Response) => {
             try {
                 const leadId = req.params.leadId;
-                const reason = req.body?.reason ?? null;
-                const response = await this.leadService.trashLead(leadId, "MANUAL_USER_DELETE", req.user?.id, reason);
+                const reason = req.body?.reason;
+                if (!reason || typeof reason !== 'string' || reason.trim() === '') {
+                    return res.status(400).send({ message: 'A trash reason is required' });
+                }
+                const response = await this.leadService.trashLead(leadId, "MANUAL_USER_DELETE", req.user?.id, reason.trim());
                 return res.status(200).send(response);
             } catch (error) {
                 console.error('Error trashing lead:', error);

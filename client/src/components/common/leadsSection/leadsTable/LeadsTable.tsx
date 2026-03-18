@@ -137,8 +137,9 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
 
     const handleTrashLead = async () => {
         if (!trashTargetId) return;
+        if (!selectedTrashReason) return;
         try {
-            const deleted = await leadsService.trashLead(trashTargetId, selectedTrashReason?.label);
+            const deleted = await leadsService.trashLead(trashTargetId, selectedTrashReason.label);
             setLeads(prev => prev.filter(l => l.id !== deleted.id));
             showNotification("Lead moved to trash", "success");
         } catch {
@@ -641,14 +642,14 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         value={selectedTrashReason}
                         onChange={(_, val) => { setSelectedTrashReason(val); }}
                         renderInput={(params) => (
-                            <TextField {...params} label="Reason (optional)" size="small" fullWidth />
+                            <TextField {...params} label="Reason" size="small" fullWidth required error={trashReasons.length > 0 && !selectedTrashReason} />
                         )}
                         size="small"
                     />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => { setTrashDialogOpen(false); }}>Cancel</Button>
-                    <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained">Move to Trash</Button>
+                    <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained" disabled={!selectedTrashReason}>Move to Trash</Button>
                 </DialogActions>
             </Dialog>
 
