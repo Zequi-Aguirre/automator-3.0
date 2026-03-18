@@ -84,7 +84,7 @@ export default class ActivityDAO {
              FROM users u
              LEFT JOIN activity_log a
                ON a.user_id = u.id
-              AND a.created >= NOW() - ($[days] * INTERVAL '1 day')
+              AND a.created >= (CURRENT_DATE - (($[days] - 1) * INTERVAL '1 day')) AT TIME ZONE 'America/New_York'
              GROUP BY u.id, u.name
              ORDER BY verified DESC NULLS LAST`,
             { days }
