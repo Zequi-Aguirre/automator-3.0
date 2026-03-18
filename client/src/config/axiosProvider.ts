@@ -38,6 +38,7 @@ export class AxiosProvider {
             async (err) => {
                 if (err.response.status === 401) {
                     this.removeToken();
+                    localStorage.removeItem('appData');
                     window.location.href = '/login?sessionExpired=true';
                 }
                 return await Promise.reject(err);

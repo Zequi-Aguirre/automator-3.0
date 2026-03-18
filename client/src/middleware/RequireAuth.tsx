@@ -28,6 +28,7 @@ const RequireAuth = ({ children }: Props) => {
         }).catch(() => {
             setSession(null);
             setLoggedInUser(null);
+            setRole('');
             navigate("/login");
         });
     }, [session, allowLogin, navigate, setSession, setLoggedInUser, setRole, location.pathname]);
