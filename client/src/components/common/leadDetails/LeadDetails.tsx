@@ -162,7 +162,8 @@ const LeadDetails = () => {
     const handleTrashLead = async () => {
         try {
             if (!id) return;
-            await leadsService.trashLead(id, selectedTrashReason?.label);
+            if (!selectedTrashReason) return;
+            await leadsService.trashLead(id, selectedTrashReason.label);
             navigate('/leads');
         } catch {
             showNotification('Failed to trash lead', 'error');
@@ -452,14 +453,14 @@ const LeadDetails = () => {
                         value={selectedTrashReason}
                         onChange={(_, val) => { setSelectedTrashReason(val); }}
                         renderInput={(params) => (
-                            <TextField {...params} label="Reason (optional)" size="small" fullWidth />
+                            <TextField {...params} label="Reason" size="small" fullWidth required error={trashReasons.length > 0 && !selectedTrashReason} />
                         )}
                         size="small"
                     />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => { setConfirmDialogOpen(false); }}>Cancel</Button>
-                    <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained">Move to Trash</Button>
+                    <Button onClick={() => { void handleTrashLead(); }} color="error" variant="contained" disabled={!selectedTrashReason}>Move to Trash</Button>
                 </DialogActions>
             </Dialog>
 
