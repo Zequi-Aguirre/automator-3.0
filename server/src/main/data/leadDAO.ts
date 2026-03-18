@@ -634,13 +634,33 @@ export default class LeadDAO {
         return result;
     }
 
+    async cancelCallRequest(id: string): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET needs_call = FALSE,
+                call_reason = NULL,
+                call_request_note = NULL,
+                call_requested_at = NULL,
+                call_requested_by = NULL,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, { id });
+        if (!result) {
+            throw new Error('Lead not found');
+        }
+        return result;
+    }
+
     async executeCall(
         id: string,
         outcome: string,
+        resolvesCall: boolean,
         notes: string | null,
         executedBy: string
     ): Promise<Lead> {
-        const resolved = outcome === 'resolved';
         const query = `
             UPDATE leads
             SET needs_call = $[needsCall],
@@ -656,7 +676,7 @@ export default class LeadDAO {
         `;
         const result = await this.db.oneOrNone<Lead>(query, {
             id,
-            needsCall: !resolved,
+            needsCall: !resolvesCall,
             executedBy,
             outcome,
             notes

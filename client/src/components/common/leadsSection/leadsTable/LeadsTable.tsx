@@ -50,6 +50,7 @@ import { usePermissions } from "../../../../hooks/usePermissions.ts";
 import { Permission } from "../../../../types/userTypes.ts";
 import trashReasonService, { TrashReason } from "../../../../services/trashReason.service.tsx";
 import callRequestReasonService, { CallRequestReason } from "../../../../services/callRequestReason.service.tsx";
+import callOutcomeService, { CallOutcome } from "../../../../services/callOutcome.service.tsx";
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -111,11 +112,11 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
             if (lead.queued) {
                 const updated = await leadsService.unqueueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-                showNotification("Lead removed from queue", "success");
+                showNotification("Lead removed from worker", "success");
             } else {
                 const updated = await leadsService.queueLead(lead.id);
                 setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-                showNotification("Lead queued for worker", "success");
+                showNotification("Lead sent to worker", "success");
             }
         } catch {
             showNotification("Failed to update queue", "error");
@@ -169,7 +170,8 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
     const [callTargetLead, setCallTargetLead] = useState<Lead | null>(null);
     const [callReason, setCallReason] = useState("");
     const [callRequestNote, setCallRequestNote] = useState("");
-    const [callOutcome, setCallOutcome] = useState("reached");
+    const [callOutcomes, setCallOutcomes] = useState<CallOutcome[]>([]);
+    const [selectedCallOutcome, setSelectedCallOutcome] = useState<CallOutcome | null>(null);
     const [callNotes, setCallNotes] = useState("");
     const [callRequestReasons, setCallRequestReasons] = useState<CallRequestReason[]>([]);
 
@@ -189,12 +191,19 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
         }
     };
 
-    const openExecuteCallDialog = (lead: Lead) => {
+    const openExecuteCallDialog = async (lead: Lead) => {
         setCallTargetLead(lead);
-        setCallOutcome("reached");
         setCallNotes("");
         setCallDialogMode("execute");
         setCallDialogOpen(true);
+        try {
+            const outcomes = await callOutcomeService.getActive();
+            setCallOutcomes(outcomes);
+            setSelectedCallOutcome(outcomes[0] ?? null);
+        } catch {
+            setCallOutcomes([]);
+            setSelectedCallOutcome(null);
+        }
     };
 
     const handleSubmitCallDialog = async () => {
@@ -205,7 +214,8 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                 setLeads(prev => prev.filter(l => l.id !== updated.id));
                 showNotification("Lead flagged for call", "success");
             } else {
-                const updated = await leadsService.executeCall(callTargetLead.id, callOutcome, callNotes || undefined);
+                if (!selectedCallOutcome) return;
+                const updated = await leadsService.executeCall(callTargetLead.id, selectedCallOutcome.id, callNotes || undefined);
                 if (!updated.needs_call) {
                     // Resolved — remove from needs_call list
                     setLeads(prev => prev.filter(l => l.id !== updated.id));
@@ -385,13 +395,13 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         </Tooltip>
                         <Tooltip title={
                             !canQueue
-                                ? "You don't have permission to queue leads"
-                                : lead.queued ? "Click to remove from queue" : "Click to queue for worker"
+                                ? "You don't have permission to send via worker"
+                                : lead.queued ? "Remove from Worker" : "Send via Worker"
                         }>
                             <span>
                                 <Chip
                                     icon={lead.queued ? <StopIcon /> : <PlayArrowIcon />}
-                                    label={lead.queued ? "Queued" : "Queue"}
+                                    label={lead.queued ? "In Worker" : "Worker"}
                                     color={lead.queued ? "success" : "default"}
                                     variant={lead.queued ? "filled" : "outlined"}
                                     size="small"
@@ -413,14 +423,25 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
             renderCell: (params: GridRenderCellParams) => {
                 const lead: Lead = params.row.raw;
                 const canEdit = can(Permission.LEADS_EDIT);
+                const reason = lead.needs_review_reason ?? "Missing fields";
                 return (
-                    <Stack direction="row" spacing={1} alignItems="center" onClick={(e) => { e.stopPropagation(); }}>
-                        <Chip
-                            label={lead.needs_review_reason ?? "Missing fields"}
-                            color="warning"
-                            size="small"
-                            variant="outlined"
-                        />
+                    <Stack spacing={0.5} onClick={(e) => { e.stopPropagation(); }}>
+                        <Tooltip title={reason}>
+                            <Typography
+                                variant="caption"
+                                color="warning.main"
+                                sx={{
+                                    display: "block",
+                                    maxWidth: 160,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {reason}
+                            </Typography>
+                        </Tooltip>
                         <Tooltip title={canEdit ? "Mark as resolved (info filled in)" : "You don't have permission to edit leads"}>
                             <span>
                                 <Button
@@ -454,9 +475,11 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                 return (
                     <Stack spacing={0.5} onClick={(e) => { e.stopPropagation(); }}>
                         {lead.call_reason && (
-                            <Typography variant="caption" color="text.secondary">
-                                <strong>Reason:</strong> {lead.call_reason}
-                            </Typography>
+                            <Tooltip title={lead.call_request_note ?? ""} disableHoverListener={!lead.call_request_note}>
+                                <Typography variant="caption" color="text.secondary" sx={{ cursor: lead.call_request_note ? "help" : "default" }}>
+                                    <strong>Reason:</strong> {lead.call_reason}
+                                </Typography>
+                            </Tooltip>
                         )}
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Chip
@@ -485,7 +508,7 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                                     variant="outlined"
                                     startIcon={<PhoneIcon />}
                                     disabled={!canExecute}
-                                    onClick={() => { openExecuteCallDialog(lead); }}
+                                    onClick={() => { void openExecuteCallDialog(lead); }}
                                 >
                                     Log Call
                                 </Button>
@@ -697,25 +720,32 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         <FormControl size="small" fullWidth>
                             <InputLabel>Outcome</InputLabel>
                             <Select
-                                value={callOutcome}
+                                value={selectedCallOutcome?.id ?? ""}
                                 label="Outcome"
-                                onChange={(e) => { setCallOutcome(e.target.value); }}
+                                onChange={(e) => {
+                                    const found = callOutcomes.find(o => o.id === e.target.value) ?? null;
+                                    setSelectedCallOutcome(found);
+                                }}
                             >
-                                <MenuItem value="reached">Reached</MenuItem>
-                                <MenuItem value="voicemail">Voicemail</MenuItem>
-                                <MenuItem value="no_answer">No Answer</MenuItem>
-                                <MenuItem value="wrong_number">Wrong Number</MenuItem>
-                                <MenuItem value="resolved">Resolved (close ticket)</MenuItem>
+                                {callOutcomes.map(o => (
+                                    <MenuItem key={o.id} value={o.id}>
+                                        {o.label}{o.resolves_call ? " (closes ticket)" : ""}
+                                    </MenuItem>
+                                ))}
+                                {callOutcomes.length === 0 && (
+                                    <MenuItem disabled value="">No outcomes configured</MenuItem>
+                                )}
                             </Select>
                         </FormControl>
                         <TextField
-                            label="Notes (optional)"
+                            label={selectedCallOutcome?.comment_required ? "Notes (required)" : "Notes (optional)"}
                             multiline
                             rows={3}
                             fullWidth
                             value={callNotes}
                             onChange={(e) => { setCallNotes(e.target.value); }}
                             size="small"
+                            required={selectedCallOutcome?.comment_required}
                         />
                     </Stack>
                 </DialogContent>
@@ -725,6 +755,7 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
                         onClick={() => { void handleSubmitCallDialog(); }}
                         color="primary"
                         variant="contained"
+                        disabled={!selectedCallOutcome || (!!selectedCallOutcome.comment_required && !callNotes.trim())}
                     >
                         Log Call
                     </Button>

@@ -59,6 +59,30 @@ export default class TrashReasonResource {
                 res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
             }
         });
+
+        // PATCH /api/trash-reasons/:id/comment-required — toggle comment required
+        this.router.patch('/:id/comment-required', requirePermission(TrashReasonPermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { comment_required } = req.body;
+                if (typeof comment_required !== 'boolean') {
+                    return res.status(400).json({ error: 'comment_required must be a boolean' });
+                }
+                const reason = await this.trashReasonService.setCommentRequired(req.params.id, comment_required, req.user?.id);
+                res.status(200).json(reason);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
+        // DELETE /api/trash-reasons/:id — permanently delete a reason
+        this.router.delete('/:id', requirePermission(TrashReasonPermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const reason = await this.trashReasonService.delete(req.params.id, req.user?.id);
+                res.status(200).json(reason);
+            } catch (error) {
+                res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
     }
 
     public routes(): Router {

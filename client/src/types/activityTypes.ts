@@ -9,6 +9,10 @@ export enum LeadAction {
     QUEUED = 'lead_queued',
     AUTO_QUEUED = 'lead_auto_queued',
     UNQUEUED = 'lead_unqueued',
+    CALL_REQUESTED = 'lead_call_requested',
+    CALL_REQUEST_CANCELLED = 'lead_call_request_cancelled',
+    CALL_EXECUTED = 'lead_call_executed',
+    CALL_RESOLVED = 'lead_call_resolved',
 }
 
 export enum VerificationAction {
@@ -64,6 +68,9 @@ export enum TrashReasonAction {
     CREATED = 'trash_reason_created',
     ACTIVATED = 'trash_reason_activated',
     DEACTIVATED = 'trash_reason_deactivated',
+    COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
+    DELETED = 'trash_reason_deleted',
 }
 
 export enum CallRequestReasonAction {
@@ -72,6 +79,18 @@ export enum CallRequestReasonAction {
     DEACTIVATED = 'call_request_reason_deactivated',
     COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+    DELETED = 'call_request_reason_deleted',
+}
+
+export enum CallOutcomeAction {
+    CREATED = 'call_outcome_created',
+    ACTIVATED = 'call_outcome_activated',
+    DEACTIVATED = 'call_outcome_deactivated',
+    COMMENT_REQUIRED_ON = 'call_outcome_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'call_outcome_comment_required_off',
+    RESOLVES_CALL_ON = 'call_outcome_resolves_call_on',
+    RESOLVES_CALL_OFF = 'call_outcome_resolves_call_off',
+    DELETED = 'call_outcome_deleted',
 }
 
 export enum RoleAction {
@@ -93,6 +112,7 @@ export type ActivityAction =
     | UserAction
     | TrashReasonAction
     | CallRequestReasonAction
+    | CallOutcomeAction
     | RoleAction;
 
 export type ActivityLog = {
@@ -125,9 +145,13 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [LeadAction.TRASHED]: 'Lead Trashed',
     [LeadAction.DOWNLOADED]: 'Lead Downloaded',
     [LeadAction.SENT]: 'Lead Sent',
-    [LeadAction.QUEUED]: 'Lead Queued',
-    [LeadAction.AUTO_QUEUED]: 'Lead Auto-Queued on Verify',
-    [LeadAction.UNQUEUED]: 'Lead Unqueued',
+    [LeadAction.QUEUED]: 'Lead Sent to Worker',
+    [LeadAction.AUTO_QUEUED]: 'Lead Auto-Sent to Worker on Verify',
+    [LeadAction.UNQUEUED]: 'Lead Removed from Worker',
+    [LeadAction.CALL_REQUESTED]: 'Call Requested',
+    [LeadAction.CALL_REQUEST_CANCELLED]: 'Call Request Cancelled',
+    [LeadAction.CALL_EXECUTED]: 'Call Logged',
+    [LeadAction.CALL_RESOLVED]: 'Call Resolved',
 
     // Verification
     [VerificationAction.STARTED]: 'Verification Started',
@@ -173,6 +197,9 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [TrashReasonAction.CREATED]: 'Trash Reason Created',
     [TrashReasonAction.ACTIVATED]: 'Trash Reason Activated',
     [TrashReasonAction.DEACTIVATED]: 'Trash Reason Deactivated',
+    [TrashReasonAction.COMMENT_REQUIRED_ON]: 'Trash Reason — Comment Made Mandatory',
+    [TrashReasonAction.COMMENT_REQUIRED_OFF]: 'Trash Reason — Comment Made Optional',
+    [TrashReasonAction.DELETED]: 'Trash Reason Deleted',
 
     // Call request reasons
     [CallRequestReasonAction.CREATED]: 'Call Request Reason Created',
@@ -180,6 +207,17 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     [CallRequestReasonAction.DEACTIVATED]: 'Call Request Reason Deactivated',
     [CallRequestReasonAction.COMMENT_REQUIRED_ON]: 'Call Request Reason — Comment Made Mandatory',
     [CallRequestReasonAction.COMMENT_REQUIRED_OFF]: 'Call Request Reason — Comment Made Optional',
+    [CallRequestReasonAction.DELETED]: 'Call Request Reason Deleted',
+
+    // Call outcomes
+    [CallOutcomeAction.CREATED]: 'Call Outcome Created',
+    [CallOutcomeAction.ACTIVATED]: 'Call Outcome Activated',
+    [CallOutcomeAction.DEACTIVATED]: 'Call Outcome Deactivated',
+    [CallOutcomeAction.COMMENT_REQUIRED_ON]: 'Call Outcome — Comment Made Mandatory',
+    [CallOutcomeAction.COMMENT_REQUIRED_OFF]: 'Call Outcome — Comment Made Optional',
+    [CallOutcomeAction.RESOLVES_CALL_ON]: 'Call Outcome — Resolves Call Enabled',
+    [CallOutcomeAction.RESOLVES_CALL_OFF]: 'Call Outcome — Resolves Call Disabled',
+    [CallOutcomeAction.DELETED]: 'Call Outcome Deleted',
 
     // Permission roles
     [RoleAction.CREATED]: 'Role Created',

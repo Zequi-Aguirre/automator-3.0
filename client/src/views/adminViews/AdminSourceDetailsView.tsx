@@ -21,12 +21,14 @@ import {
     Snackbar,
     Alert,
     Stack,
+    Tab,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
+    Tabs,
     TextField,
     ToggleButton,
     ToggleButtonGroup,
@@ -76,6 +78,8 @@ const AdminSourceDetailsView = () => {
     const [filterMode, setFilterMode] = useState<SourceBuyerFilterMode | null>(null);
     const [filterBuyerIds, setFilterBuyerIds] = useState<string[]>([]);
     const [filterSaving, setFilterSaving] = useState(false);
+
+    const [activeTab, setActiveTab] = useState(0);
 
     const [snack, setSnack] = useState({
         open: false,
@@ -278,207 +282,216 @@ const AdminSourceDetailsView = () => {
         <Container maxWidth={false} sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 0 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-                {/* Static top section — flexShrink: 0 so campaigns never compress it */}
-                <Box sx={{ flexShrink: 0, px: 4, pt: 4 }}>
+                {/* Header — always visible */}
+                <Box sx={{ flexShrink: 0, px: 4, pt: 4, pb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
+                        <IconButton onClick={() => navigate('/sources')} title="Back to sources">
+                            <ArrowBack />
+                        </IconButton>
+                        <Typography variant="h4" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
+                            {source.name}
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            startIcon={<Edit />}
+                            onClick={handleOpenEditDialog}
+                        >
+                            Edit Source
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            startIcon={<Refresh />}
+                            onClick={() => setRefreshDialogOpen(true)}
+                        >
+                            Refresh Token
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<Delete />}
+                            onClick={handleDeleteSource}
+                        >
+                            Delete Source
+                        </Button>
+                    </Box>
 
-                {/* Header */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
-                    <IconButton onClick={() => navigate('/sources')} title="Back to sources">
-                        <ArrowBack />
-                    </IconButton>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
-                        {source.name}
-                    </Typography>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Edit />}
-                        onClick={handleOpenEditDialog}
-                    >
-                        Edit Source
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        color="warning"
-                        startIcon={<Refresh />}
-                        onClick={() => setRefreshDialogOpen(true)}
-                    >
-                        Refresh Token
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<Delete />}
-                        onClick={handleDeleteSource}
-                    >
-                        Delete Source
-                    </Button>
+                    <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                        <Tab label="Overview" />
+                        <Tab label={`Campaigns (${campaigns.length})`} />
+                    </Tabs>
                 </Box>
 
-                {/* Source Info */}
-                <Paper sx={{ p: 3, mb: 3 }}>
-                    <Stack spacing={2}>
-                        <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Created</Typography>
-                            <Typography variant="body1">
-                                {new Date(source.created).toLocaleString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                    hour: 'numeric',
-                                    minute: '2-digit'
-                                })}
-                            </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Source ID</Typography>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                                {source.id}
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Paper>
+                {/* Tab content — grows to fill remaining height */}
+                <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
 
-                {/* Buyer Filter Section */}
-                <Card variant="outlined" sx={{ mb: 3 }}>
-                    <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                            <Typography variant="subtitle1" fontWeight={600}>Buyer Routing Filter</Typography>
-                            <Button
-                                size="small"
-                                variant="contained"
-                                onClick={handleSaveBuyerFilter}
-                                disabled={filterSaving}
-                            >
-                                {filterSaving ? 'Saving…' : 'Save'}
-                            </Button>
-                        </Box>
-                        <Divider sx={{ mb: 2 }} />
-                        <Stack spacing={2}>
-                            <ToggleButtonGroup
-                                value={filterMode ?? 'none'}
-                                exclusive
-                                size="small"
-                                onChange={(_, val) => {
-                                    const next = val === 'none' ? null : val as SourceBuyerFilterMode;
-                                    setFilterMode(next);
-                                    if (!next) setFilterBuyerIds([]);
-                                }}
-                            >
-                                <ToggleButton value="none">No Filter</ToggleButton>
-                                <ToggleButton value="include">Only send to selected</ToggleButton>
-                                <ToggleButton value="exclude">Block selected</ToggleButton>
-                            </ToggleButtonGroup>
+                    {/* Overview tab */}
+                    {activeTab === 0 && (
+                        <Box sx={{ px: 4, py: 3 }}>
+                            {/* Source Info */}
+                            <Paper sx={{ p: 3, mb: 3 }}>
+                                <Stack spacing={2}>
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Created</Typography>
+                                        <Typography variant="body1">
+                                            {new Date(source.created).toLocaleString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                year: 'numeric',
+                                                hour: 'numeric',
+                                                minute: '2-digit'
+                                            })}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Source ID</Typography>
+                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                                            {source.id}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </Paper>
 
-                            {filterMode && (
-                                <Autocomplete
-                                    multiple
-                                    options={buyers}
-                                    getOptionLabel={(b) => b.name}
-                                    value={buyers.filter(b => filterBuyerIds.includes(b.id))}
-                                    onChange={(_, selected) => setFilterBuyerIds(selected.map(b => b.id))}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
+                            {/* Buyer Filter Section */}
+                            <Card variant="outlined">
+                                <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                                        <Typography variant="subtitle1" fontWeight={600}>Buyer Routing Filter</Typography>
+                                        <Button
                                             size="small"
-                                            label={filterMode === 'include' ? 'Buyers to allow' : 'Buyers to block'}
-                                            placeholder="Select buyers…"
-                                        />
-                                    )}
-                                    renderTags={(value, getTagProps) =>
-                                        value.map((option, index) => (
-                                            <Chip
-                                                {...getTagProps({ index })}
-                                                key={option.id}
-                                                label={option.name}
-                                                size="small"
-                                                color={filterMode === 'include' ? 'success' : 'error'}
-                                                variant="outlined"
-                                            />
-                                        ))
-                                    }
-                                />
-                            )}
+                                            variant="contained"
+                                            onClick={handleSaveBuyerFilter}
+                                            disabled={filterSaving}
+                                        >
+                                            {filterSaving ? 'Saving…' : 'Save'}
+                                        </Button>
+                                    </Box>
+                                    <Divider sx={{ mb: 2 }} />
+                                    <Stack spacing={2}>
+                                        <ToggleButtonGroup
+                                            value={filterMode ?? 'none'}
+                                            exclusive
+                                            size="small"
+                                            onChange={(_, val) => {
+                                                const next = val === 'none' ? null : val as SourceBuyerFilterMode;
+                                                setFilterMode(next);
+                                                if (!next) setFilterBuyerIds([]);
+                                            }}
+                                        >
+                                            <ToggleButton value="none">No Filter</ToggleButton>
+                                            <ToggleButton value="include">Only send to selected</ToggleButton>
+                                            <ToggleButton value="exclude">Block selected</ToggleButton>
+                                        </ToggleButtonGroup>
 
-                            {!filterMode && (
-                                <Typography variant="body2" color="text.secondary">
-                                    Leads from this source will be sent to all eligible buyers.
-                                </Typography>
-                            )}
-                        </Stack>
-                    </CardContent>
-                </Card>
-
-                {/* Campaigns Section header */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                        Campaigns ({campaigns.length})
-                    </Typography>
-                    <Button
-                        variant="contained"
-                        startIcon={<Add />}
-                        onClick={() => handleOpenCampaignDialog()}
-                    >
-                        Add Campaign
-                    </Button>
-                </Box>
-
-                </Box>{/* end static top section */}
-
-                {/* Campaigns Table — takes all remaining height, scrolls internally */}
-                <Box sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0, px: 4, pb: 4 }}>
-                    <TableContainer component={Paper} sx={{ height: '100%' }}>
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Name</TableCell>
-                                    <TableCell>Status</TableCell>
-                                    <TableCell>Rating</TableCell>
-                                    <TableCell>Created</TableCell>
-                                    <TableCell>Actions</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {campaigns.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} align="center">
-                                            <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
-                                                No campaigns yet. Click "Add Campaign" to create one.
-                                            </Typography>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    campaigns.map((campaign) => (
-                                        <TableRow key={campaign.id}>
-                                            <TableCell>{campaign.name}</TableCell>
-                                            <TableCell>
-                                                {campaign.blacklisted ? (
-                                                    <Chip label="Blacklisted" color="error" size="small" />
-                                                ) : (
-                                                    <Chip label="Active" color="success" size="small" />
+                                        {filterMode && (
+                                            <Autocomplete
+                                                multiple
+                                                options={buyers}
+                                                getOptionLabel={(b) => b.name}
+                                                value={buyers.filter(b => filterBuyerIds.includes(b.id))}
+                                                onChange={(_, selected) => setFilterBuyerIds(selected.map(b => b.id))}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        size="small"
+                                                        label={filterMode === 'include' ? 'Buyers to allow' : 'Buyers to block'}
+                                                        placeholder="Select buyers…"
+                                                    />
                                                 )}
-                                            </TableCell>
-                                            <TableCell>{campaign.rating}</TableCell>
-                                            <TableCell>
-                                                {new Date(campaign.created).toLocaleString('en-US', {
-                                                    month: 'short',
-                                                    day: 'numeric',
-                                                    year: 'numeric'
-                                                })}
-                                            </TableCell>
-                                            <TableCell>
-                                                <IconButton size="small" onClick={() => handleOpenCampaignDialog(campaign)} title="Edit campaign">
-                                                    <Edit />
-                                                </IconButton>
-                                                <IconButton size="small" onClick={() => handleDeleteCampaign(campaign.id)} title="Delete campaign">
-                                                    <Delete />
-                                                </IconButton>
-                                            </TableCell>
+                                                renderTags={(value, getTagProps) =>
+                                                    value.map((option, index) => (
+                                                        <Chip
+                                                            {...getTagProps({ index })}
+                                                            key={option.id}
+                                                            label={option.name}
+                                                            size="small"
+                                                            color={filterMode === 'include' ? 'success' : 'error'}
+                                                            variant="outlined"
+                                                        />
+                                                    ))
+                                                }
+                                            />
+                                        )}
+
+                                        {!filterMode && (
+                                            <Typography variant="body2" color="text.secondary">
+                                                Leads from this source will be sent to all eligible buyers.
+                                            </Typography>
+                                        )}
+                                    </Stack>
+                                </CardContent>
+                            </Card>
+                        </Box>
+                    )}
+
+                    {/* Campaigns tab — full height table */}
+                    {activeTab === 1 && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', px: 4, pt: 3, pb: 4 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<Add />}
+                                    onClick={() => handleOpenCampaignDialog()}
+                                >
+                                    Add Campaign
+                                </Button>
+                            </Box>
+                            <TableContainer component={Paper} sx={{ flexGrow: 1, overflow: 'auto' }}>
+                                <Table stickyHeader>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Name</TableCell>
+                                            <TableCell>Status</TableCell>
+                                            <TableCell>Rating</TableCell>
+                                            <TableCell>Created</TableCell>
+                                            <TableCell>Actions</TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                    </TableHead>
+                                    <TableBody>
+                                        {campaigns.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} align="center">
+                                                    <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
+                                                        No campaigns yet. Click "Add Campaign" to create one.
+                                                    </Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            campaigns.map((campaign) => (
+                                                <TableRow key={campaign.id}>
+                                                    <TableCell>{campaign.name}</TableCell>
+                                                    <TableCell>
+                                                        {campaign.blacklisted ? (
+                                                            <Chip label="Blacklisted" color="error" size="small" />
+                                                        ) : (
+                                                            <Chip label="Active" color="success" size="small" />
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>{campaign.rating}</TableCell>
+                                                    <TableCell>
+                                                        {new Date(campaign.created).toLocaleString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric'
+                                                        })}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <IconButton size="small" onClick={() => handleOpenCampaignDialog(campaign)} title="Edit campaign">
+                                                            <Edit />
+                                                        </IconButton>
+                                                        <IconButton size="small" onClick={() => handleDeleteCampaign(campaign.id)} title="Delete campaign">
+                                                            <Delete />
+                                                        </IconButton>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </Box>
+                    )}
+
                 </Box>
             </Box>
 

@@ -1,0 +1,1 @@
+ALTER TABLE call_outcomes ADD COLUMN comment_required BOOLEAN NOT NULL DEFAULT FALSE;

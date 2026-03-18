@@ -24,6 +24,7 @@ export type Lead = {
     // TICKET-065: Needs call stage and call tracking
     needs_call: boolean;
     call_reason: string | null;
+    call_request_note: string | null;
     call_requested_at: string | null;
     call_executed_at: string | null;
     call_outcome: string | null;

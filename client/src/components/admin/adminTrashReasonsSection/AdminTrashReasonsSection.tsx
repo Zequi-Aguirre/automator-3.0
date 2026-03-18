@@ -26,27 +26,27 @@ import {
 } from '@mui/material';
 import { Add, DeleteOutline, ToggleOff, ToggleOn } from '@mui/icons-material';
 import Checkbox from '@mui/material/Checkbox';
-import callRequestReasonService, { CallRequestReason } from '../../../services/callRequestReason.service';
+import trashReasonService, { TrashReason } from '../../../services/trashReason.service';
 
 interface Props {
     embedded?: boolean;
     onCountChange?: (count: number) => void;
 }
 
-const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Props) => {
-    const [reasons, setReasons] = useState<CallRequestReason[]>([]);
+const AdminTrashReasonsSection = ({ embedded = false, onCountChange }: Props) => {
+    const [reasons, setReasons] = useState<TrashReason[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newLabel, setNewLabel] = useState('');
     const [saving, setSaving] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<CallRequestReason | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<TrashReason | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [snack, setSnack] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
     const load = async () => {
         setLoading(true);
         try {
-            const data = await callRequestReasonService.getAll();
+            const data = await trashReasonService.getAll();
             setReasons(data);
         } catch {
             setSnack({ message: 'Failed to load reasons', severity: 'error' });
@@ -62,7 +62,7 @@ const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Pro
         if (!newLabel.trim()) return;
         setSaving(true);
         try {
-            const created = await callRequestReasonService.create(newLabel.trim());
+            const created = await trashReasonService.create(newLabel.trim());
             setReasons(prev => [...prev, created]);
             setDialogOpen(false);
             setNewLabel('');
@@ -74,30 +74,11 @@ const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Pro
         }
     };
 
-    const handleToggleActive = async (reason: CallRequestReason) => {
-        try {
-            const updated = await callRequestReasonService.setActive(reason.id, !reason.active);
-            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
-            setSnack({ message: `Reason ${updated.active ? 'activated' : 'deactivated'}`, severity: 'success' });
-        } catch {
-            setSnack({ message: 'Failed to update reason', severity: 'error' });
-        }
-    };
-
-    const handleToggleCommentRequired = async (reason: CallRequestReason) => {
-        try {
-            const updated = await callRequestReasonService.setCommentRequired(reason.id, !reason.comment_required);
-            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
-        } catch {
-            setSnack({ message: 'Failed to update comment setting', severity: 'error' });
-        }
-    };
-
     const handleDelete = async () => {
         if (!deleteTarget) return;
         setDeleting(true);
         try {
-            await callRequestReasonService.delete(deleteTarget.id);
+            await trashReasonService.delete(deleteTarget.id);
             setReasons(prev => prev.filter(r => r.id !== deleteTarget.id));
             setSnack({ message: 'Reason deleted', severity: 'success' });
         } catch {
@@ -108,14 +89,33 @@ const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Pro
         }
     };
 
+    const handleToggleCommentRequired = async (reason: TrashReason) => {
+        try {
+            const updated = await trashReasonService.setCommentRequired(reason.id, !reason.comment_required);
+            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
+        } catch {
+            setSnack({ message: 'Failed to update comment setting', severity: 'error' });
+        }
+    };
+
+    const handleToggleActive = async (reason: TrashReason) => {
+        try {
+            const updated = await trashReasonService.setActive(reason.id, !reason.active);
+            setReasons(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setSnack({ message: `Reason ${updated.active ? 'activated' : 'deactivated'}`, severity: 'success' });
+        } catch {
+            setSnack({ message: 'Failed to update reason', severity: 'error' });
+        }
+    };
+
     const inner = (
         <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                 {!embedded && (
                     <Box>
-                        <Typography variant="h6" fontWeight={600}>Call Request Reasons</Typography>
+                        <Typography variant="h6" fontWeight={600}>Trash Reasons</Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Reasons available when flagging a lead for a callback.
+                            Reasons available when trashing a lead.
                         </Typography>
                     </Box>
                 )}
@@ -232,9 +232,8 @@ const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Pro
                 </DialogActions>
             </Dialog>
 
-            {/* Create dialog */}
             <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); setNewLabel(''); }} maxWidth="xs" fullWidth>
-                <DialogTitle>Add Call Request Reason</DialogTitle>
+                <DialogTitle>Add Trash Reason</DialogTitle>
                 <DialogContent>
                     <TextField
                         label="Label"
@@ -275,4 +274,4 @@ const AdminCallRequestReasonsSection = ({ embedded = false, onCountChange }: Pro
     return embedded ? inner : <Container maxWidth="md" sx={{ py: 3 }}>{inner}</Container>;
 };
 
-export default AdminCallRequestReasonsSection;
+export default AdminTrashReasonsSection;

@@ -27,6 +27,7 @@ import LeadManagerResource from "./resources/leadManagerResource";
 import ActivityResource from "./resources/activityResource";
 import TrashReasonResource from "./resources/trashReasonResource.ts";
 import CallRequestReasonResource from "./resources/callRequestReasonResource.ts";
+import CallOutcomeResource from "./resources/callOutcomeResource.ts";
 import RoleResource from "./resources/roleResource";
 
 dotenv.config();
@@ -73,6 +74,7 @@ export class AutomatorServer {
         this.app.use("/api/roles", authFunc, cont.resolve(RoleResource).routes());
         this.app.use("/api/trash-reasons", authFunc, cont.resolve(TrashReasonResource).routes());
         this.app.use("/api/call-request-reasons", authFunc, cont.resolve(CallRequestReasonResource).routes());
+        this.app.use("/api/call-outcomes", authFunc, cont.resolve(CallOutcomeResource).routes());
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
         this.app.use("/api/settings", authFunc,cont.resolve(SettingsResource).routes());
         this.app.use("/api/worker", authFunc,cont.resolve(WorkerResource).routes());

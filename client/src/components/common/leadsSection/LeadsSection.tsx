@@ -18,7 +18,6 @@ import {
     FormControl,
     InputLabel,
     Stack,
-    Badge
 } from "@mui/material";
 import { Lead } from "../../../types/leadTypes.ts";
 import { Buyer } from "../../../types/buyerTypes.ts";
@@ -34,6 +33,31 @@ import campaignService from "../../../services/campaign.service.tsx";
 
 type LeadStatus = "needs_review" | "needs_call" | "new" | "verified" | "sent" | "sold" | "trash";
 type SendSource = "manual" | "worker" | "auto_send";
+
+// Inline count chip — solid blue bg when active so it stays visible on transparent tab background
+const Cnt = ({ n, active }: { n: number; active?: boolean }) => {
+    if (n <= 0) return null;
+    return (
+        <Box
+            component="span"
+            sx={{
+                ml: 0.75,
+                px: '5px',
+                borderRadius: '10px',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                lineHeight: '16px',
+                minWidth: '16px',
+                textAlign: 'center',
+                display: 'inline-block',
+                backgroundColor: active === true ? '#1976d2' : 'rgba(0,0,0,0.15)',
+                color: active === true ? '#fff' : 'inherit',
+            }}
+        >
+            {n}
+        </Box>
+    );
+};
 
 const LeadsSection = () => {
     const { leadFilters, setLeadFilters } = useContext(DataContext);
@@ -289,53 +313,57 @@ const LeadsSection = () => {
                         exclusive
                         size="small"
                         onChange={(_e, val) => { if (val !== null) updateStatus(val as LeadStatus); }}
+                        sx={{
+                            border: 'none',
+                            background: 'none',
+                            gap: 0,
+                            '& .MuiToggleButtonGroup-grouped': {
+                                border: 'none !important',
+                                borderBottom: '3px solid transparent',
+                                borderRadius: '0 !important',
+                                background: 'none',
+                                color: 'text.secondary',
+                                fontWeight: 500,
+                                fontSize: '0.8125rem',
+                                textTransform: 'none',
+                                px: 1.5,
+                                pb: 0.75,
+                                '&:hover': { background: 'rgba(0,0,0,0.04)', color: 'text.primary' },
+                            },
+                        }}
                     >
                         {can(Permission.LEADS_VIEW_NEW) && (
-                            <ToggleButton value="new" sx={{ pr: tabCounts.new > 0 ? 2.5 : undefined }}>
-                                <Badge badgeContent={tabCounts.new || null} color="primary">
-                                    Needs Verification
-                                </Badge>
+                            <ToggleButton value="new" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
+                                Needs Verification<Cnt n={tabCounts.new} active={status === 'new'} />
                             </ToggleButton>
                         )}
-
                         {can(Permission.LEADS_VIEW_VERIFIED) && (
-                            <ToggleButton value="verified" sx={{ pr: tabCounts.verified > 0 ? 2.5 : undefined }}>
-                                <Badge badgeContent={tabCounts.verified || null} color="primary">
-                                    Verified
-                                </Badge>
+                            <ToggleButton value="verified" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
+                                Verified<Cnt n={tabCounts.verified} active={status === 'verified'} />
                             </ToggleButton>
                         )}
-
                         {can(Permission.LEADS_VIEW_NEEDS_REVIEW) && (
-                            <ToggleButton value="needs_review" sx={{ pr: tabCounts.needs_review > 0 ? 2.5 : undefined }}>
-                                <Badge badgeContent={tabCounts.needs_review || null} color="warning">
-                                    Needs Review
-                                </Badge>
+                            <ToggleButton value="needs_review" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
+                                Needs Review<Cnt n={tabCounts.needs_review} active={status === 'needs_review'} />
                             </ToggleButton>
                         )}
-
                         {can(Permission.LEADS_VIEW_NEEDS_CALL) && (
-                            <ToggleButton value="needs_call" sx={{ pr: tabCounts.needs_call > 0 ? 2.5 : undefined }}>
-                                <Badge badgeContent={tabCounts.needs_call || null} color="error">
-                                    Needs Call
-                                </Badge>
+                            <ToggleButton value="needs_call" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
+                                Needs Call<Cnt n={tabCounts.needs_call} active={status === 'needs_call'} />
                             </ToggleButton>
                         )}
-
                         {can(Permission.LEADS_VIEW_SENT) && (
-                            <ToggleButton value="sent">
+                            <ToggleButton value="sent" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
                                 Sent
                             </ToggleButton>
                         )}
-
                         {can(Permission.LEADS_VIEW_SOLD) && (
-                            <ToggleButton value="sold">
+                            <ToggleButton value="sold" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
                                 Sold
                             </ToggleButton>
                         )}
-
                         {can(Permission.LEADS_VIEW_TRASH) && (
-                            <ToggleButton value="trash">
+                            <ToggleButton value="trash" sx={{ '&.Mui-selected': { background: 'none', borderBottom: '3px solid #1976d2 !important', color: '#1976d2', fontWeight: 700 } }}>
                                 Trash
                             </ToggleButton>
                         )}

@@ -23,6 +23,7 @@ export enum LeadAction {
     NEEDS_REVIEW_RESOLVED = 'lead_needs_review_resolved',
     // TICKET-065: Call tracking
     CALL_REQUESTED = 'lead_call_requested',
+    CALL_REQUEST_CANCELLED = 'lead_call_request_cancelled',
     CALL_EXECUTED = 'lead_call_executed',
     CALL_RESOLVED = 'lead_call_resolved',
 }
@@ -88,6 +89,20 @@ export enum TrashReasonAction {
     CREATED = 'trash_reason_created',
     ACTIVATED = 'trash_reason_activated',
     DEACTIVATED = 'trash_reason_deactivated',
+    COMMENT_REQUIRED_ON = 'trash_reason_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'trash_reason_comment_required_off',
+    DELETED = 'trash_reason_deleted',
+}
+
+export enum CallOutcomeAction {
+    CREATED = 'call_outcome_created',
+    ACTIVATED = 'call_outcome_activated',
+    DEACTIVATED = 'call_outcome_deactivated',
+    COMMENT_REQUIRED_ON = 'call_outcome_comment_required_on',
+    COMMENT_REQUIRED_OFF = 'call_outcome_comment_required_off',
+    RESOLVES_CALL_ON = 'call_outcome_resolves_call_on',
+    RESOLVES_CALL_OFF = 'call_outcome_resolves_call_off',
+    DELETED = 'call_outcome_deleted',
 }
 
 export enum CallRequestReasonAction {
@@ -96,6 +111,7 @@ export enum CallRequestReasonAction {
     DEACTIVATED = 'call_request_reason_deactivated',
     COMMENT_REQUIRED_ON = 'call_request_reason_comment_required_on',
     COMMENT_REQUIRED_OFF = 'call_request_reason_comment_required_off',
+    DELETED = 'call_request_reason_deleted',
 }
 
 export enum DisputeAction {
@@ -121,6 +137,7 @@ export type ActivityAction =
     | AuthAction
     | UserAction
     | TrashReasonAction
+    | CallOutcomeAction
     | CallRequestReasonAction
     | DisputeAction
     | RoleAction;

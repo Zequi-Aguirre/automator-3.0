@@ -15,6 +15,7 @@ import BuyerDispatchService from "./buyerDispatchService.ts";
 import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO.ts";
 import ActivityService from "./activityService.ts";
 import WorkerSettingsDAO from "../data/workerSettingsDAO.ts";
+import CallOutcomeDAO from "../data/callOutcomeDAO.ts";
 
 type LeadTrashReason =
     | "BLACKLISTED_COUNTY"
@@ -36,7 +37,8 @@ export default class LeadService {
         private readonly buyerDispatchService: BuyerDispatchService,
         private readonly leadBuyerOutcomeDAO: LeadBuyerOutcomeDAO,
         private readonly activityService: ActivityService,
-        private readonly workerSettingsDAO: WorkerSettingsDAO
+        private readonly workerSettingsDAO: WorkerSettingsDAO,
+        private readonly callOutcomeDAO: CallOutcomeDAO
     ) {}
 
     // CSV Import Source Management
@@ -533,23 +535,37 @@ export default class LeadService {
         return lead;
     }
 
+    async cancelCallRequest(leadId: string, userId: string): Promise<Lead> {
+        const lead = await this.leadDAO.cancelCallRequest(leadId);
+        await this.activityService.log({
+            user_id: userId,
+            lead_id: leadId,
+            action: LeadAction.CALL_REQUEST_CANCELLED,
+        });
+        return lead;
+    }
+
     /**
-     * TICKET-065: Log a call attempt and its outcome.
-     * If outcome is 'resolved', the needs_call flag is cleared.
+     * TICKET-065/123: Log a call attempt and its outcome.
+     * The outcome is looked up by ID to determine resolves_call.
+     * If resolves_call is true, the needs_call flag is cleared.
      */
     async executeCall(
         leadId: string,
-        outcome: string,
+        outcomeId: string,
         notes: string | null,
         userId: string
     ): Promise<Lead> {
-        const lead = await this.leadDAO.executeCall(leadId, outcome, notes, userId);
-        const action = outcome === 'resolved' ? LeadAction.CALL_RESOLVED : LeadAction.CALL_EXECUTED;
+        const outcomeRecord = await this.callOutcomeDAO.getById(outcomeId);
+        const resolvesCall = outcomeRecord?.resolves_call ?? false;
+        const outcomeLabel = outcomeRecord?.label ?? outcomeId;
+        const lead = await this.leadDAO.executeCall(leadId, outcomeLabel, resolvesCall, notes, userId);
+        const action = resolvesCall ? LeadAction.CALL_RESOLVED : LeadAction.CALL_EXECUTED;
         await this.activityService.log({
             user_id: userId,
             lead_id: leadId,
             action,
-            action_details: { outcome, notes }
+            action_details: { outcome: outcomeLabel, notes }
         });
         return lead;
     }
