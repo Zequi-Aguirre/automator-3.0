@@ -34,6 +34,9 @@ export enum Permission {
     CALL_REQUEST_REASONS_MANAGE = 'call_request_reasons.manage',
     CALL_OUTCOMES_MANAGE = 'call_outcomes.manage',
     DISPUTES_CREATE = 'disputes.create',
+    // TICKET-130: Zoe AI permissions (superadmin only)
+    ZOE_MANAGE_KEYS = 'zoe.manage_keys',
+    ZOE_MANAGE_CONFIG = 'zoe.manage_config',
 }
 
 export type User = {

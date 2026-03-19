@@ -125,6 +125,14 @@ export enum RoleAction {
     DELETED = 'role_deleted',
 }
 
+// TICKET-128, TICKET-130: Zoe AI actions
+export enum ZoeAction {
+    ASKED = 'zoe_asked',
+    KEY_CREATED = 'zoe_key_created',
+    KEY_REVOKED = 'zoe_key_revoked',
+    CONFIG_UPDATED = 'zoe_config_updated',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -140,7 +148,8 @@ export type ActivityAction =
     | CallOutcomeAction
     | CallRequestReasonAction
     | DisputeAction
-    | RoleAction;
+    | RoleAction
+    | ZoeAction;
 
 export type ActivityLog = {
     id: string;

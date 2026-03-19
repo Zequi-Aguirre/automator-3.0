@@ -29,6 +29,7 @@ import TrashReasonResource from "./resources/trashReasonResource.ts";
 import CallRequestReasonResource from "./resources/callRequestReasonResource.ts";
 import CallOutcomeResource from "./resources/callOutcomeResource.ts";
 import RoleResource from "./resources/roleResource";
+import ZoeResource from "./resources/zoeResource.ts";
 
 dotenv.config();
 
@@ -78,6 +79,9 @@ export class AutomatorServer {
         this.app.use("/api/users", authFunc, cont.resolve(UserResource).routes());
         this.app.use("/api/settings", authFunc,cont.resolve(SettingsResource).routes());
         this.app.use("/api/worker", authFunc,cont.resolve(WorkerResource).routes());
+        const zoeResource = cont.resolve(ZoeResource);
+        this.app.use("/api/zoe", authFunc, zoeResource.routes());
+        this.app.use("/api/zoe-ask", zoeResource.externalRoutes());
         this.app.use('/static', express.static('public'));
 
         // Initialize worker if IS_WORKER is true

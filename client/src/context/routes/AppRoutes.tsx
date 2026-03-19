@@ -17,6 +17,7 @@ import AdminUsersView from "../../views/adminViews/AdminUsersView.tsx";
 import AdminUserDetailsView from "../../views/adminViews/AdminUserDetailsView.tsx";
 import AdminListsView from "../../views/adminViews/AdminListsView.tsx";
 import ChangePasswordView from "../../views/ChangePasswordView";
+import AdminZoeView from "../../views/adminViews/AdminZoeView.tsx";
 
 const AppRoutes = () => {
     return (
@@ -38,6 +39,7 @@ const AppRoutes = () => {
             <Route path="/users/:id" element={<RequireAuth><AdminUserDetailsView /></RequireAuth>} />
             <Route path="/lists" element={<RequireAuth><AdminListsView /></RequireAuth>} />
             <Route path="/change-password" element={<RequireAuth><ChangePasswordView /></RequireAuth>} />
+            <Route path="/zoe" element={<RequireAuth><AdminZoeView /></RequireAuth>} />
         </Routes>
     );
 };
