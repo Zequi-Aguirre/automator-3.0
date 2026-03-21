@@ -13,6 +13,7 @@ import {
     DialogTitle,
     Divider,
     IconButton,
+    ListSubheader,
     MenuItem,
     Select,
     Stack,
@@ -26,11 +27,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SaveIcon from '@mui/icons-material/Save';
 import zoeService, { ZoeApiKey, ZoeApiKeyCreateResult, ZoeConfig } from '../../services/zoe.service';
 
-const MODELS = [
-    'claude-opus-4-6',
-    'claude-sonnet-4-6',
-    'claude-haiku-4-5-20251001',
-];
+const MODELS = {
+    Anthropic: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+    OpenAI: ['gpt-4o', 'gpt-4o-mini', 'o3-mini'],
+};
 
 function formatDate(iso: string | null) {
     if (!iso) return '—';
@@ -252,7 +252,10 @@ function ConfigSection() {
                             onChange={e => { setLocalValues(prev => ({ ...prev, model: e.target.value })); }}
                             sx={{ minWidth: 280 }}
                         >
-                            {MODELS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                            {Object.entries(MODELS).flatMap(([provider, models]) => [
+                                <ListSubheader key={provider}>{provider}</ListSubheader>,
+                                ...models.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>),
+                            ])}
                         </Select>
                         <Button
                             variant={saved.model ? 'contained' : 'outlined'}
