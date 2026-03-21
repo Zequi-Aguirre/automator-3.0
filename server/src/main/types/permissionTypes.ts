@@ -72,6 +72,12 @@ export enum DisputePermission {
     CREATE = 'disputes.create',
 }
 
+// TICKET-130: Zoe AI permissions (superadmin only)
+export enum ZoePermission {
+    MANAGE_KEYS = 'zoe.manage_keys',
+    MANAGE_CONFIG = 'zoe.manage_config',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerSettingsPermission
@@ -85,7 +91,8 @@ export type Permission =
     | TrashReasonPermission
     | CallRequestReasonPermission
     | CallOutcomePermission
-    | DisputePermission;
+    | DisputePermission
+    | ZoePermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
@@ -137,6 +144,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         BuyerPermission.HOLD,
     ],
     superadmin: [
+        ZoePermission.MANAGE_KEYS,
+        ZoePermission.MANAGE_CONFIG,
         LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
