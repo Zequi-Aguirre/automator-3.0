@@ -24,6 +24,7 @@ import LocationCityIcon from "@mui/icons-material/LocationCity";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import GroupIcon from "@mui/icons-material/Group";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -81,6 +82,7 @@ export default function NavBar() {
         { label: "Lists", icon: <ListAltIcon />, path: "/lists", pathMatch: "/lists", permission: Permission.CALL_REQUEST_REASONS_MANAGE },
         { label: "Worker Settings", icon: <SettingsIcon />, path: "/settings", pathMatch: "/settings", permission: Permission.WORKER_SETTINGS_MANAGE },
         { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
+        { label: "Zoe AI", icon: <AutoAwesomeIcon />, path: "/zoe", pathMatch: "/zoe", permission: Permission.ZOE_MANAGE_KEYS },
     ], []);
 
     const visibleItems = useMemo(() => {
@@ -112,7 +114,8 @@ export default function NavBar() {
         }
     };
 
-    if (!role || location.pathname.toLowerCase() === '/login') return null;
+    const unauthPaths = ['/', '/login'];
+    if (!role || unauthPaths.includes(location.pathname.toLowerCase())) return null;
 
     const initials = loggedInUser?.name ? getInitials(loggedInUser.name) : '?';
 
