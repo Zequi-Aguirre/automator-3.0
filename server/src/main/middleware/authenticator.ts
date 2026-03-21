@@ -32,25 +32,24 @@ export class Authenticator {
     
             const newUserData = jwt.verify(token, this.config.jwtSecret) as DecodedToken;
 
-            const expirationTimeWithin4Hours = newUserData.exp && newUserData.exp - (Date.now() / 1000) < 4 * 60 * 60;
-
-            if (expirationTimeWithin4Hours) {
-                const newToken = jwt.sign({ id: newUserData.id, role: newUserData.role }, this.config.jwtSecret, { expiresIn: '24h' });
-                res.setHeader('New-Token', newToken);
-            }
             const user = await this.userDAO.getOneById(newUserData.id);
-    
+
             if (!user) {
                 console.error(`No matching user with ${newUserData.id}`);
-                return res.status(401)
+                return res.status(401).json({ mensaje: 'User not found' });
             }
 
-            req.user = user!;
+            // Refresh the token on every request (sliding window — resets 24h clock)
+            const newToken = jwt.sign({ id: newUserData.id, role: newUserData.role }, this.config.jwtSecret, { expiresIn: '24h' });
+            res.setHeader('New-Token', newToken);
+
+            req.user = user;
             next();
         } catch (error) {
             if (error instanceof jwt.TokenExpiredError) {
                 return res.status(401).json({ mensaje: 'Token has expired' });
             }
+            return res.status(401).json({ mensaje: 'Invalid token' });
         }
     }
 
