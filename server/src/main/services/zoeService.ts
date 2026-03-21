@@ -15,12 +15,8 @@ import { EnvConfig } from '../config/envConfig';
 // ── SQL safety validation ────────────────────────────────────────────────────
 
 const WRITE_PATTERN = /\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP|CREATE|ALTER|GRANT|REVOKE|REPLACE|UPSERT|MERGE)\b/i;
-const SENSITIVE_PATTERN = /\b(encrypted_password|auth_token_encrypted|webhook_url|sources\.token)\b/i;
-const APPROVED_TABLES = new Set([
-    'leads', 'send_log', 'lead_buyer_outcomes', 'sources', 'campaigns',
-    'buyers', 'counties', 'lead_managers', 'activity_log',
-    'trash_reasons', 'call_outcomes', 'call_request_reasons',
-]);
+// Credential columns that must never appear in any query result
+const SENSITIVE_PATTERN = /\b(encrypted_password|auth_token_encrypted|webhook_url|key_hash)\b|sources\s*\.\s*token/i;
 
 function validateSql(sql: string): { valid: boolean; reason?: string } {
     if (WRITE_PATTERN.test(sql)) {
@@ -28,13 +24,6 @@ function validateSql(sql: string): { valid: boolean; reason?: string } {
     }
     if (SENSITIVE_PATTERN.test(sql)) {
         return { valid: false, reason: 'Access to sensitive columns is not permitted.' };
-    }
-    const tableMatches = sql.match(/(?:FROM|JOIN)\s+(\w+)/gi) ?? [];
-    for (const match of tableMatches) {
-        const table = match.replace(/^(FROM|JOIN)\s+/i, '').toLowerCase();
-        if (!APPROVED_TABLES.has(table)) {
-            return { valid: false, reason: `Table "${table}" is not in the approved list.` };
-        }
     }
     return { valid: true };
 }
