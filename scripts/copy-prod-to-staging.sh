@@ -8,8 +8,16 @@
 #
 # Requires: Doppler CLI authenticated with access to automator prd + target configs.
 # WARNING: This OVERWRITES the target database completely.
+# NOTE: After restore, buyer webhook_url values are updated to include ?env=<target>
+#       so Make.com can route sends to the correct tracking sheet.
 
 set -e
+
+# Use PostgreSQL 17 client tools to match the Render server version
+PG17_BIN="/opt/homebrew/opt/postgresql@17/bin"
+if [[ -d "$PG17_BIN" ]]; then
+    export PATH="$PG17_BIN:$PATH"
+fi
 
 TARGET="${1:-stg}"
 
@@ -18,7 +26,7 @@ if [[ "$TARGET" != "stg" && "$TARGET" != "dev" ]]; then
     exit 1
 fi
 
-DUMP_FILE="/tmp/automator_prod_$(date +%Y%m%d_%H%M%S).dump"
+DUMP_FILE="/tmp/automator_prod_$(date +%Y%m%d_%H%M%S).sql"
 
 cleanup() {
     rm -f "$DUMP_FILE"
@@ -66,7 +74,9 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# ── Dump prod ────────────────────────────────────────────────────────────────
+# ── Dump prod as plain SQL ────────────────────────────────────────────────────
+# Plain text format allows us to filter PG17-specific SET commands that
+# older local containers don't support (e.g. SET transaction_timeout).
 echo ""
 echo "Dumping production database..."
 PGPASSWORD="$PROD_PASS" pg_dump \
@@ -76,45 +86,61 @@ PGPASSWORD="$PROD_PASS" pg_dump \
     -d "$PROD_DB" \
     --no-owner \
     --no-privileges \
-    -Fc \
+    -Fp \
     -f "$DUMP_FILE"
 echo "  ✓ Dump complete"
 
-# ── Restore to target ────────────────────────────────────────────────────────
+# ── Reset target schema ──────────────────────────────────────────────────────
 echo ""
 echo "Dropping and recreating $TARGET schema..."
-
 if [[ "$TGT_SSL" == "true" ]]; then
-    PGPASSWORD="$TGT_PASS" psql \
-        "postgresql://${TGT_USER}:${TGT_PASS}@${TGT_HOST}:${TGT_PORT}/${TGT_DB}?sslmode=require" \
-        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    TGT_DSN="postgresql://${TGT_USER}:${TGT_PASS}@${TGT_HOST}:${TGT_PORT}/${TGT_DB}?sslmode=require"
+    PGPASSWORD="$TGT_PASS" psql "$TGT_DSN" \
+        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
 else
     PGPASSWORD="$TGT_PASS" psql \
-        -h "$TGT_HOST" \
-        -p "$TGT_PORT" \
-        -U "$TGT_USER" \
-        -d "$TGT_DB" \
-        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+        -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" \
+        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
 fi
 
+# ── Restore ───────────────────────────────────────────────────────────────────
+# Filter SET transaction_timeout — not supported by older Postgres containers.
 echo ""
 echo "Restoring to $TARGET..."
 if [[ "$TGT_SSL" == "true" ]]; then
-    PGPASSWORD="$TGT_PASS" pg_restore \
-        -d "postgresql://${TGT_USER}:${TGT_PASS}@${TGT_HOST}:${TGT_PORT}/${TGT_DB}?sslmode=require" \
-        --no-owner \
-        --no-privileges \
-        "$DUMP_FILE"
+    grep -v "^SET transaction_timeout" "$DUMP_FILE" \
+        | PGPASSWORD="$TGT_PASS" psql "$TGT_DSN" -v ON_ERROR_STOP=0 -q
 else
-    PGPASSWORD="$TGT_PASS" pg_restore \
-        -h "$TGT_HOST" \
-        -p "$TGT_PORT" \
-        -U "$TGT_USER" \
-        -d "$TGT_DB" \
-        --no-owner \
-        --no-privileges \
-        "$DUMP_FILE"
+    grep -v "^SET transaction_timeout" "$DUMP_FILE" \
+        | PGPASSWORD="$TGT_PASS" psql \
+            -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" \
+            -v ON_ERROR_STOP=0 -q
 fi
+echo "  ✓ Restore complete"
+
+# ── Update buyer webhook URLs with env identifier ────────────────────────────
+# Appends ?env=<target> (or &env=<target>) to every buyer webhook_url.
+# This lets Make.com route sends to the correct tracking sheet per environment.
+echo ""
+echo "Tagging buyer webhook URLs with env=$TARGET..."
+TAG_SQL="
+UPDATE buyers
+SET webhook_url = CASE
+    WHEN webhook_url LIKE '%?%' THEN webhook_url || '&env=$TARGET'
+    ELSE webhook_url || '?env=$TARGET'
+END
+WHERE webhook_url IS NOT NULL
+  AND deleted IS NULL;
+"
+if [[ "$TGT_SSL" == "true" ]]; then
+    PGPASSWORD="$TGT_PASS" psql "$TGT_DSN" -c "$TAG_SQL" -q
+else
+    PGPASSWORD="$TGT_PASS" psql \
+        -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" \
+        -c "$TAG_SQL" -q
+fi
+echo "  ✓ Buyer webhook URLs updated"
 
 echo ""
 echo "=== Done. $TARGET is now a full copy of production. ==="
+echo "    Buyer webhook URLs include ?env=$TARGET for Make.com routing."
