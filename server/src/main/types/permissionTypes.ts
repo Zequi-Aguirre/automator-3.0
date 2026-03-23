@@ -78,6 +78,23 @@ export enum ZoePermission {
     MANAGE_CONFIG = 'zoe.manage_config',
 }
 
+// TICKET-137: Reconciliation importer
+export enum ReconciliationPermission {
+    VIEW = 'reconciliation.view',
+    MANAGE = 'reconciliation.manage',
+}
+
+// TICKET-140: Platform connections (encrypted external DB credentials for platformSync)
+export enum PlatformConnectionPermission {
+    MANAGE = 'platform_connections.manage',
+}
+
+// TICKET-143: Facebook Lead Ads integration
+export enum FacebookPermission {
+    VIEW = 'facebook.view',
+    SYNC = 'facebook.sync',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerSettingsPermission
@@ -92,7 +109,10 @@ export type Permission =
     | CallRequestReasonPermission
     | CallOutcomePermission
     | DisputePermission
-    | ZoePermission;
+    | ZoePermission
+    | ReconciliationPermission
+    | PlatformConnectionPermission
+    | FacebookPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
@@ -146,6 +166,11 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
     superadmin: [
         ZoePermission.MANAGE_KEYS,
         ZoePermission.MANAGE_CONFIG,
+        ReconciliationPermission.VIEW,
+        ReconciliationPermission.MANAGE,
+        PlatformConnectionPermission.MANAGE,
+        FacebookPermission.VIEW,
+        FacebookPermission.SYNC,
         LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,

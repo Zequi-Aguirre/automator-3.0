@@ -292,4 +292,15 @@ export default class SendLogDAO {
             RETURNING *;
         `, { id });
     }
+
+    // Reconciliation matching: find the most recent send_log entry for a lead+buyer pair
+    async getLatestByLeadAndBuyer(leadId: string, buyerId: string): Promise<SendLog | null> {
+        return await this.db.oneOrNone<SendLog>(
+            `SELECT * FROM send_log
+             WHERE lead_id = $[leadId] AND buyer_id = $[buyerId] AND deleted IS NULL
+             ORDER BY created DESC
+             LIMIT 1`,
+            { leadId, buyerId }
+        );
+    }
 }

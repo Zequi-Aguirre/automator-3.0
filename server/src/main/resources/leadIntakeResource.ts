@@ -65,12 +65,6 @@ export default class LeadIntakeResource {
                         });
                     }
 
-                    if (!lead.first_name || !lead.last_name) {
-                        return res.status(400).json({
-                            message: "first_name and last_name are required"
-                        });
-                    }
-
                     // County lookup by zip if not provided
                     let county = lead.county;
                     let countyId = lead.county_id;
@@ -83,31 +77,34 @@ export default class LeadIntakeResource {
                         }
                     }
 
-                    if (!county) {
-                        return res.status(400).json({
-                            message: `County could not be determined from zip ${lead.zip}`
-                        });
-                    }
-
                     const campaignKey = campaignInput?.external_campaign_id
                         ? `${campaignInput.platform}:${campaignInput.external_campaign_id}`
                         : campaignInput?.external_campaign_name || lead.first_name;
 
+                    const missingIntakeFields: string[] = [];
+                    if (!lead.first_name) missingIntakeFields.push('first_name');
+                    if (!lead.last_name) missingIntakeFields.push('last_name');
+                    if (!county) missingIntakeFields.push('county');
+
                     normalizedLead = {
                         leadData: {
-                            first_name: lead.first_name,
-                            last_name: lead.last_name,
+                            first_name: lead.first_name || '',
+                            last_name: lead.last_name || '',
                             email: lead.email,
                             phone: lead.phone,
                             address: lead.address,
                             city: lead.city,
                             state: lead.state,
                             zipcode: lead.zip,
-                            county,
-                            county_id: countyId,
+                            county: county || '',
+                            county_id: countyId || null,
                             external_lead_id: metadata?.external_lead_id,
                             external_ad_id: metadata?.external_ad_id,
-                            external_ad_name: metadata?.external_ad_name
+                            external_ad_name: metadata?.external_ad_name,
+                            ...(missingIntakeFields.length > 0 && {
+                                needs_review: true,
+                                needs_review_reason: `Missing: ${missingIntakeFields.join(', ')}`
+                            }),
                         },
                         campaignKey,
                         campaignData: campaignInput || {},

@@ -10,6 +10,7 @@ import {
 import moment from "moment";
 import SettingsService from "../services/settingsService.ts";
 import TrashExpireLeadsJob from "./jobs/TrashExpireLeadsJob.ts";
+import PlatformSyncJob from "./jobs/PlatformSyncJob.ts";
 
 interface JobHandler {
     execute: () => Promise<void>;
@@ -24,7 +25,8 @@ export class Worker {
 
     private readonly handlers: Record<string, JobHandlerConstructor> = {
         sendLeads: SendLeadsJob,
-        trashExpireLeads: TrashExpireLeadsJob
+        trashExpireLeads: TrashExpireLeadsJob,
+        platformSync: PlatformSyncJob,
     };
 
     constructor(

@@ -71,7 +71,7 @@ const AdminSourceDetailsView = () => {
 
     // Edit source dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [editFormData, setEditFormData] = useState({ name: '' });
+    const [editFormData, setEditFormData] = useState({ name: '', fb_page_id: '', fb_page_token: '' });
 
     // Buyer filter state
     const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -186,7 +186,7 @@ const AdminSourceDetailsView = () => {
 
     const handleOpenEditDialog = () => {
         if (source) {
-            setEditFormData({ name: source.name });
+            setEditFormData({ name: source.name, fb_page_id: source.fb_page_id ?? '', fb_page_token: source.fb_page_token ?? '' });
             setEditDialogOpen(true);
         }
     };
@@ -194,7 +194,11 @@ const AdminSourceDetailsView = () => {
     const handleSaveEdit = async () => {
         if (!id) return;
         try {
-            await sourceService.update(id, editFormData);
+            await sourceService.update(id, {
+                name: editFormData.name,
+                fb_page_id: editFormData.fb_page_id || null,
+                fb_page_token: editFormData.fb_page_token || null,
+            });
             setSnack({ open: true, message: 'Source updated successfully', severity: 'success' });
             setEditDialogOpen(false);
             fetchSourceDetails();
@@ -607,6 +611,22 @@ const AdminSourceDetailsView = () => {
                             onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
                             required
                             fullWidth
+                        />
+                        <TextField
+                            label="Facebook Page ID"
+                            value={editFormData.fb_page_id}
+                            onChange={(e) => setEditFormData({ ...editFormData, fb_page_id: e.target.value })}
+                            fullWidth
+                            placeholder="e.g. 123456789"
+                            helperText="Used to match incoming Facebook webhook events to this source"
+                        />
+                        <TextField
+                            label="Facebook Page Access Token"
+                            value={editFormData.fb_page_token}
+                            onChange={(e) => setEditFormData({ ...editFormData, fb_page_token: e.target.value })}
+                            fullWidth
+                            placeholder="EAAxxxxxxx..."
+                            helperText="Page token used to fetch lead data from the Facebook API"
                         />
                     </Stack>
                 </DialogContent>

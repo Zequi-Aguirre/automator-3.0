@@ -133,6 +133,20 @@ export enum ZoeAction {
     CONFIG_UPDATED = 'zoe_config_updated',
 }
 
+// TICKET-137: Reconciliation importer
+// TICKET-138: Reconciliation matching engine
+export enum ReconciliationAction {
+    IMPORTED = 'reconciliation_imported',
+    MATCHED  = 'reconciliation_matched',
+}
+
+// TICKET-140: Platform connections
+export enum PlatformConnectionAction {
+    CREATED = 'platform_connection_created',
+    UPDATED = 'platform_connection_updated',
+    DELETED = 'platform_connection_deleted',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -149,7 +163,9 @@ export type ActivityAction =
     | CallRequestReasonAction
     | DisputeAction
     | RoleAction
-    | ZoeAction;
+    | ZoeAction
+    | ReconciliationAction
+    | PlatformConnectionAction;
 
 export type ActivityLog = {
     id: string;
