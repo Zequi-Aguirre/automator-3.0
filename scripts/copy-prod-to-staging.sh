@@ -118,19 +118,17 @@ else
 fi
 echo "  ✓ Restore complete"
 
-# ── Update buyer webhook URLs with env identifier ────────────────────────────
-# Appends ?env=<target> (or &env=<target>) to every buyer webhook_url.
-# This lets Make.com route sends to the correct tracking sheet per environment.
+# ── Reset buyer webhook URLs to Make.com + env tag ───────────────────────────
+# Prod buyer URLs are real endpoints — not safe to call from non-prod envs.
+# Reset all buyers to the Make.com logging webhook (same URL as in migrations)
+# with ?buyer=<name>&env=<target> so Make.com routes to the correct sheet.
+MAKE_BASE="https://hook.us2.make.com/nqghehzuue7f59zu5bf0gaoynel9javf"
 echo ""
-echo "Tagging buyer webhook URLs with env=$TARGET..."
+echo "Resetting buyer webhook URLs to Make.com (?buyer=<name>&env=$TARGET)..."
 TAG_SQL="
 UPDATE buyers
-SET webhook_url = CASE
-    WHEN webhook_url LIKE '%?%' THEN webhook_url || '&env=$TARGET'
-    ELSE webhook_url || '?env=$TARGET'
-END
-WHERE webhook_url IS NOT NULL
-  AND deleted IS NULL;
+SET webhook_url = '${MAKE_BASE}?buyer=' || name || '&env=$TARGET'
+WHERE deleted IS NULL;
 "
 if [[ "$TGT_SSL" == "true" ]]; then
     PGPASSWORD="$TGT_PASS" psql "$TGT_DSN" -c "$TAG_SQL" -q
@@ -139,8 +137,8 @@ else
         -h "$TGT_HOST" -p "$TGT_PORT" -U "$TGT_USER" -d "$TGT_DB" \
         -c "$TAG_SQL" -q
 fi
-echo "  ✓ Buyer webhook URLs updated"
+echo "  ✓ Buyer webhook URLs reset to Make.com"
 
 echo ""
 echo "=== Done. $TARGET is now a full copy of production. ==="
-echo "    Buyer webhook URLs include ?env=$TARGET for Make.com routing."
+echo "    Buyer webhook URLs → Make.com ?buyer=<name>&env=$TARGET"
