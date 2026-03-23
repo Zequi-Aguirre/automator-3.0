@@ -70,12 +70,12 @@ export type BuyerMapping = {
 
 export type PreviewResult = {
     row_count: number;
+    platform: Platform;           // detected from buyer_products in the CSV
     platform_buyers: PlatformBuyerSummary[];
     file_token: string;
 };
 
 export type ConfirmImportDTO = {
-    platform: Platform;
     file_token: string;
     buyer_mappings: BuyerMapping[];
 };

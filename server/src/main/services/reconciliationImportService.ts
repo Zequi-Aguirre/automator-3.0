@@ -12,6 +12,7 @@ import {
     PlatformBuyerSummary,
     PreviewResult,
 } from '../types/reconciliationTypes';
+// Platform is used in derivePlatform return type and TempEntry
 
 // ---------------------------------------------------------------------------
 // Temp file store — holds parsed rows between preview and confirm calls.
@@ -89,6 +90,18 @@ function parsePrice(val: unknown): number | null {
     return isNaN(n) ? null : Math.round(n * 100);
 }
 
+function derivePlatform(rows: Array<{ platform_buyer_products: string[] }>): Platform {
+    for (const row of rows) {
+        for (const product of row.platform_buyer_products) {
+            const p = product.toLowerCase();
+            if (p.includes('compass')) return 'compass';
+            if (p.includes('pickle')) return 'pickle';
+            if (p.includes('seller')) return 'sellers';
+        }
+    }
+    return 'sellers'; // fallback
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -102,15 +115,16 @@ export default class ReconciliationImportService {
     ) {}
 
     async previewFile(
-        platform: Platform,
         buffer: Buffer,
         filename: string
     ): Promise<PreviewResult> {
-        const rows = this.parseFile(buffer, platform);
+        const rows = this.parseFile(buffer);
 
         if (rows.length === 0) {
             throw new Error('No valid rows found in file');
         }
+
+        const platform = derivePlatform(rows);
 
         // Load saved buyer mappings for this platform so we can pre-fill dropdowns
         const savedMappings = await this.mappingDAO.getByPlatform(platform);
@@ -143,6 +157,7 @@ export default class ReconciliationImportService {
 
         return {
             row_count: rows.length,
+            platform,
             platform_buyers: Array.from(buyerMap.values()),
             file_token: fileToken,
         };
@@ -207,7 +222,7 @@ export default class ReconciliationImportService {
     // Private: parse CSV/XLSX buffer into ParsedPlatformRow[]
     // -------------------------------------------------------------------------
 
-    private parseFile(buffer: Buffer, platform: Platform): ParsedPlatformRow[] {
+    private parseFile(buffer: Buffer): ParsedPlatformRow[] {
         const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
@@ -225,17 +240,17 @@ export default class ReconciliationImportService {
             if (!buyerLeadId) continue; // skip rows without the upsert key
 
             const disputeStatus = parseTimestamp(row['dispute_status']) ?? null;
-
             const phoneDigits = row['phone_digits'] ? String(row['phone_digits']) : null;
+            const buyerProducts = parseArrayField(row['buyer_products']);
 
             results.push({
-                platform,
+                platform: derivePlatform([{ platform_buyer_products: buyerProducts }]),
                 platform_lead_id:       (row['northstar_lead_id'] as string) ?? null,
                 platform_buyer_lead_id: String(buyerLeadId),
                 platform_buyer_id:      (row['northstar_buyer_id'] as string) ?? null,
                 platform_buyer_name:    (row['northstar_buyer_name'] as string) ?? null,
                 platform_buyer_email:   (row['northstar_buyer_email'] as string) ?? null,
-                platform_buyer_products: parseArrayField(row['buyer_products']),
+                platform_buyer_products: buyerProducts,
                 phone:                  (row['phone'] as string) ?? null,
                 phone_normalized:       normalizePhone(phoneDigits),
                 email:                  (row['email'] as string) ?? null,
