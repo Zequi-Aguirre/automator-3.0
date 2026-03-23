@@ -20,13 +20,19 @@ function normalizeHeader(raw: string): string {
 function parseArrayField(val: unknown): string[] {
     if (!val) return [];
     const s = String(val).trim();
+    // PostgreSQL array: {sellers direct, clients direct}
     if (s.startsWith('{') && s.endsWith('}')) {
         return s.slice(1, -1).split(',').map(v => v.trim().replace(/^"|"$/g, '')).filter(Boolean);
     }
+    // JSON array
     try {
         const parsed = JSON.parse(s);
         if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
     } catch { /* not JSON */ }
+    // Plain comma-separated string from array_to_string (e.g. "sellers direct, clients direct")
+    if (s.includes(',')) {
+        return s.split(',').map(v => v.trim()).filter(Boolean);
+    }
     return s ? [s] : [];
 }
 
