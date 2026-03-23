@@ -1,4 +1,5 @@
 // TICKET-137 — Reconciliation import service
+// TICKET-142 — Records dashboard
 import { authProvider, AxiosProvider } from '../config/axiosProvider';
 
 export interface ImportResult {
@@ -15,6 +16,35 @@ export interface ImportBatch {
     imported_at: string;
 }
 
+export interface PlatformLeadRecord {
+    id: string;
+    import_batch_id: string;
+    platform: string;
+    platform_lead_id: string | null;
+    platform_buyer_lead_id: string;
+    platform_buyer_id: string | null;
+    platform_buyer_name: string | null;
+    phone: string | null;
+    phone_normalized: string | null;
+    email: string | null;
+    campaign_name: string | null;
+    automator_campaign_name: string | null;
+    received_at: string | null;
+    sent_out_at: string | null;
+    buyer_lead_status: string | null;
+    buyer_confirmed: boolean | null;
+    price_cents: number | null;
+    disputed: boolean;
+    dispute_reason: string | null;
+    dispute_status: string | null;
+    automator_lead_id: string | null;
+    automator_buyer_id: string | null;
+    buyer_name: string | null;
+    match_status: string;
+    created: string;
+    last_imported_at: string;
+}
+
 class ReconciliationService {
     constructor(private readonly api: AxiosProvider) {}
 
@@ -28,6 +58,18 @@ class ReconciliationService {
 
     async getLastBatches(): Promise<ImportBatch[]> {
         const res = await this.api.getApi().get('/api/reconciliation/batches');
+        return res.data;
+    }
+
+    async getRecords(params: {
+        platform?: string;
+        match_status?: string;
+        automator_buyer_id?: string;
+        disputed?: boolean;
+        page: number;
+        limit: number;
+    }): Promise<{ items: PlatformLeadRecord[]; count: number }> {
+        const res = await this.api.getApi().get('/api/reconciliation/records', { params });
         return res.data;
     }
 }

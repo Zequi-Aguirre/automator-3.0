@@ -3,6 +3,7 @@ import { injectable } from 'tsyringe';
 import multer from 'multer';
 import ReconciliationImportService from '../services/reconciliationImportService';
 import ReconciliationMatchingService from '../services/reconciliationMatchingService';
+import PlatformLeadRecordDAO from '../data/platformLeadRecordDAO';
 import ActivityService from '../services/activityService';
 import { requirePermission } from '../middleware/requirePermission';
 import { ReconciliationPermission } from '../types/permissionTypes';
@@ -17,6 +18,7 @@ export default class ReconciliationResource {
     constructor(
         private readonly importService: ReconciliationImportService,
         private readonly matchingService: ReconciliationMatchingService,
+        private readonly recordDAO: PlatformLeadRecordDAO,
         private readonly activityService: ActivityService
     ) {
         this.router = express.Router();
@@ -84,6 +86,30 @@ export default class ReconciliationResource {
                         message: 'Failed to fetch batches',
                         error: error instanceof Error ? error.message : 'Unknown error',
                     });
+                }
+            }
+        );
+
+        // GET /api/reconciliation/records?platform=&match_status=&automator_buyer_id=&disputed=&page=&limit=
+        this.router.get(
+            '/records',
+            requirePermission(ReconciliationPermission.VIEW),
+            async (req: Request, res: Response) => {
+                try {
+                    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10));
+                    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? '50'), 10)));
+                    const result = await this.recordDAO.getRecords({
+                        platform: req.query.platform as string | undefined,
+                        match_status: req.query.match_status as string | undefined,
+                        automator_buyer_id: req.query.automator_buyer_id as string | undefined,
+                        disputed: req.query.disputed === 'true' ? true : undefined,
+                        page,
+                        limit,
+                    });
+                    return res.status(200).json(result);
+                } catch (error) {
+                    console.error('Error fetching reconciliation records:', error);
+                    return res.status(500).json({ message: 'Failed to fetch records' });
                 }
             }
         );

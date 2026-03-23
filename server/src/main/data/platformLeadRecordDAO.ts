@@ -12,6 +12,49 @@ export default class PlatformLeadRecordDAO {
         this.db = db.database();
     }
 
+    async getRecords(filters: {
+        platform?: string;
+        match_status?: string;
+        automator_buyer_id?: string;
+        disputed?: boolean;
+        page: number;
+        limit: number;
+    }): Promise<{ items: (PlatformLeadRecord & { buyer_name: string | null; automator_campaign_name: string | null })[]; count: number }> {
+        const conditions: string[] = [];
+        const params: Record<string, unknown> = {
+            limit: filters.limit,
+            offset: (filters.page - 1) * filters.limit,
+        };
+
+        if (filters.platform)            { conditions.push('plr.platform = $[platform]'); params.platform = filters.platform; }
+        if (filters.match_status)        { conditions.push('plr.match_status = $[match_status]'); params.match_status = filters.match_status; }
+        if (filters.automator_buyer_id)  { conditions.push('plr.automator_buyer_id = $[automator_buyer_id]'); params.automator_buyer_id = filters.automator_buyer_id; }
+        if (filters.disputed === true)   { conditions.push('plr.disputed = TRUE'); }
+
+        const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        const [items, countRow] = await Promise.all([
+            this.db.manyOrNone<PlatformLeadRecord & { buyer_name: string | null; automator_campaign_name: string | null }>(`
+                SELECT plr.*,
+                       b.name  AS buyer_name,
+                       COALESCE(plr.campaign_name, c.name) AS campaign_name,
+                       c.name  AS automator_campaign_name
+                FROM platform_lead_records plr
+                LEFT JOIN buyers b    ON b.id = plr.automator_buyer_id
+                LEFT JOIN leads l     ON l.id = plr.automator_lead_id
+                LEFT JOIN campaigns c ON c.id = l.campaign_id
+                ${where}
+                ORDER BY plr.received_at DESC NULLS LAST, plr.created DESC
+                LIMIT $[limit] OFFSET $[offset]
+            `, params),
+            this.db.one<{ count: string }>(`
+                SELECT COUNT(*) FROM platform_lead_records plr ${where}
+            `, params),
+        ]);
+
+        return { items, count: parseInt(countRow.count, 10) };
+    }
+
     async getPendingRecords(batchId?: string): Promise<PlatformLeadRecord[]> {
         const where = batchId != null
             ? `WHERE match_status = 'pending' AND import_batch_id = $[batchId]`
