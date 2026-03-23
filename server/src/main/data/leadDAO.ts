@@ -756,4 +756,29 @@ export default class LeadDAO {
             { email }
         );
     }
+
+    // Facebook matching: find leads by phone including trashed, active-first then most recent
+    async getByNormalizedPhoneAll(phone: string): Promise<{ id: string; deleted: string | null }[]> {
+        return await this.db.manyOrNone<{ id: string; deleted: string | null }>(
+            `SELECT id, deleted FROM leads
+             WHERE CASE
+                     WHEN length(regexp_replace(phone, '[^0-9]', '', 'g')) = 11
+                          AND left(regexp_replace(phone, '[^0-9]', '', 'g'), 1) = '1'
+                     THEN right(regexp_replace(phone, '[^0-9]', '', 'g'), 10)
+                     ELSE regexp_replace(phone, '[^0-9]', '', 'g')
+                   END = $[phone]
+             ORDER BY (deleted IS NULL) DESC, created DESC`,
+            { phone }
+        );
+    }
+
+    // Facebook matching: find leads by email including trashed, active-first then most recent
+    async getByEmailAll(email: string): Promise<{ id: string; deleted: string | null }[]> {
+        return await this.db.manyOrNone<{ id: string; deleted: string | null }>(
+            `SELECT id, deleted FROM leads
+             WHERE lower(email) = lower($[email])
+             ORDER BY (deleted IS NULL) DESC, created DESC`,
+            { email }
+        );
+    }
 }
