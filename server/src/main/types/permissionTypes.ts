@@ -78,6 +78,12 @@ export enum ZoePermission {
     MANAGE_CONFIG = 'zoe.manage_config',
 }
 
+// TICKET-137: Reconciliation importer
+export enum ReconciliationPermission {
+    VIEW = 'reconciliation.view',
+    MANAGE = 'reconciliation.manage',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerSettingsPermission
@@ -92,7 +98,8 @@ export type Permission =
     | CallRequestReasonPermission
     | CallOutcomePermission
     | DisputePermission
-    | ZoePermission;
+    | ZoePermission
+    | ReconciliationPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
@@ -146,6 +153,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
     superadmin: [
         ZoePermission.MANAGE_KEYS,
         ZoePermission.MANAGE_CONFIG,
+        ReconciliationPermission.VIEW,
+        ReconciliationPermission.MANAGE,
         LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,

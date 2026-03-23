@@ -37,6 +37,9 @@ export enum Permission {
     // TICKET-130: Zoe AI permissions (superadmin only)
     ZOE_MANAGE_KEYS = 'zoe.manage_keys',
     ZOE_MANAGE_CONFIG = 'zoe.manage_config',
+    // TICKET-137: Reconciliation importer
+    RECONCILIATION_VIEW = 'reconciliation.view',
+    RECONCILIATION_MANAGE = 'reconciliation.manage',
 }
 
 export type User = {

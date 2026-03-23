@@ -133,6 +133,11 @@ export enum ZoeAction {
     CONFIG_UPDATED = 'zoe_config_updated',
 }
 
+// TICKET-137: Reconciliation importer
+export enum ReconciliationAction {
+    IMPORTED = 'reconciliation_imported',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -149,7 +154,8 @@ export type ActivityAction =
     | CallRequestReasonAction
     | DisputeAction
     | RoleAction
-    | ZoeAction;
+    | ZoeAction
+    | ReconciliationAction;
 
 export type ActivityLog = {
     id: string;
