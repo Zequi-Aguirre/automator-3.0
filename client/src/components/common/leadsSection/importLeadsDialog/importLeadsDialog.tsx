@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -7,10 +7,16 @@ import {
     Button,
     Box,
     Typography,
-    LinearProgress
+    LinearProgress,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel,
 } from '@mui/material';
 import { Download as DownloadIcon } from '@mui/icons-material';
 import LeadsService from '../../../../services/lead.service';
+import SourceService from '../../../../services/source.service';
+import { Source } from '../../../../types/sourceTypes';
 
 type RejectedRow = Record<string, string>;
 
@@ -53,13 +59,23 @@ export default function ImportLeadsDialog({ open, onClose, onSuccess }: Props) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<ImportResult | null>(null);
+    const [sources, setSources] = useState<Source[]>([]);
+    const [selectedSourceId, setSelectedSourceId] = useState<string>('');
     const inputRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        SourceService.getAll({ page: 1, limit: 100 })
+            .then(res => { setSources(res.items.filter(s => !s.deleted)); })
+            .catch(() => { /* sources optional — fall back to default */ });
+    }, [open]);
 
     const reset = () => {
         setFile(null);
         setBusy(false);
         setError(null);
         setResult(null);
+        setSelectedSourceId('');
         if (inputRef.current && 'value' in inputRef.current) {
             inputRef.current.value = '';
         }
@@ -88,6 +104,7 @@ export default function ImportLeadsDialog({ open, onClose, onSuccess }: Props) {
         setError(null);
         const form = new FormData();
         form.append('file', file, file.name);
+        if (selectedSourceId) form.append('source_id', selectedSourceId);
 
         try {
             const res = await LeadsService.importLeads(form);
@@ -156,6 +173,22 @@ export default function ImportLeadsDialog({ open, onClose, onSuccess }: Props) {
             <DialogTitle>Import leads (CSV)</DialogTitle>
             <DialogContent>
                 <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {sources.length > 0 && (
+                        <FormControl fullWidth size="small">
+                            <InputLabel id="import-source-label">Source</InputLabel>
+                            <Select
+                                labelId="import-source-label"
+                                label="Source"
+                                value={selectedSourceId}
+                                onChange={(e) => { setSelectedSourceId(e.target.value); }}
+                            >
+                                <MenuItem value=""><em>Default (CSV Import)</em></MenuItem>
+                                {sources.map(s => (
+                                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )}
                     <input
                         ref={inputRef}
                         type="file"

@@ -67,7 +67,8 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     const records = parse(csvContent, {
         columns: true,
         skip_empty_lines: true,
-        trim: true
+        trim: true,
+        bom: true,
     }) as Record<string, string>[];
 
     const leads: parsedLeadFromCSV[] = [];
@@ -76,6 +77,8 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
     for (const row of records) {
         const {
             Name,
+            'First Name': FirstName,
+            'Last Name': LastName,
             'Phone Number': PhoneNumber,
             'Email Address': EmailAddress,
             Address,
@@ -83,14 +86,25 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             State,
             'Zip Code': ZipCode,
             County,
-            Investor
+            Investor,
+            'Private Notes': PrivateNotes,
         } = row;
 
-        const { first_name, last_name } = splitName(Name);
+        // Support combined "Name" column or separate "First Name"/"Last Name"
+        let first_name: string, last_name: string;
+        if (Name) {
+            ({ first_name, last_name } = splitName(Name));
+        } else {
+            first_name = FirstName?.trim() || "";
+            last_name = LastName?.trim() || "";
+        }
+
         const phone = cleanPhone(PhoneNumber || "");
         const email = EmailAddress?.toLowerCase() || "";
 
-        if (Investor) investors.add(Investor.trim());
+        // Accept "Investor" or "Private Notes" as the investor/source identifier
+        const investorValue = Investor || PrivateNotes;
+        if (investorValue) investors.add(investorValue.trim());
 
         // Validation: require Address, City, State
         if (!Address || !City || !State) continue;
@@ -107,7 +121,7 @@ export function parseCsvToLeads(csvContent: string): ParsedCsvResult {
             zipcode: ZipCode || "",
             county: County || "",
             county_id: undefined,
-            investor_id: Investor?.trim() || null,
+            investor_id: investorValue?.trim() || null,
         });
     }
 
