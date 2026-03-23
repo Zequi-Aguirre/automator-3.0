@@ -261,14 +261,14 @@ export default class FacebookLeadService {
                 source_id, campaign_id,
                 external_lead_id, external_ad_id, external_ad_name,
                 created,
-                verified, worker_enabled
+                verified
             ) VALUES (
                 $[first], $[last], $[phone], $[email],
                 '', '', '', '',
                 $[source_id], $[campaign_id],
                 $[fb_lead_id], $[ad_id], $[ad_name],
                 $[created],
-                false, false
+                false
             )
             ON CONFLICT (phone) DO UPDATE SET
                 external_lead_id = COALESCE(leads.external_lead_id, EXCLUDED.external_lead_id),
