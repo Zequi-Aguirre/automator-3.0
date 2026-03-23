@@ -6,6 +6,8 @@ export type PlatformImportBatch = {
     filename: string | null;
     row_count: number | null;
     imported_by: string | null;
+    sync_type: 'csv' | 'db_sync';
+    platform_connection_id: string | null;
     imported_at: string;
 };
 
