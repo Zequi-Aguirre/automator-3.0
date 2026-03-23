@@ -25,7 +25,8 @@ export default class LeadOpenResource {
                 }
 
                 const csvContent = req.file.buffer.toString('utf8');
-                const result = await this.leadService.importLeads(csvContent, req.user?.id);
+                const sourceId = typeof req.body?.source_id === 'string' ? req.body.source_id : undefined;
+                const result = await this.leadService.importLeads(csvContent, req.user?.id, sourceId);
                 return res.status(200).send(result);
             } catch (error) {
                 console.error("Error handling import:", error);

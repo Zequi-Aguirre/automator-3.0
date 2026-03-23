@@ -195,11 +195,21 @@ export default class LeadService {
         return unverified;
     }
 
-    async importLeads(csvContent: string, userId?: string | null) {
+    async importLeads(csvContent: string, userId?: string | null, sourceId?: string) {
         const { leads } = parseCsvToLeads(csvContent);
 
-        // Get or create CSV_IMPORT source and campaign
-        const { sourceId, campaignId } = await this.ensureCsvSource();
+        // Use provided source, or fall back to the default CSV_IMPORT source
+        let resolvedSourceId: string;
+        let resolvedCampaignId: string;
+        if (sourceId) {
+            const campaign = await this.campaignService.getOrCreate(sourceId, 'CSV Import');
+            resolvedSourceId = sourceId;
+            resolvedCampaignId = campaign.id;
+        } else {
+            const { sourceId: sid, campaignId } = await this.ensureCsvSource();
+            resolvedSourceId = sid;
+            resolvedCampaignId = campaignId;
+        }
 
         // Match leads to existing counties using fuzzy matching (no auto-create)
         const countyMap = await this.countyService.matchLeadsToCounties(leads);
@@ -226,8 +236,8 @@ export default class LeadService {
             lead.county_id = county.id;
             lead.county = county.name; // Use standardized county name
             lead.investor_id = null;
-            lead.source_id = sourceId;
-            lead.campaign_id = campaignId;
+            lead.source_id = resolvedSourceId;
+            lead.campaign_id = resolvedCampaignId;
 
             resolvedLeads.push(lead);
         }
