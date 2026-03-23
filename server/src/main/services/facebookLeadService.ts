@@ -206,10 +206,10 @@ export default class FacebookLeadService {
 
         // Match by phone then email
         const matchResult = await this.matchLead(phoneNormalized, email);
-        await this.recordDAO.setMatchResult(stored.id, matchResult.status, matchResult.leadId);
 
-        // If matched, update the automator lead's external_lead_id
-        if (matchResult.leadId && matchResult.status === 'matched') {
+        if (matchResult.status === 'matched' && matchResult.leadId) {
+            await this.recordDAO.setMatchResult(stored.id, 'matched', matchResult.leadId);
+            // Backfill FB attribution onto the existing lead
             await this.db.none(
                 `UPDATE leads SET
                     external_lead_id = COALESCE(external_lead_id, $[fb_lead_id]),
@@ -223,9 +223,73 @@ export default class FacebookLeadService {
                     ad_name: lead.ad_name ?? null,
                 }
             );
+        } else {
+            // No existing Automator lead — create one from the FB form data
+            const newLeadId = await this.createLeadFromFb(lead, record, sourceId, campaignId);
+            await this.recordDAO.setMatchResult(stored.id, 'matched', newLeadId);
         }
 
-        return matchResult.status;
+        return 'matched';
+    }
+
+    // Creates an Automator lead from a Facebook form submission.
+    // Used when no existing lead can be matched by phone or email.
+    private async createLeadFromFb(
+        lead: FacebookApiLead,
+        record: Omit<FacebookLeadRecord, 'id' | 'synced_at'>,
+        sourceId: string,
+        campaignId: string | null,
+    ): Promise<string> {
+        const firstName = extractField(lead.field_data, 'first_name', 'first') ?? '';
+        const lastName  = extractField(lead.field_data, 'last_name', 'last') ?? '';
+        // Fall back to splitting a combined "name" or "full_name" field
+        let first = firstName;
+        let last  = lastName;
+        if (!first) {
+            const fullName = extractField(lead.field_data, 'full_name', 'name') ?? '';
+            const spaceIdx = fullName.indexOf(' ');
+            first = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName;
+            last  = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : '';
+        }
+
+        const created = lead.created_time ? new Date(lead.created_time) : new Date();
+
+        const newLead = await this.db.one<{ id: string }>(
+            `INSERT INTO leads (
+                first_name, last_name, phone, email,
+                address, city, state, zipcode,
+                source_id, campaign_id,
+                external_lead_id, external_ad_id, external_ad_name,
+                created,
+                verified, worker_enabled
+            ) VALUES (
+                $[first], $[last], $[phone], $[email],
+                '', '', '', '',
+                $[source_id], $[campaign_id],
+                $[fb_lead_id], $[ad_id], $[ad_name],
+                $[created],
+                false, false
+            )
+            ON CONFLICT (phone) DO UPDATE SET
+                external_lead_id = COALESCE(leads.external_lead_id, EXCLUDED.external_lead_id),
+                external_ad_id   = COALESCE(leads.external_ad_id,   EXCLUDED.external_ad_id),
+                external_ad_name = COALESCE(leads.external_ad_name, EXCLUDED.external_ad_name)
+            RETURNING id`,
+            {
+                first,
+                last,
+                phone:      record.phone,
+                email:      record.email,
+                source_id:  sourceId,
+                campaign_id: campaignId,
+                fb_lead_id: lead.id,
+                ad_id:      lead.ad_id ?? null,
+                ad_name:    lead.ad_name ?? null,
+                created,
+            }
+        );
+
+        return newLead.id;
     }
 
     private async matchLead(
