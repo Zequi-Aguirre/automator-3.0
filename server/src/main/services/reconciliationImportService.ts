@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import PlatformImportBatchDAO from '../data/platformImportBatchDAO';
 import PlatformLeadRecordDAO from '../data/platformLeadRecordDAO';
 import PlatformBuyerMappingDAO from '../data/platformBuyerMappingDAO';
+import ReconciliationMatchingService from './reconciliationMatchingService';
 import { ImportResult, ParsedPlatformRow, Platform } from '../types/reconciliationTypes';
 
 // ---------------------------------------------------------------------------
@@ -85,7 +86,8 @@ export default class ReconciliationImportService {
     constructor(
         private readonly batchDAO: PlatformImportBatchDAO,
         private readonly recordDAO: PlatformLeadRecordDAO,
-        private readonly mappingDAO: PlatformBuyerMappingDAO
+        private readonly mappingDAO: PlatformBuyerMappingDAO,
+        private readonly matchingService: ReconciliationMatchingService
     ) {}
 
     async importFile(
@@ -130,6 +132,11 @@ export default class ReconciliationImportService {
             platform,
             batch_id: batch.id,
             row_count: rows.length,
+        });
+
+        // Auto-run matching for the newly imported batch
+        this.matchingService.runMatching(batch.id, userId).catch(err => {
+            console.error('Reconciliation matching failed after import', err);
         });
 
         return { batch_id: batch.id, row_count: rows.length };

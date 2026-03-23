@@ -733,4 +733,27 @@ export default class LeadDAO {
 
         return result;
     }
+
+    // Reconciliation matching: find leads by normalized phone (10-digit)
+    async getByNormalizedPhone(phone: string): Promise<{ id: string }[]> {
+        return await this.db.manyOrNone<{ id: string }>(
+            `SELECT id FROM leads
+             WHERE CASE
+                     WHEN length(regexp_replace(phone, '[^0-9]', '', 'g')) = 11
+                          AND left(regexp_replace(phone, '[^0-9]', '', 'g'), 1) = '1'
+                     THEN right(regexp_replace(phone, '[^0-9]', '', 'g'), 10)
+                     ELSE regexp_replace(phone, '[^0-9]', '', 'g')
+                   END = $[phone]
+               AND deleted IS NULL`,
+            { phone }
+        );
+    }
+
+    // Reconciliation matching: find leads by email
+    async getByEmail(email: string): Promise<{ id: string }[]> {
+        return await this.db.manyOrNone<{ id: string }>(
+            `SELECT id FROM leads WHERE lower(email) = lower($[email]) AND deleted IS NULL`,
+            { email }
+        );
+    }
 }

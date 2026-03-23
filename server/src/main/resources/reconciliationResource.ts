@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from 'tsyringe';
 import multer from 'multer';
 import ReconciliationImportService from '../services/reconciliationImportService';
+import ReconciliationMatchingService from '../services/reconciliationMatchingService';
 import ActivityService from '../services/activityService';
 import { requirePermission } from '../middleware/requirePermission';
 import { ReconciliationPermission } from '../types/permissionTypes';
@@ -15,6 +16,7 @@ export default class ReconciliationResource {
 
     constructor(
         private readonly importService: ReconciliationImportService,
+        private readonly matchingService: ReconciliationMatchingService,
         private readonly activityService: ActivityService
     ) {
         this.router = express.Router();
@@ -80,6 +82,26 @@ export default class ReconciliationResource {
                     console.error('Error fetching reconciliation batches:', error);
                     return res.status(500).send({
                         message: 'Failed to fetch batches',
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                    });
+                }
+            }
+        );
+
+        // POST /api/reconciliation/match
+        // Re-run matching engine. Optional body: { batch_id: number }
+        this.router.post(
+            '/match',
+            requirePermission(ReconciliationPermission.MANAGE),
+            async (req: Request, res: Response) => {
+                try {
+                    const batchId: string | undefined = req.body?.batch_id ?? undefined;
+                    const stats = await this.matchingService.runMatching(batchId, req.user?.id);
+                    return res.status(200).send(stats);
+                } catch (error) {
+                    console.error('Reconciliation matching error:', error);
+                    return res.status(500).send({
+                        message: 'Failed to run matching engine',
                         error: error instanceof Error ? error.message : 'Unknown error',
                     });
                 }

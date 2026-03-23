@@ -2,7 +2,7 @@ import { injectable } from 'tsyringe';
 import { IDatabase } from 'pg-promise';
 import { IClient } from 'pg-promise/typescript/pg-subset';
 import { DBContainer } from '../config/DBContainer';
-import { ParsedPlatformRow } from '../types/reconciliationTypes';
+import { ParsedPlatformRow, PlatformLeadRecord } from '../types/reconciliationTypes';
 
 @injectable()
 export default class PlatformLeadRecordDAO {
@@ -12,7 +12,33 @@ export default class PlatformLeadRecordDAO {
         this.db = db.database();
     }
 
-    async bulkUpsert(rows: ParsedPlatformRow[], batchId: number): Promise<void> {
+    async getPendingRecords(batchId?: string): Promise<PlatformLeadRecord[]> {
+        const where = batchId != null
+            ? `WHERE match_status = 'pending' AND import_batch_id = $[batchId]`
+            : `WHERE match_status = 'pending'`;
+        return await this.db.manyOrNone<PlatformLeadRecord>(
+            `SELECT * FROM platform_lead_records ${where}`,
+            { batchId }
+        );
+    }
+
+    async setMatchResult(
+        id: string,
+        matchStatus: 'matched' | 'unmatched' | 'ambiguous',
+        automatorLeadId: string | null,
+        automatorSendLogId: string | null
+    ): Promise<void> {
+        await this.db.none(
+            `UPDATE platform_lead_records
+             SET match_status          = $[matchStatus],
+                 automator_lead_id     = $[automatorLeadId],
+                 automator_send_log_id = $[automatorSendLogId]
+             WHERE id = $[id]`,
+            { id, matchStatus, automatorLeadId, automatorSendLogId }
+        );
+    }
+
+    async bulkUpsert(rows: ParsedPlatformRow[], batchId: string): Promise<void> {
         if (rows.length === 0) return;
 
         await this.db.task(async t => {

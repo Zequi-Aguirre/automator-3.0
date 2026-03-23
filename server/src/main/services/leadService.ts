@@ -354,14 +354,16 @@ export default class LeadService {
             state: cleanState(p.state || ""),
             zipcode: p.zipcode || "",
             county: p.county || "",
-            county_id: undefined,
+            county_id: p.county_id ?? undefined,
             investor_id: null,
             source_id: source_id || null,
             campaign_id: campaign_id || null,
             external_lead_id: p.external_lead_id || null,
             external_ad_id: p.external_ad_id || null,
             external_ad_name: p.external_ad_name || null,
-            raw_payload: p.raw_payload || null
+            raw_payload: p.raw_payload || null,
+            needs_review: p.needs_review,
+            needs_review_reason: p.needs_review_reason,
         }));
 
         // Match leads to existing counties using fuzzy matching (no auto-create)
@@ -375,16 +377,16 @@ export default class LeadService {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
             const county = countyMap.get(countyKey);
 
-            if (!county) {
-                errors.push(`Lead rejected: Unknown county "${lead.county}, ${lead.state}" (no match found)`);
-                continue;
+            if (county) {
+                lead.county_id = county.id;
+                lead.county = county.name; // Use standardized county name
             }
 
-            lead.county_id = county.id;
-            lead.county = county.name; // Use standardized county name
-
             // TICKET-064: Flag lead as needs_review if required fields are missing
-            const missingReason = this.getMissingFieldsReason(lead);
+            // Also flag if county could not be resolved (should not be rejected)
+            const missingReason = !county
+                ? `Unknown county "${lead.county}, ${lead.state}" (no match found)`
+                : this.getMissingFieldsReason(lead);
             if (missingReason) {
                 lead.needs_review = true;
                 lead.needs_review_reason = missingReason;
