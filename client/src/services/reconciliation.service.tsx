@@ -1,7 +1,7 @@
 // TICKET-137 — Reconciliation import service
 import { authProvider, AxiosProvider } from '../config/axiosProvider';
 
-export type Platform = 'sellers' | 'compass' | 'pickle';
+type Platform = 'sellers' | 'compass' | 'pickle'; // internal — derived from CSV, not user-selected
 
 export interface PlatformBuyerSummary {
     platform_buyer_id: string;
@@ -14,6 +14,7 @@ export interface PlatformBuyerSummary {
 
 export interface PreviewResult {
     row_count: number;
+    platform: Platform;
     platform_buyers: PlatformBuyerSummary[];
     file_token: string;
 }
@@ -40,21 +41,18 @@ export interface ImportBatch {
 class ReconciliationService {
     constructor(private readonly api: AxiosProvider) {}
 
-    async previewFile(platform: Platform, file: File): Promise<PreviewResult> {
+    async previewFile(file: File): Promise<PreviewResult> {
         const form = new FormData();
-        form.append('platform', platform);
         form.append('file', file);
         const res = await this.api.getApi().post('/api/reconciliation/import/preview', form);
         return res.data;
     }
 
     async confirmImport(
-        platform: Platform,
         fileToken: string,
         buyerMappings: BuyerMapping[]
     ): Promise<ImportResult> {
         const res = await this.api.getApi().post('/api/reconciliation/import/confirm', {
-            platform,
             file_token: fileToken,
             buyer_mappings: buyerMappings,
         });

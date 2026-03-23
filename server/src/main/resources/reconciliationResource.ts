@@ -6,7 +6,7 @@ import ActivityService from '../services/activityService';
 import { requirePermission } from '../middleware/requirePermission';
 import { ReconciliationPermission } from '../types/permissionTypes';
 import { ReconciliationAction } from '../types/activityTypes';
-import { ConfirmImportDTO, Platform } from '../types/reconciliationTypes';
+import { ConfirmImportDTO } from '../types/reconciliationTypes';
 
 const upload = multer();
 
@@ -36,13 +36,7 @@ export default class ReconciliationResource {
                         return res.status(400).send({ message: 'No file uploaded' });
                     }
 
-                    const platform = req.body.platform as Platform;
-                    if (!platform) {
-                        return res.status(400).send({ message: 'platform is required' });
-                    }
-
                     const result = await this.importService.previewFile(
-                        platform,
                         req.file.buffer,
                         req.file.originalname
                     );
@@ -65,7 +59,7 @@ export default class ReconciliationResource {
             requirePermission(ReconciliationPermission.MANAGE),
             async (req: Request, res: Response) => {
                 try {
-                    const { platform, file_token, buyer_mappings } = req.body as ConfirmImportDTO;
+                    const { file_token, buyer_mappings } = req.body as ConfirmImportDTO;
 
                     if (!file_token) {
                         return res.status(400).send({ message: 'file_token is required' });
@@ -84,7 +78,6 @@ export default class ReconciliationResource {
                         user_id: req.user?.id,
                         action: ReconciliationAction.IMPORTED,
                         action_details: {
-                            platform,
                             batch_id: result.batch_id,
                             row_count: result.row_count,
                         },

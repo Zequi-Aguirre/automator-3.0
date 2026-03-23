@@ -5,7 +5,6 @@ import {
     Button,
     CircularProgress,
     FormControl,
-    InputLabel,
     MenuItem,
     Paper,
     Select,
@@ -20,37 +19,24 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useEffect, useRef, useState } from 'react';
 import reconciliationService, {
     BuyerMapping,
-    Platform,
     PlatformBuyerSummary,
     PreviewResult,
 } from '../../services/reconciliation.service.tsx';
 import buyerService from '../../services/buyer.service.tsx';
 import { Buyer } from '../../types/buyerTypes';
 
-const PLATFORMS: { value: Platform; label: string }[] = [
-    { value: 'sellers', label: 'Sellers Direct' },
-    { value: 'compass', label: 'Compass' },
-    { value: 'pickle', label: 'Pickle Leads' },
-];
-
 type Step = 'upload' | 'map_buyers' | 'done';
 
 export default function AdminReconciliationView() {
-    const [platform, setPlatform] = useState<Platform>('sellers');
     const [step, setStep] = useState<Step>('upload');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Preview state
     const [preview, setPreview] = useState<PreviewResult | null>(null);
     const [mappings, setMappings] = useState<Record<string, string | null>>({});
-
-    // Result state
     const [result, setResult] = useState<{ batch_id: number; row_count: number } | null>(null);
 
-    // Buyers for dropdown
     const [buyers, setBuyers] = useState<Buyer[]>([]);
-
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -64,10 +50,9 @@ export default function AdminReconciliationView() {
         setError(null);
         setLoading(true);
         try {
-            const res = await reconciliationService.previewFile(platform, file);
+            const res = await reconciliationService.previewFile(file);
             setPreview(res);
 
-            // Pre-fill mappings from saved values
             const initial: Record<string, string | null> = {};
             for (const buyer of res.platform_buyers) {
                 initial[buyer.platform_buyer_id] = buyer.saved_automator_buyer_id;
@@ -93,11 +78,7 @@ export default function AdminReconciliationView() {
                 automator_buyer_id: mappings[b.platform_buyer_id] ?? null,
             }));
 
-            const res = await reconciliationService.confirmImport(
-                platform,
-                preview.file_token,
-                buyerMappings
-            );
+            const res = await reconciliationService.confirmImport(preview.file_token, buyerMappings);
             setResult(res);
             setStep('done');
         } catch (err) {
@@ -116,9 +97,9 @@ export default function AdminReconciliationView() {
     };
 
     return (
-        <Box sx={{ p: 3, maxWidth: 900 }}>
+        <Box sx={{ p: 3, maxWidth: 860 }}>
             <Typography variant="h5" fontWeight={600} mb={3}>
-                Platform Reconciliation Import
+                Reconciliation Import
             </Typography>
 
             {error && (
@@ -130,43 +111,24 @@ export default function AdminReconciliationView() {
             {/* ── Step 1: Upload ── */}
             {step === 'upload' && (
                 <Paper variant="outlined" sx={{ p: 3 }}>
-                    <Typography variant="subtitle1" fontWeight={500} mb={2}>
-                        Upload Metabase CSV export
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                        Upload a CSV exported from Metabase. The file will be parsed and you'll match each buyer to an Automator buyer before importing.
                     </Typography>
-
-                    <FormControl size="small" sx={{ minWidth: 200, mb: 3 }}>
-                        <InputLabel>Platform</InputLabel>
-                        <Select
-                            value={platform}
-                            label="Platform"
-                            onChange={e => setPlatform(e.target.value as Platform)}
-                        >
-                            {PLATFORMS.map(p => (
-                                <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    <Box>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".csv,.xlsx,.xls"
-                            style={{ display: 'none' }}
-                            onChange={handleFileChange}
-                        />
-                        <Button
-                            variant="contained"
-                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <UploadFileIcon />}
-                            disabled={loading}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            {loading ? 'Parsing...' : 'Select File'}
-                        </Button>
-                        <Typography variant="caption" display="block" color="text.secondary" mt={1}>
-                            Accepts .csv, .xlsx, .xls — run the reconciliation query in Metabase first
-                        </Typography>
-                    </Box>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        style={{ display: 'none' }}
+                        onChange={handleFileChange}
+                    />
+                    <Button
+                        variant="contained"
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <UploadFileIcon />}
+                        disabled={loading}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        {loading ? 'Parsing...' : 'Upload file'}
+                    </Button>
                 </Paper>
             )}
 
@@ -174,17 +136,16 @@ export default function AdminReconciliationView() {
             {step === 'map_buyers' && preview && (
                 <Paper variant="outlined" sx={{ p: 3 }}>
                     <Typography variant="subtitle1" fontWeight={500} mb={0.5}>
-                        Match platform buyers to Automator buyers
+                        Who are these buyers?
                     </Typography>
                     <Typography variant="body2" color="text.secondary" mb={2}>
-                        {preview.row_count} rows found. Map each platform buyer to an Automator buyer — this is saved for future imports.
+                        {preview.row_count} rows found. Match each buyer in this file to an Automator buyer — this is saved for next time.
                     </Typography>
 
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell>Platform buyer</TableCell>
-                                <TableCell>Products</TableCell>
+                                <TableCell>Buyer in file</TableCell>
                                 <TableCell>Rows</TableCell>
                                 <TableCell sx={{ minWidth: 220 }}>Automator buyer</TableCell>
                             </TableRow>
@@ -195,9 +156,6 @@ export default function AdminReconciliationView() {
                                     <TableCell>
                                         <Typography variant="body2">{buyer.platform_buyer_name ?? '—'}</Typography>
                                         <Typography variant="caption" color="text.secondary">{buyer.platform_buyer_email ?? ''}</Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Typography variant="caption">{buyer.platform_buyer_products.join(', ') || '—'}</Typography>
                                     </TableCell>
                                     <TableCell>{buyer.row_count}</TableCell>
                                     <TableCell>
