@@ -28,6 +28,7 @@ export interface PlatformLeadRecord {
     phone_normalized: string | null;
     email: string | null;
     campaign_name: string | null;
+    automator_campaign_name: string | null;
     received_at: string | null;
     sent_out_at: string | null;
     buyer_lead_status: string | null;
