@@ -31,6 +31,7 @@ import CallOutcomeResource from "./resources/callOutcomeResource.ts";
 import RoleResource from "./resources/roleResource";
 import ZoeResource from "./resources/zoeResource.ts";
 import ReconciliationResource from "./resources/reconciliationResource.ts";
+import PlatformConnectionResource from "./resources/platformConnectionResource.ts";
 
 dotenv.config();
 
@@ -84,6 +85,7 @@ export class AutomatorServer {
         this.app.use("/api/zoe", authFunc, zoeResource.routes());
         this.app.use("/api/zoe-ask", zoeResource.externalRoutes());
         this.app.use("/api/reconciliation", authFunc, cont.resolve(ReconciliationResource).routes());
+        this.app.use("/api/platform-connections", authFunc, cont.resolve(PlatformConnectionResource).routes());
         this.app.use('/static', express.static('public'));
 
         // Initialize worker if IS_WORKER is true

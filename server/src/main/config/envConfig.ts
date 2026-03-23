@@ -10,6 +10,7 @@ export class EnvConfig {
     public readonly makeEmailWebhookUrl: string;
     public readonly anthropicApiKey: string;
     public readonly openaiApiKey: string;
+    public readonly platformSyncEncryptionKey: string;
     constructor() {
         this.dbConfig = new DBConfig();
         this.environment = process.env.ENVIRONMENT!;
@@ -18,6 +19,7 @@ export class EnvConfig {
         this.makeEmailWebhookUrl = process.env.MAKE_EMAIL_WEBHOOK_URL ?? '';
         this.anthropicApiKey = process.env.ANTHROPIC_API_KEY ?? '';
         this.openaiApiKey = process.env.OPENAI_API_KEY ?? '';
+        this.platformSyncEncryptionKey = process.env.PLATFORM_SYNC_ENCRYPTION_KEY ?? '';
     }
 }
 

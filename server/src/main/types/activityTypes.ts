@@ -140,6 +140,13 @@ export enum ReconciliationAction {
     MATCHED  = 'reconciliation_matched',
 }
 
+// TICKET-140: Platform connections
+export enum PlatformConnectionAction {
+    CREATED = 'platform_connection_created',
+    UPDATED = 'platform_connection_updated',
+    DELETED = 'platform_connection_deleted',
+}
+
 export type ActivityAction =
     | LeadAction
     | VerificationAction
@@ -157,7 +164,8 @@ export type ActivityAction =
     | DisputeAction
     | RoleAction
     | ZoeAction
-    | ReconciliationAction;
+    | ReconciliationAction
+    | PlatformConnectionAction;
 
 export type ActivityLog = {
     id: string;
