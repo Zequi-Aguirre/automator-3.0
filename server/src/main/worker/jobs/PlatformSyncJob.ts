@@ -1,17 +1,19 @@
-// TICKET-141: platformSync job — queries each buyer's Northstar DB directly,
-// upserts rows into platform_lead_records, then triggers the matching engine.
+// TICKET-141: platformSync job — connects to each platform_connection DB,
+// pulls ALL buyer leads for the lookback window, maps them to Automator buyers
+// via platform_buyer_mappings, upserts into platform_lead_records, then matches.
 
 import { injectable } from 'tsyringe';
 import { Client } from 'pg';
 import PlatformConnectionService from '../../services/platformConnectionService';
 import PlatformImportBatchDAO from '../../data/platformImportBatchDAO';
 import PlatformLeadRecordDAO from '../../data/platformLeadRecordDAO';
+import PlatformBuyerMappingDAO from '../../data/platformBuyerMappingDAO';
 import ReconciliationMatchingService from '../../services/reconciliationMatchingService';
 import { ParsedPlatformRow, Platform } from '../../types/reconciliationTypes';
 
 // ---------------------------------------------------------------------------
-// Northstar sync query — identical to the Metabase reconciliation query,
-// parameterized by northstar_buyer_id ($1) and lookback_days ($2).
+// Northstar sync query — pulls all buyer leads for the lookback window.
+// Identical to the Metabase reconciliation query, parameterized by lookback_days ($1).
 // ---------------------------------------------------------------------------
 const NORTHSTAR_SYNC_QUERY = `
     SELECT
@@ -52,13 +54,12 @@ const NORTHSTAR_SYNC_QUERY = `
         LIMIT 1
     ) la ON true
     WHERE l.deleted IS NULL
-      AND u.id = $1
-      AND l.created >= NOW() - ($2 * INTERVAL '1 day')
+      AND l.created >= NOW() - ($1 * INTERVAL '1 day')
     ORDER BY l.created DESC
 `;
 
 // ---------------------------------------------------------------------------
-// Helpers (same logic as reconciliationImportService)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function normalizePhone(digits: string | null | undefined): string | null {
@@ -92,25 +93,13 @@ function derivePlatform(product: string | null, buyerProducts: string): Platform
 // Job
 // ---------------------------------------------------------------------------
 
-type ActiveConnection = {
-    id: string;
-    automator_buyer_id: string;
-    buyer_name: string;
-    northstar_buyer_id: string;
-    host: string;
-    port: number;
-    dbname: string;
-    db_username: string;
-    password: string;
-    lookback_days: number;
-};
-
 @injectable()
 export default class PlatformSyncJob {
     constructor(
         private readonly connectionService: PlatformConnectionService,
         private readonly batchDAO: PlatformImportBatchDAO,
         private readonly recordDAO: PlatformLeadRecordDAO,
+        private readonly mappingDAO: PlatformBuyerMappingDAO,
         private readonly matchingService: ReconciliationMatchingService,
     ) {}
 
@@ -120,21 +109,32 @@ export default class PlatformSyncJob {
         const connections = await this.connectionService.getActiveConnectionsWithPasswords();
         console.log(`[PlatformSyncJob] ${connections.length} active connection(s)`);
 
+        // Load all buyer mappings once — northstar_buyer_id → automator_buyer_id
+        const allMappings = await this.mappingDAO.getAll();
+        const buyerMap = new Map<string, string>();
+        for (const m of allMappings) {
+            if (m.automator_buyer_id) buyerMap.set(m.platform_buyer_id, m.automator_buyer_id);
+        }
+        console.log(`[PlatformSyncJob] ${buyerMap.size} buyer mapping(s) loaded`);
+
         for (const conn of connections) {
-            const buyerName = conn.buyer_name ?? conn.automator_buyer_id;
-            console.log(`[PlatformSyncJob] Syncing buyer "${buyerName}" (lookback: ${conn.lookback_days}d)`);
+            const label = conn.label ?? conn.id;
+            console.log(`[PlatformSyncJob] Syncing "${label}" (lookback: ${conn.lookback_days}d)`);
             try {
-                await this.syncConnection({ ...conn, buyer_name: buyerName });
+                await this.syncConnection(conn, buyerMap);
                 await this.connectionService.updateLastSynced(conn.id);
             } catch (err) {
-                console.error(`[PlatformSyncJob] Failed for buyer "${buyerName}":`, err instanceof Error ? err.message : err);
+                console.error(`[PlatformSyncJob] Failed for "${label}":`, err instanceof Error ? err.message : err);
             }
         }
 
         console.log('[PlatformSyncJob] Done.');
     }
 
-    private async syncConnection(conn: ActiveConnection): Promise<void> {
+    private async syncConnection(
+        conn: { id: string; host: string; port: number; dbname: string; db_username: string; password: string; lookback_days: number; label?: string | null },
+        buyerMap: Map<string, string>
+    ): Promise<void> {
         const client = new Client({
             host: conn.host,
             port: conn.port,
@@ -149,48 +149,56 @@ export default class PlatformSyncJob {
 
         let rows: ParsedPlatformRow[];
         try {
-            const result = await client.query(NORTHSTAR_SYNC_QUERY, [conn.northstar_buyer_id, conn.lookback_days]);
-            rows = result.rows.map(r => this.mapRow(r, conn.automator_buyer_id));
+            const result = await client.query(NORTHSTAR_SYNC_QUERY, [conn.lookback_days]);
+            rows = result.rows.map(r => this.mapRow(r, buyerMap));
         } finally {
             await client.end().catch(() => {});
         }
 
         if (rows.length === 0) {
-            console.log(`[PlatformSyncJob] No rows returned for buyer "${conn.buyer_name}"`);
+            console.log(`[PlatformSyncJob] No rows returned`);
             return;
         }
 
-        const platform = rows.find(r => r.platform)?.platform ?? 'sellers';
+        // Group by platform and create one batch per platform
+        const byPlatform = new Map<string, ParsedPlatformRow[]>();
+        for (const row of rows) {
+            const existing = byPlatform.get(row.platform) ?? [];
+            existing.push(row);
+            byPlatform.set(row.platform, existing);
+        }
 
-        const batch = await this.batchDAO.insert({
-            platform,
-            filename: null,
-            row_count: rows.length,
-            imported_by: null,
-            sync_type: 'db_sync',
-            platform_connection_id: conn.id,
-        });
+        for (const [platform, platformRows] of byPlatform) {
+            const batch = await this.batchDAO.insert({
+                platform,
+                filename: null,
+                row_count: platformRows.length,
+                imported_by: null,
+                sync_type: 'db_sync',
+                platform_connection_id: conn.id,
+            });
 
-        await this.recordDAO.bulkUpsert(rows, batch.id);
-        console.log(`[PlatformSyncJob] Upserted ${rows.length} rows for buyer "${conn.buyer_name}" (batch ${batch.id})`);
+            await this.recordDAO.bulkUpsert(platformRows, batch.id);
+            console.log(`[PlatformSyncJob] Upserted ${platformRows.length} rows for platform "${platform}" (batch ${batch.id})`);
 
-        // Run matching fire-and-forget, same as CSV import
-        this.matchingService.runMatching(batch.id, null).catch(err => {
-            console.error(`[PlatformSyncJob] Matching failed for batch ${batch.id}:`, err);
-        });
+            this.matchingService.runMatching(batch.id, null).catch(err => {
+                console.error(`[PlatformSyncJob] Matching failed for batch ${batch.id}:`, err);
+            });
+        }
     }
 
-    private mapRow(r: Record<string, unknown>, automatorBuyerId: string): ParsedPlatformRow {
+    private mapRow(r: Record<string, unknown>, buyerMap: Map<string, string>): ParsedPlatformRow {
         const phoneDigits = r.phone_digits ? String(r.phone_digits) : null;
         const buyerProductsStr = r.buyer_products ? String(r.buyer_products) : '';
         const buyerProducts = buyerProductsStr ? buyerProductsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
         const platform = derivePlatform(r.platform as string | null, buyerProductsStr);
+        const northstarBuyerId = r.northstar_buyer_id as string | null;
 
         return {
             platform,
             platform_lead_id:        (r.northstar_lead_id as string) ?? null,
             platform_buyer_lead_id:  r.northstar_buyer_lead_id as string,
-            platform_buyer_id:       (r.northstar_buyer_id as string) ?? null,
+            platform_buyer_id:       northstarBuyerId,
             platform_buyer_name:     (r.northstar_buyer_name as string) ?? null,
             platform_buyer_email:    (r.northstar_buyer_email as string) ?? null,
             platform_buyer_products: buyerProducts,
@@ -210,7 +218,8 @@ export default class PlatformSyncJob {
             dispute_status:          (r.dispute_status as string) ?? null,
             dispute_date:            r.dispute_date ? (r.dispute_date as Date).toISOString() : null,
             disputed_at:             r.disputed_at ? (r.disputed_at as Date).toISOString() : null,
-            automator_buyer_id:      automatorBuyerId,
+            // Look up automator buyer via platform_buyer_mappings
+            automator_buyer_id:      northstarBuyerId ? (buyerMap.get(northstarBuyerId) ?? null) : null,
         };
     }
 }

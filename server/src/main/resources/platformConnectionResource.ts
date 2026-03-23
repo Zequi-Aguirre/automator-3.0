@@ -45,14 +45,14 @@ export default class PlatformConnectionResource {
         this.router.post('/', requirePermission(PlatformConnectionPermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const dto = req.body as PlatformConnectionCreateDTO;
-                if (!dto.automator_buyer_id || !dto.northstar_buyer_id || !dto.host || !dto.dbname || !dto.db_username || !dto.password) {
-                    return res.status(400).json({ message: 'automator_buyer_id, northstar_buyer_id, host, dbname, db_username, and password are required' });
+                if (!dto.host || !dto.dbname || !dto.db_username || !dto.password) {
+                    return res.status(400).json({ message: 'host, dbname, db_username, and password are required' });
                 }
                 const conn = await this.service.create(dto);
                 await this.activityService.log({
                     user_id: req.user?.id,
                     action: PlatformConnectionAction.CREATED,
-                    action_details: { connection_id: conn.id, automator_buyer_id: conn.automator_buyer_id, host: conn.host },
+                    action_details: { connection_id: conn.id, host: conn.host },
                 });
                 return res.status(201).json(conn);
             } catch (err) {
@@ -69,7 +69,7 @@ export default class PlatformConnectionResource {
                 await this.activityService.log({
                     user_id: req.user?.id,
                     action: PlatformConnectionAction.UPDATED,
-                    action_details: { connection_id: conn.id, automator_buyer_id: conn.automator_buyer_id },
+                    action_details: { connection_id: conn.id },
                 });
                 return res.status(200).json(conn);
             } catch (err) {
@@ -85,7 +85,7 @@ export default class PlatformConnectionResource {
                 await this.activityService.log({
                     user_id: req.user?.id,
                     action: PlatformConnectionAction.DELETED,
-                    action_details: { connection_id: conn.id, automator_buyer_id: conn.automator_buyer_id },
+                    action_details: { connection_id: conn.id },
                 });
                 return res.status(200).json(conn);
             } catch (err) {

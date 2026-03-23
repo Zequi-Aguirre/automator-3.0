@@ -37,4 +37,10 @@ export default class PlatformBuyerMappingDAO {
             { platform }
         );
     }
+
+    async getAll(): Promise<PlatformBuyerMapping[]> {
+        return await this.db.manyOrNone<PlatformBuyerMapping>(
+            `SELECT * FROM platform_buyer_mappings WHERE automator_buyer_id IS NOT NULL`
+        );
+    }
 }

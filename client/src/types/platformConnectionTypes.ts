@@ -1,10 +1,8 @@
 // TICKET-140: Platform connection types (client-side — no encrypted_password)
+// A connection is to an external DATABASE, not to a specific buyer.
 
 export type PlatformConnection = {
     id: string;
-    automator_buyer_id: string;
-    buyer_name: string;
-    northstar_buyer_id: string;
     label: string | null;
     host: string;
     port: number;
@@ -18,8 +16,6 @@ export type PlatformConnection = {
 };
 
 export type PlatformConnectionCreateDTO = {
-    automator_buyer_id: string;
-    northstar_buyer_id: string;
     label?: string;
     host: string;
     port?: number;
@@ -30,7 +26,6 @@ export type PlatformConnectionCreateDTO = {
 };
 
 export type PlatformConnectionUpdateDTO = {
-    northstar_buyer_id?: string;
     label?: string | null;
     host?: string;
     port?: number;
