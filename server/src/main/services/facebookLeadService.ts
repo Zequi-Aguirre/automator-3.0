@@ -232,14 +232,23 @@ export default class FacebookLeadService {
         phone: string | null,
         email: string | null
     ): Promise<{ status: 'matched' | 'unmatched'; leadId: string | null }> {
+        // Returns the best lead from candidates: active preferred, then most recent.
+        // Sorted active-first by DAO so candidates[0] is always the best pick.
+        const pickBest = (candidates: { id: string; deleted: string | null }[]): string | null => {
+            if (candidates.length === 0) return null;
+            return candidates[0].id;
+        };
+
         if (phone) {
-            const leads = await this.leadDAO.getByNormalizedPhone(phone);
-            if (leads.length === 1) return { status: 'matched', leadId: leads[0].id };
+            const leads = await this.leadDAO.getByNormalizedPhoneAll(phone);
+            const leadId = pickBest(leads);
+            if (leadId) return { status: 'matched', leadId };
         }
 
         if (email) {
-            const leads = await this.leadDAO.getByEmail(email);
-            if (leads.length === 1) return { status: 'matched', leadId: leads[0].id };
+            const leads = await this.leadDAO.getByEmailAll(email);
+            const leadId = pickBest(leads);
+            if (leadId) return { status: 'matched', leadId };
         }
 
         return { status: 'unmatched', leadId: null };

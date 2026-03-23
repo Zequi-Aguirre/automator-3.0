@@ -57,9 +57,10 @@ export default class FacebookLeadRecordDAO {
 
     async getPendingRecords(): Promise<FacebookLeadRecord[]> {
         return this.db.manyOrNone<FacebookLeadRecord>(`
-            SELECT * FROM facebook_lead_records WHERE match_status = 'pending'
+            SELECT * FROM facebook_lead_records
+            WHERE match_status IN ('pending', 'unmatched')
             ORDER BY fb_created_time DESC NULLS LAST
-            LIMIT 1000
+            LIMIT 5000
         `);
     }
 
