@@ -1,13 +1,12 @@
 // TICKET-141: platformSync job — connects to each platform_connection DB,
-// pulls ALL buyer leads for the lookback window, maps them to Automator buyers
-// via platform_buyer_mappings, upserts into platform_lead_records, then matches.
+// pulls buyer leads for the lookback window, upserts into platform_lead_records, then matches.
+// Each connection is scoped to one automator buyer via its credentials.
 
 import { injectable } from 'tsyringe';
 import { Client } from 'pg';
 import PlatformConnectionService from '../../services/platformConnectionService';
 import PlatformImportBatchDAO from '../../data/platformImportBatchDAO';
 import PlatformLeadRecordDAO from '../../data/platformLeadRecordDAO';
-import PlatformBuyerMappingDAO from '../../data/platformBuyerMappingDAO';
 import ReconciliationMatchingService from '../../services/reconciliationMatchingService';
 import { ParsedPlatformRow, Platform } from '../../types/reconciliationTypes';
 
@@ -99,7 +98,6 @@ export default class PlatformSyncJob {
         private readonly connectionService: PlatformConnectionService,
         private readonly batchDAO: PlatformImportBatchDAO,
         private readonly recordDAO: PlatformLeadRecordDAO,
-        private readonly mappingDAO: PlatformBuyerMappingDAO,
         private readonly matchingService: ReconciliationMatchingService,
     ) {}
 
@@ -109,14 +107,6 @@ export default class PlatformSyncJob {
         const connections = await this.connectionService.getActiveConnectionsWithPasswords();
         console.log(`[PlatformSyncJob] ${connections.length} active connection(s)`);
 
-        // Load all buyer mappings once — northstar_buyer_id → automator_buyer_id
-        const allMappings = await this.mappingDAO.getAll();
-        const buyerMap = new Map<string, string>();
-        for (const m of allMappings) {
-            if (m.automator_buyer_id) buyerMap.set(m.platform_buyer_id, m.automator_buyer_id);
-        }
-        console.log(`[PlatformSyncJob] ${buyerMap.size} buyer mapping(s) loaded`);
-
         for (const conn of connections) {
             const label = conn.label ?? conn.id;
             if (!conn.automator_buyer_id) {
@@ -125,7 +115,7 @@ export default class PlatformSyncJob {
             }
             console.log(`[PlatformSyncJob] Syncing "${label}" (buyer: ${conn.automator_buyer_id}, lookback: ${conn.lookback_days}d)`);
             try {
-                await this.syncConnection(conn, buyerMap);
+                await this.syncConnection({ ...conn, automator_buyer_id: conn.automator_buyer_id! });
                 await this.connectionService.updateLastSynced(conn.id);
             } catch (err) {
                 console.error(`[PlatformSyncJob] Failed for "${label}":`, err instanceof Error ? err.message : err);
@@ -136,8 +126,7 @@ export default class PlatformSyncJob {
     }
 
     private async syncConnection(
-        conn: { id: string; host: string; port: number; dbname: string; db_username: string; password: string; lookback_days: number; label?: string | null; automator_buyer_id: string | null },
-        buyerMap: Map<string, string>
+        conn: { id: string; host: string; port: number; dbname: string; db_username: string; password: string; lookback_days: number; label?: string | null; automator_buyer_id: string }
     ): Promise<void> {
         const client = new Client({
             host: conn.host,
@@ -154,10 +143,9 @@ export default class PlatformSyncJob {
         let rows: ParsedPlatformRow[];
         try {
             const result = await client.query(NORTHSTAR_SYNC_QUERY, [conn.lookback_days]);
-            const allRows = result.rows.map(r => this.mapRow(r, buyerMap));
-            // Filter to only rows belonging to this connection's buyer
-            rows = allRows.filter(r => r.automator_buyer_id === conn.automator_buyer_id);
-            console.log(`[PlatformSyncJob] ${allRows.length} total rows, ${rows.length} for buyer ${conn.automator_buyer_id}`);
+            // All rows from this connection belong to this buyer — credentials are scoped per buyer
+            rows = result.rows.map(r => ({ ...this.mapRow(r), automator_buyer_id: conn.automator_buyer_id }));
+            console.log(`[PlatformSyncJob] ${rows.length} rows for buyer ${conn.automator_buyer_id}`);
         } finally {
             await client.end().catch(() => {});
         }
@@ -194,18 +182,17 @@ export default class PlatformSyncJob {
         }
     }
 
-    private mapRow(r: Record<string, unknown>, buyerMap: Map<string, string>): ParsedPlatformRow {
+    private mapRow(r: Record<string, unknown>): Omit<ParsedPlatformRow, 'automator_buyer_id'> {
         const phoneDigits = r.phone_digits ? String(r.phone_digits) : null;
         const buyerProductsStr = r.buyer_products ? String(r.buyer_products) : '';
         const buyerProducts = buyerProductsStr ? buyerProductsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
         const platform = derivePlatform(r.platform as string | null, buyerProductsStr);
-        const northstarBuyerId = r.northstar_buyer_id as string | null;
 
         return {
             platform,
             platform_lead_id:        (r.northstar_lead_id as string) ?? null,
             platform_buyer_lead_id:  r.northstar_buyer_lead_id as string,
-            platform_buyer_id:       northstarBuyerId,
+            platform_buyer_id:       (r.northstar_buyer_id as string) ?? null,
             platform_buyer_name:     (r.northstar_buyer_name as string) ?? null,
             platform_buyer_email:    (r.northstar_buyer_email as string) ?? null,
             platform_buyer_products: buyerProducts,
@@ -225,8 +212,6 @@ export default class PlatformSyncJob {
             dispute_status:          (r.dispute_status as string) ?? null,
             dispute_date:            r.dispute_date ? (r.dispute_date as Date).toISOString() : null,
             disputed_at:             r.disputed_at ? (r.disputed_at as Date).toISOString() : null,
-            // Look up automator buyer via platform_buyer_mappings
-            automator_buyer_id:      northstarBuyerId ? (buyerMap.get(northstarBuyerId) ?? null) : null,
         };
     }
 }
