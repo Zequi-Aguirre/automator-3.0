@@ -32,6 +32,8 @@ import RoleResource from "./resources/roleResource";
 import ZoeResource from "./resources/zoeResource.ts";
 import ReconciliationResource from "./resources/reconciliationResource.ts";
 import PlatformConnectionResource from "./resources/platformConnectionResource.ts";
+import FacebookLeadResource from "./resources/facebookLeadResource.ts";
+import FacebookWebhookResource from "./resources/facebookWebhookResource.ts";
 
 dotenv.config();
 
@@ -86,6 +88,9 @@ export class AutomatorServer {
         this.app.use("/api/zoe-ask", zoeResource.externalRoutes());
         this.app.use("/api/reconciliation", authFunc, cont.resolve(ReconciliationResource).routes());
         this.app.use("/api/platform-connections", authFunc, cont.resolve(PlatformConnectionResource).routes());
+        // TICKET-143: Facebook — webhook has no auth, lead admin requires auth
+        this.app.use("/api/facebook/webhook", cont.resolve(FacebookWebhookResource).routes());
+        this.app.use("/api/facebook", authFunc, cont.resolve(FacebookLeadResource).routes());
         this.app.use('/static', express.static('public'));
 
         // Initialize worker if IS_WORKER is true

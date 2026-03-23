@@ -11,6 +11,9 @@ export class EnvConfig {
     public readonly anthropicApiKey: string;
     public readonly openaiApiKey: string;
     public readonly platformSyncEncryptionKey: string;
+    // TICKET-143: Facebook Lead Ads
+    public readonly fbAppSecret: string;
+    public readonly fbVerifyToken: string;
     constructor() {
         this.dbConfig = new DBConfig();
         this.environment = process.env.ENVIRONMENT!;
@@ -20,6 +23,8 @@ export class EnvConfig {
         this.anthropicApiKey = process.env.ANTHROPIC_API_KEY ?? '';
         this.openaiApiKey = process.env.OPENAI_API_KEY ?? '';
         this.platformSyncEncryptionKey = process.env.PLATFORM_SYNC_ENCRYPTION_KEY ?? '';
+        this.fbAppSecret = process.env.FB_APP_SECRET ?? '';
+        this.fbVerifyToken = process.env.FB_VERIFY_TOKEN ?? '';
     }
 }
 

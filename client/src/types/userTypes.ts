@@ -42,6 +42,9 @@ export enum Permission {
     RECONCILIATION_MANAGE = 'reconciliation.manage',
     // TICKET-140: Platform connections
     PLATFORM_CONNECTIONS_MANAGE = 'platform_connections.manage',
+    // TICKET-143: Facebook Lead Ads
+    FACEBOOK_VIEW = 'facebook.view',
+    FACEBOOK_SYNC = 'facebook.sync',
 }
 
 export type User = {

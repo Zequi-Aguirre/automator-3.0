@@ -97,6 +97,8 @@ export default class SourceResource {
                     lead_manager_id: source.lead_manager_id ?? null,
                     buyer_filter_mode: source.buyer_filter_mode ?? null,
                     buyer_filter_buyer_ids: source.buyer_filter_buyer_ids ?? [],
+                    fb_page_id: source.fb_page_id ?? null,
+                    fb_page_token: source.fb_page_token ?? null,
                     created: source.created,
                     modified: source.modified,
                     deleted: source.deleted,
@@ -125,11 +127,13 @@ export default class SourceResource {
         this.router.put('/:id', requirePermission(SourcePermission.MANAGE), async (req: Request, res: Response) => {
             try {
                 const { id } = req.params;
-                const { name, lead_manager_id } = req.body;
+                const { name, lead_manager_id, fb_page_id, fb_page_token } = req.body;
 
                 const updateDTO: SourceUpdateDTO = {};
                 if (name) updateDTO.name = name;
                 if ('lead_manager_id' in req.body) updateDTO.lead_manager_id = lead_manager_id ?? null;
+                if ('fb_page_id' in req.body) updateDTO.fb_page_id = fb_page_id ?? null;
+                if ('fb_page_token' in req.body) updateDTO.fb_page_token = fb_page_token ?? null;
 
                 if (Object.keys(updateDTO).length === 0) {
                     return res.status(400).json({ error: 'No fields to update' });
@@ -265,6 +269,8 @@ export default class SourceResource {
             campaign_count: source.campaign_count,
             buyer_filter_mode: source.buyer_filter_mode ?? null,
             buyer_filter_buyer_ids: source.buyer_filter_buyer_ids ?? [],
+            fb_page_id: source.fb_page_id ?? null,
+            fb_page_token: source.fb_page_token ?? null,
             created: source.created,
             modified: source.modified,
             deleted: source.deleted

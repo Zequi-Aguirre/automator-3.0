@@ -89,6 +89,12 @@ export enum PlatformConnectionPermission {
     MANAGE = 'platform_connections.manage',
 }
 
+// TICKET-143: Facebook Lead Ads integration
+export enum FacebookPermission {
+    VIEW = 'facebook.view',
+    SYNC = 'facebook.sync',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerSettingsPermission
@@ -105,7 +111,8 @@ export type Permission =
     | DisputePermission
     | ZoePermission
     | ReconciliationPermission
-    | PlatformConnectionPermission;
+    | PlatformConnectionPermission
+    | FacebookPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
@@ -162,6 +169,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         ReconciliationPermission.VIEW,
         ReconciliationPermission.MANAGE,
         PlatformConnectionPermission.MANAGE,
+        FacebookPermission.VIEW,
+        FacebookPermission.SYNC,
         LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
