@@ -9,8 +9,12 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    FormControl,
     IconButton,
+    InputLabel,
+    MenuItem,
     Paper,
+    Select,
     Switch,
     Table,
     TableBody,
@@ -28,7 +32,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import WifiIcon from '@mui/icons-material/Wifi';
 import { useEffect, useState } from 'react';
 import platformConnectionService from '../../services/platformConnection.service';
+import buyerService from '../../services/buyer.service';
 import { PlatformConnection, PlatformConnectionCreateDTO, PlatformConnectionUpdateDTO } from '../../types/platformConnectionTypes';
+import { Buyer } from '../../types/buyerTypes';
 
 type FormState = {
     label: string;
@@ -38,6 +44,7 @@ type FormState = {
     db_username: string;
     password: string;
     lookback_days: string;
+    automator_buyer_id: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -48,10 +55,12 @@ const EMPTY_FORM: FormState = {
     db_username: '',
     password: '',
     lookback_days: '30',
+    automator_buyer_id: '',
 };
 
 export default function AdminPlatformConnectionsView() {
     const [connections, setConnections] = useState<PlatformConnection[]>([]);
+    const [buyers, setBuyers] = useState<Buyer[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +75,10 @@ export default function AdminPlatformConnectionsView() {
 
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        void load();
+        buyerService.getAll({ page: 1, limit: 200 }).then(r => { setBuyers(r.items); }).catch(() => {});
+    }, []);
 
     async function load() {
         setLoading(true);
@@ -96,6 +108,7 @@ export default function AdminPlatformConnectionsView() {
             db_username: conn.db_username,
             password: '', // never pre-fill password
             lookback_days: String(conn.lookback_days),
+            automator_buyer_id: conn.automator_buyer_id ?? '',
         });
         setFormError(null);
         setDialogOpen(true);
@@ -122,6 +135,7 @@ export default function AdminPlatformConnectionsView() {
                     dbname: form.dbname,
                     db_username: form.db_username,
                     lookback_days: Number(form.lookback_days),
+                    automator_buyer_id: form.automator_buyer_id || null,
                 };
                 if (form.password) dto.password = form.password;
                 const updated = await platformConnectionService.update(editingId, dto);
@@ -135,6 +149,7 @@ export default function AdminPlatformConnectionsView() {
                     db_username: form.db_username,
                     password: form.password,
                     lookback_days: Number(form.lookback_days),
+                    automator_buyer_id: form.automator_buyer_id || null,
                 };
                 const created = await platformConnectionService.create(dto);
                 setConnections(prev => [...prev, created]);
@@ -181,7 +196,7 @@ export default function AdminPlatformConnectionsView() {
         }
     }
 
-    function field(key: keyof FormState, label: string, opts?: { type?: string; required?: boolean; helperText?: string }) {
+    function field(key: keyof Omit<FormState, 'automator_buyer_id'>, label: string, opts?: { type?: string; required?: boolean; helperText?: string }) {
         return (
             <TextField
                 key={key}
@@ -195,6 +210,12 @@ export default function AdminPlatformConnectionsView() {
                 onChange={e => { setForm(prev => ({ ...prev, [key]: e.target.value })); }}
             />
         );
+    }
+
+    function buyerName(id: string | null) {
+        if (!id) return <span style={{ color: '#aaa' }}>—</span>;
+        const b = buyers.find(x => x.id === id);
+        return b ? b.name : id;
     }
 
     return (
@@ -215,6 +236,7 @@ export default function AdminPlatformConnectionsView() {
                     <Table size="small">
                         <TableHead>
                             <TableRow>
+                                <TableCell>Buyer</TableCell>
                                 <TableCell>Label</TableCell>
                                 <TableCell>Host / DB</TableCell>
                                 <TableCell>Lookback</TableCell>
@@ -226,13 +248,18 @@ export default function AdminPlatformConnectionsView() {
                         <TableBody>
                             {connections.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
+                                    <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>
                                         No platform connections configured
                                     </TableCell>
                                 </TableRow>
                             )}
                             {connections.map(conn => (
                                 <TableRow key={conn.id}>
+                                    <TableCell>
+                                        <Typography variant="body2" fontWeight={500}>
+                                            {buyerName(conn.automator_buyer_id)}
+                                        </Typography>
+                                    </TableCell>
                                     <TableCell>{conn.label ?? <span style={{ color: '#aaa' }}>—</span>}</TableCell>
                                     <TableCell>
                                         <Typography variant="body2">{conn.host}:{conn.port}</Typography>
@@ -304,6 +331,19 @@ export default function AdminPlatformConnectionsView() {
             <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); }} maxWidth="sm" fullWidth>
                 <DialogTitle>{editingId ? 'Edit Connection' : 'Add Platform Connection'}</DialogTitle>
                 <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+                    <FormControl size="small" fullWidth>
+                        <InputLabel>Buyer</InputLabel>
+                        <Select
+                            label="Buyer"
+                            value={form.automator_buyer_id}
+                            onChange={e => { setForm(prev => ({ ...prev, automator_buyer_id: e.target.value })); }}
+                        >
+                            <MenuItem value=""><em>None</em></MenuItem>
+                            {buyers.map(b => (
+                                <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                     {field('label', 'Label (optional)', { helperText: 'e.g. "Northstar Production"' })}
                     {field('host', 'Host', { required: true })}
                     {field('port', 'Port')}

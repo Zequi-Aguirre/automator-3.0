@@ -1,6 +1,5 @@
 // TICKET-140: Platform connection types
-// A connection is to an external DATABASE (e.g. Northstar prod), not to a specific buyer.
-// Buyer→Automator mapping is handled by platform_buyer_mappings.
+// A connection is to an external DATABASE (e.g. Northstar prod) scoped to one automator buyer.
 
 export type PlatformConnection = {
     id: string;
@@ -12,6 +11,7 @@ export type PlatformConnection = {
     // encrypted_password is never returned to the client
     lookback_days: number;
     is_active: boolean;
+    automator_buyer_id: string | null;
     last_synced_at: Date | null;
     created: Date;
     modified: Date;
@@ -26,6 +26,7 @@ export type PlatformConnectionCreateDTO = {
     db_username: string;
     password: string;
     lookback_days?: number;
+    automator_buyer_id?: string | null;
 };
 
 export type PlatformConnectionUpdateDTO = {
@@ -37,4 +38,5 @@ export type PlatformConnectionUpdateDTO = {
     password?: string;
     lookback_days?: number;
     is_active?: boolean;
+    automator_buyer_id?: string | null;
 };

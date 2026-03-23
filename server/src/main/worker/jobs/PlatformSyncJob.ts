@@ -119,7 +119,11 @@ export default class PlatformSyncJob {
 
         for (const conn of connections) {
             const label = conn.label ?? conn.id;
-            console.log(`[PlatformSyncJob] Syncing "${label}" (lookback: ${conn.lookback_days}d)`);
+            if (!conn.automator_buyer_id) {
+                console.warn(`[PlatformSyncJob] Skipping "${label}" — no automator buyer assigned`);
+                continue;
+            }
+            console.log(`[PlatformSyncJob] Syncing "${label}" (buyer: ${conn.automator_buyer_id}, lookback: ${conn.lookback_days}d)`);
             try {
                 await this.syncConnection(conn, buyerMap);
                 await this.connectionService.updateLastSynced(conn.id);
@@ -132,7 +136,7 @@ export default class PlatformSyncJob {
     }
 
     private async syncConnection(
-        conn: { id: string; host: string; port: number; dbname: string; db_username: string; password: string; lookback_days: number; label?: string | null },
+        conn: { id: string; host: string; port: number; dbname: string; db_username: string; password: string; lookback_days: number; label?: string | null; automator_buyer_id: string | null },
         buyerMap: Map<string, string>
     ): Promise<void> {
         const client = new Client({
@@ -150,7 +154,10 @@ export default class PlatformSyncJob {
         let rows: ParsedPlatformRow[];
         try {
             const result = await client.query(NORTHSTAR_SYNC_QUERY, [conn.lookback_days]);
-            rows = result.rows.map(r => this.mapRow(r, buyerMap));
+            const allRows = result.rows.map(r => this.mapRow(r, buyerMap));
+            // Filter to only rows belonging to this connection's buyer
+            rows = allRows.filter(r => r.automator_buyer_id === conn.automator_buyer_id);
+            console.log(`[PlatformSyncJob] ${allRows.length} total rows, ${rows.length} for buyer ${conn.automator_buyer_id}`);
         } finally {
             await client.end().catch(() => {});
         }

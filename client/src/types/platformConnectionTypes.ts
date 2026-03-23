@@ -1,5 +1,5 @@
 // TICKET-140: Platform connection types (client-side — no encrypted_password)
-// A connection is to an external DATABASE, not to a specific buyer.
+// A connection is to an external DATABASE scoped to one automator buyer.
 
 export type PlatformConnection = {
     id: string;
@@ -10,6 +10,7 @@ export type PlatformConnection = {
     db_username: string;
     lookback_days: number;
     is_active: boolean;
+    automator_buyer_id: string | null;
     last_synced_at: string | null;
     created: string;
     modified: string;
@@ -23,6 +24,7 @@ export type PlatformConnectionCreateDTO = {
     db_username: string;
     password: string;
     lookback_days?: number;
+    automator_buyer_id?: string | null;
 };
 
 export type PlatformConnectionUpdateDTO = {
@@ -34,4 +36,5 @@ export type PlatformConnectionUpdateDTO = {
     password?: string;
     lookback_days?: number;
     is_active?: boolean;
+    automator_buyer_id?: string | null;
 };
