@@ -1,7 +1,6 @@
--- TICKET-149: Backfill Automator leads from FB + Platform cross-reference
--- For each unmatched facebook_lead_record that has a phone match in platform_lead_records,
--- create an Automator lead using the Facebook form data and fb_created_time as the lead date.
--- Then link both facebook_lead_records and platform_lead_records to the new lead.
+-- TICKET-149 (retry): Backfill Automator leads from FB + Platform cross-reference
+-- Same logic as 20260323090000 but without worker_enabled column (not present on all envs).
+-- Safe to re-run — ON CONFLICT (phone) DO NOTHING skips already-created leads.
 
 DO $$
 DECLARE
@@ -14,7 +13,6 @@ DECLARE
     skipped_count INTEGER := 0;
 BEGIN
     FOR rec IN
-        -- One row per unique phone — use the earliest FB submission if duplicates
         SELECT DISTINCT ON (flr.phone_normalized)
             flr.id                  AS fb_record_id,
             flr.fb_lead_id,
@@ -41,21 +39,18 @@ BEGIN
         full_nm     := NULL;
         new_lead_id := NULL;
 
-        -- Extract first_name from field_data JSONB array
         SELECT trim(both '"' FROM (elem -> 'values' -> 0)::text)
         INTO first_nm
         FROM jsonb_array_elements(rec.field_data) AS elem
         WHERE elem ->> 'name' ILIKE '%first%'
         LIMIT 1;
 
-        -- Extract last_name from field_data
         SELECT trim(both '"' FROM (elem -> 'values' -> 0)::text)
         INTO last_nm
         FROM jsonb_array_elements(rec.field_data) AS elem
         WHERE elem ->> 'name' ILIKE '%last%'
         LIMIT 1;
 
-        -- Fall back to full_name / name field if no separate first/last
         IF first_nm IS NULL THEN
             SELECT trim(both '"' FROM (elem -> 'values' -> 0)::text)
             INTO full_nm
@@ -74,27 +69,26 @@ BEGIN
             END IF;
         END IF;
 
-        -- Insert the new Automator lead (skip if phone already exists)
         INSERT INTO leads (
             first_name, last_name, phone, email,
             address, city, state, zipcode,
             source_id, campaign_id,
             external_lead_id, external_ad_id, external_ad_name,
             created,
-            verified, worker_enabled
+            verified
         ) VALUES (
             COALESCE(first_nm, ''),
             COALESCE(last_nm, ''),
             rec.phone,
             rec.email,
-            '', '', '', '',   -- no address data from FB forms
+            '', '', '', '',
             rec.source_id,
             rec.automator_campaign_id,
             rec.fb_lead_id,
             rec.fb_ad_id,
             rec.fb_ad_name,
             COALESCE(rec.fb_created_time, NOW()),
-            false, false
+            false
         )
         ON CONFLICT (phone) DO NOTHING
         RETURNING id INTO new_lead_id;
@@ -102,13 +96,11 @@ BEGIN
         IF new_lead_id IS NOT NULL THEN
             created_count := created_count + 1;
 
-            -- Link the FB record to the new lead
             UPDATE facebook_lead_records
             SET automator_lead_id = new_lead_id,
                 match_status      = 'matched'
             WHERE id = rec.fb_record_id;
 
-            -- Link all matching platform records to the new lead
             UPDATE platform_lead_records
             SET automator_lead_id = new_lead_id,
                 match_status      = 'matched'
@@ -120,5 +112,5 @@ BEGIN
         END IF;
     END LOOP;
 
-    RAISE NOTICE 'TICKET-149 backfill complete: % leads created, % skipped (phone already existed)', created_count, skipped_count;
+    RAISE NOTICE 'TICKET-149 backfill (retry) complete: % leads created, % skipped (phone already existed)', created_count, skipped_count;
 END $$;
