@@ -25,7 +25,8 @@
     "db-migrate-stg": "cd postgres && ./migrate.sh",
     "counties-script": "doppler run -c dev --scope automator -- node scripts/load-counties-script/loadCountyData.js",
     "counties-deploy": "node scripts/load-counties-script/loadCountyData.js",
-    "copy-prod-to-staging": "bash scripts/copy-prod-to-staging.sh",
+    "copy-prod-to-staging": "bash scripts/copy-prod-to-staging.sh stg",
+    "copy-prod-to-local": "bash scripts/copy-prod-to-staging.sh dev",
     "delete-prod-db": "doppler run -c prd --scope automator -- node scripts/wipeDb.js"
   },
   "dependencies": {

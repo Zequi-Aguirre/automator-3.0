@@ -1,14 +1,22 @@
 #!/bin/bash
-# Copy production database to staging for safe testing.
+# Copy production database to staging or local dev for safe testing.
 #
 # Usage:
-#   npm run copy-prod-to-staging
-#   (or: bash scripts/copy-prod-to-staging.sh)
+#   npm run copy-prod-to-staging   # → staging
+#   npm run copy-prod-to-local     # → local dev (Docker)
+#   bash scripts/copy-prod-to-staging.sh [stg|dev]  (default: stg)
 #
-# Requires: Doppler CLI authenticated with access to automator prd + stg configs.
-# WARNING: This OVERWRITES the staging database completely.
+# Requires: Doppler CLI authenticated with access to automator prd + target configs.
+# WARNING: This OVERWRITES the target database completely.
 
 set -e
+
+TARGET="${1:-stg}"
+
+if [[ "$TARGET" != "stg" && "$TARGET" != "dev" ]]; then
+    echo "Unknown target '$TARGET'. Use 'stg' or 'dev'."
+    exit 1
+fi
 
 DUMP_FILE="/tmp/automator_prod_$(date +%Y%m%d_%H%M%S).dump"
 
@@ -17,10 +25,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== Automator: Copy prod → staging ==="
+echo "=== Automator: Copy prod → $TARGET ==="
 echo ""
 
-# Build prod connection URL from Doppler
+# ── Read prod credentials ────────────────────────────────────────────────────
 echo "Reading prod credentials..."
 PROD_HOST=$(doppler secrets get DB_HOST --plain -c prd --scope automator)
 PROD_PORT=$(doppler secrets get DB_PORT --plain -c prd --scope automator)
@@ -28,32 +36,29 @@ PROD_DB=$(doppler secrets get DB_DB --plain -c prd --scope automator)
 PROD_USER=$(doppler secrets get DB_USER --plain -c prd --scope automator)
 PROD_PASS=$(doppler secrets get DB_PASS --plain -c prd --scope automator)
 
-# Render hostnames need the full .oregon-postgres.render.com suffix
 if [[ "$PROD_HOST" == dpg-* ]]; then
     PROD_HOST="${PROD_HOST}.oregon-postgres.render.com"
 fi
 
-PROD_URL="postgresql://${PROD_USER}:${PROD_PASS}@${PROD_HOST}:${PROD_PORT}/${PROD_DB}?sslmode=require"
+# ── Read target credentials ──────────────────────────────────────────────────
+echo "Reading $TARGET credentials..."
+TGT_HOST=$(doppler secrets get DB_HOST --plain -c "$TARGET" --scope automator)
+TGT_PORT=$(doppler secrets get DB_PORT --plain -c "$TARGET" --scope automator)
+TGT_DB=$(doppler secrets get DB_DB --plain -c "$TARGET" --scope automator)
+TGT_USER=$(doppler secrets get DB_USER --plain -c "$TARGET" --scope automator)
+TGT_PASS=$(doppler secrets get DB_PASS --plain -c "$TARGET" --scope automator)
 
-# Build staging connection URL from Doppler
-echo "Reading staging credentials..."
-STG_HOST=$(doppler secrets get DB_HOST --plain -c stg --scope automator)
-STG_PORT=$(doppler secrets get DB_PORT --plain -c stg --scope automator)
-STG_DB=$(doppler secrets get DB_DB --plain -c stg --scope automator)
-STG_USER=$(doppler secrets get DB_USER --plain -c stg --scope automator)
-STG_PASS=$(doppler secrets get DB_PASS --plain -c stg --scope automator)
-
-if [[ "$STG_HOST" == dpg-* ]]; then
-    STG_HOST="${STG_HOST}.oregon-postgres.render.com"
+TGT_SSL=false
+if [[ "$TGT_HOST" == dpg-* ]]; then
+    TGT_HOST="${TGT_HOST}.oregon-postgres.render.com"
+    TGT_SSL=true
 fi
-
-STG_URL="postgresql://${STG_USER}:${STG_PASS}@${STG_HOST}:${STG_PORT}/${STG_DB}?sslmode=require"
 
 echo ""
 echo "Source:      ${PROD_HOST}/${PROD_DB}"
-echo "Destination: ${STG_HOST}/${STG_DB}"
+echo "Destination: ${TGT_HOST}/${TGT_DB} ($TARGET)"
 echo ""
-echo "WARNING: This will OVERWRITE the staging database."
+echo "WARNING: This will OVERWRITE the $TARGET database."
 read -p "Continue? (y/N) " -n 1 -r
 echo ""
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -61,6 +66,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
+# ── Dump prod ────────────────────────────────────────────────────────────────
 echo ""
 echo "Dumping production database..."
 PGPASSWORD="$PROD_PASS" pg_dump \
@@ -72,27 +78,43 @@ PGPASSWORD="$PROD_PASS" pg_dump \
     --no-privileges \
     -Fc \
     -f "$DUMP_FILE"
-echo "  ✓ Dump complete: $DUMP_FILE"
+echo "  ✓ Dump complete"
+
+# ── Restore to target ────────────────────────────────────────────────────────
+echo ""
+echo "Dropping and recreating $TARGET schema..."
+
+if [[ "$TGT_SSL" == "true" ]]; then
+    PGPASSWORD="$TGT_PASS" psql \
+        "postgresql://${TGT_USER}:${TGT_PASS}@${TGT_HOST}:${TGT_PORT}/${TGT_DB}?sslmode=require" \
+        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+else
+    PGPASSWORD="$TGT_PASS" psql \
+        -h "$TGT_HOST" \
+        -p "$TGT_PORT" \
+        -U "$TGT_USER" \
+        -d "$TGT_DB" \
+        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+fi
 
 echo ""
-echo "Dropping and recreating staging schema..."
-PGPASSWORD="$STG_PASS" psql \
-    -h "$STG_HOST" \
-    -p "$STG_PORT" \
-    -U "$STG_USER" \
-    -d "$STG_DB" \
-    -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+echo "Restoring to $TARGET..."
+if [[ "$TGT_SSL" == "true" ]]; then
+    PGPASSWORD="$TGT_PASS" pg_restore \
+        -d "postgresql://${TGT_USER}:${TGT_PASS}@${TGT_HOST}:${TGT_PORT}/${TGT_DB}?sslmode=require" \
+        --no-owner \
+        --no-privileges \
+        "$DUMP_FILE"
+else
+    PGPASSWORD="$TGT_PASS" pg_restore \
+        -h "$TGT_HOST" \
+        -p "$TGT_PORT" \
+        -U "$TGT_USER" \
+        -d "$TGT_DB" \
+        --no-owner \
+        --no-privileges \
+        "$DUMP_FILE"
+fi
 
 echo ""
-echo "Restoring to staging..."
-PGPASSWORD="$STG_PASS" pg_restore \
-    -h "$STG_HOST" \
-    -p "$STG_PORT" \
-    -U "$STG_USER" \
-    -d "$STG_DB" \
-    --no-owner \
-    --no-privileges \
-    "$DUMP_FILE"
-
-echo ""
-echo "=== Done. Staging is now a full copy of production. ==="
+echo "=== Done. $TARGET is now a full copy of production. ==="
