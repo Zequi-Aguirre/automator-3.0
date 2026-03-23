@@ -9,8 +9,12 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    FormControl,
     IconButton,
+    InputLabel,
+    MenuItem,
     Paper,
+    Select,
     Switch,
     Table,
     TableBody,
@@ -21,10 +25,6 @@ import {
     TextField,
     Tooltip,
     Typography,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -37,8 +37,6 @@ import { PlatformConnection, PlatformConnectionCreateDTO, PlatformConnectionUpda
 import { Buyer } from '../../types/buyerTypes';
 
 type FormState = {
-    automator_buyer_id: string;
-    northstar_buyer_id: string;
     label: string;
     host: string;
     port: string;
@@ -46,11 +44,10 @@ type FormState = {
     db_username: string;
     password: string;
     lookback_days: string;
+    automator_buyer_id: string;
 };
 
 const EMPTY_FORM: FormState = {
-    automator_buyer_id: '',
-    northstar_buyer_id: '',
     label: '',
     host: '',
     port: '5432',
@@ -58,6 +55,7 @@ const EMPTY_FORM: FormState = {
     db_username: '',
     password: '',
     lookback_days: '30',
+    automator_buyer_id: '',
 };
 
 export default function AdminPlatformConnectionsView() {
@@ -78,7 +76,7 @@ export default function AdminPlatformConnectionsView() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
-        load();
+        void load();
         buyerService.getAll({ page: 1, limit: 200 }).then(r => { setBuyers(r.items); }).catch(() => {});
     }, []);
 
@@ -103,8 +101,6 @@ export default function AdminPlatformConnectionsView() {
     function openEdit(conn: PlatformConnection) {
         setEditingId(conn.id);
         setForm({
-            automator_buyer_id: conn.automator_buyer_id,
-            northstar_buyer_id: conn.northstar_buyer_id,
             label: conn.label ?? '',
             host: conn.host,
             port: String(conn.port),
@@ -112,6 +108,7 @@ export default function AdminPlatformConnectionsView() {
             db_username: conn.db_username,
             password: '', // never pre-fill password
             lookback_days: String(conn.lookback_days),
+            automator_buyer_id: conn.automator_buyer_id ?? '',
         });
         setFormError(null);
         setDialogOpen(true);
@@ -119,16 +116,12 @@ export default function AdminPlatformConnectionsView() {
 
     async function handleSave() {
         setFormError(null);
-        if (!form.host || !form.dbname || !form.db_username || !form.northstar_buyer_id) {
-            setFormError('Host, database, username, and Northstar Buyer ID are required');
+        if (!form.host || !form.dbname || !form.db_username) {
+            setFormError('Host, database name, and username are required');
             return;
         }
         if (!editingId && !form.password) {
             setFormError('Password is required');
-            return;
-        }
-        if (!editingId && !form.automator_buyer_id) {
-            setFormError('Buyer is required');
             return;
         }
 
@@ -136,21 +129,19 @@ export default function AdminPlatformConnectionsView() {
         try {
             if (editingId) {
                 const dto: PlatformConnectionUpdateDTO = {
-                    northstar_buyer_id: form.northstar_buyer_id,
                     label: form.label || null,
                     host: form.host,
                     port: Number(form.port),
                     dbname: form.dbname,
                     db_username: form.db_username,
                     lookback_days: Number(form.lookback_days),
+                    automator_buyer_id: form.automator_buyer_id || null,
                 };
                 if (form.password) dto.password = form.password;
                 const updated = await platformConnectionService.update(editingId, dto);
-                setConnections(prev => prev.map(c => c.id === editingId ? { ...c, ...updated } : c));
+                setConnections(prev => prev.map(c => c.id === editingId ? updated : c));
             } else {
                 const dto: PlatformConnectionCreateDTO = {
-                    automator_buyer_id: form.automator_buyer_id,
-                    northstar_buyer_id: form.northstar_buyer_id,
                     label: form.label || undefined,
                     host: form.host,
                     port: Number(form.port),
@@ -158,9 +149,10 @@ export default function AdminPlatformConnectionsView() {
                     db_username: form.db_username,
                     password: form.password,
                     lookback_days: Number(form.lookback_days),
+                    automator_buyer_id: form.automator_buyer_id || null,
                 };
                 const created = await platformConnectionService.create(dto);
-                setConnections(prev => [...prev, { ...created, buyer_name: buyers.find(b => b.id === created.automator_buyer_id)?.name ?? '' }]);
+                setConnections(prev => [...prev, created]);
             }
             setDialogOpen(false);
         } catch (err) {
@@ -173,7 +165,7 @@ export default function AdminPlatformConnectionsView() {
     async function handleToggleActive(conn: PlatformConnection) {
         try {
             const updated = await platformConnectionService.update(conn.id, { is_active: !conn.is_active });
-            setConnections(prev => prev.map(c => c.id === conn.id ? { ...c, ...updated } : c));
+            setConnections(prev => prev.map(c => c.id === conn.id ? updated : c));
         } catch {
             setError('Failed to update connection');
         }
@@ -204,7 +196,7 @@ export default function AdminPlatformConnectionsView() {
         }
     }
 
-    function field(key: keyof FormState, label: string, opts?: { type?: string; required?: boolean; helperText?: string }) {
+    function field(key: keyof Omit<FormState, 'automator_buyer_id'>, label: string, opts?: { type?: string; required?: boolean; helperText?: string }) {
         return (
             <TextField
                 key={key}
@@ -218,6 +210,12 @@ export default function AdminPlatformConnectionsView() {
                 onChange={e => { setForm(prev => ({ ...prev, [key]: e.target.value })); }}
             />
         );
+    }
+
+    function buyerName(id: string | null) {
+        if (!id) return <span style={{ color: '#aaa' }}>—</span>;
+        const b = buyers.find(x => x.id === id);
+        return b ? b.name : id;
     }
 
     return (
@@ -257,7 +255,11 @@ export default function AdminPlatformConnectionsView() {
                             )}
                             {connections.map(conn => (
                                 <TableRow key={conn.id}>
-                                    <TableCell>{conn.buyer_name}</TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" fontWeight={500}>
+                                            {buyerName(conn.automator_buyer_id)}
+                                        </Typography>
+                                    </TableCell>
                                     <TableCell>{conn.label ?? <span style={{ color: '#aaa' }}>—</span>}</TableCell>
                                     <TableCell>
                                         <Typography variant="body2">{conn.host}:{conn.port}</Typography>
@@ -329,22 +331,20 @@ export default function AdminPlatformConnectionsView() {
             <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); }} maxWidth="sm" fullWidth>
                 <DialogTitle>{editingId ? 'Edit Connection' : 'Add Platform Connection'}</DialogTitle>
                 <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-                    {!editingId && (
-                        <FormControl size="small" fullWidth required>
-                            <InputLabel>Buyer</InputLabel>
-                            <Select
-                                value={form.automator_buyer_id}
-                                label="Buyer"
-                                onChange={e => { setForm(prev => ({ ...prev, automator_buyer_id: e.target.value })); }}
-                            >
-                                {buyers.map(b => (
-                                    <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    )}
-                    {field('northstar_buyer_id', 'Northstar Buyer ID (UUID)', { required: true, helperText: 'The u.id of this buyer in the Northstar database' })}
-                    {field('label', 'Label (optional)', { helperText: 'e.g. "SellersDirect - Buyer A"' })}
+                    <FormControl size="small" fullWidth>
+                        <InputLabel>Buyer</InputLabel>
+                        <Select
+                            label="Buyer"
+                            value={form.automator_buyer_id}
+                            onChange={e => { setForm(prev => ({ ...prev, automator_buyer_id: e.target.value })); }}
+                        >
+                            <MenuItem value=""><em>None</em></MenuItem>
+                            {buyers.map(b => (
+                                <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {field('label', 'Label (optional)', { helperText: 'e.g. "Northstar Production"' })}
                     {field('host', 'Host', { required: true })}
                     {field('port', 'Port')}
                     {field('dbname', 'Database name', { required: true })}

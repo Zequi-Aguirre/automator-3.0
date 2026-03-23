@@ -16,13 +16,24 @@ export default class PlatformImportBatchDAO {
         platform: string;
         filename: string | null;
         row_count: number;
-        imported_by: string;
+        imported_by: string | null;
+        sync_type?: 'csv' | 'db_sync';
+        platform_connection_id?: string | null;
     }): Promise<PlatformImportBatch> {
         return await this.db.one<PlatformImportBatch>(
-            `INSERT INTO platform_import_batches (platform, filename, row_count, imported_by)
-             VALUES ($[platform], $[filename], $[row_count], $[imported_by])
+            `INSERT INTO platform_import_batches
+                (platform, filename, row_count, imported_by, sync_type, platform_connection_id)
+             VALUES
+                ($[platform], $[filename], $[row_count], $[imported_by], $[sync_type], $[platform_connection_id])
              RETURNING *`,
-            data
+            {
+                platform: data.platform,
+                filename: data.filename,
+                row_count: data.row_count,
+                imported_by: data.imported_by,
+                sync_type: data.sync_type ?? 'csv',
+                platform_connection_id: data.platform_connection_id ?? null,
+            }
         );
     }
 
