@@ -1,29 +1,6 @@
 // TICKET-137 — Reconciliation import service
 import { authProvider, AxiosProvider } from '../config/axiosProvider';
 
-type Platform = 'sellers' | 'compass' | 'pickle'; // internal — derived from CSV, not user-selected
-
-export interface PlatformBuyerSummary {
-    platform_buyer_id: string;
-    platform_buyer_name: string | null;
-    platform_buyer_email: string | null;
-    platform_buyer_products: string[];
-    row_count: number;
-    saved_automator_buyer_id: string | null;
-}
-
-export interface PreviewResult {
-    row_count: number;
-    platform: Platform;
-    platform_buyers: PlatformBuyerSummary[];
-    file_token: string;
-}
-
-export interface BuyerMapping {
-    platform_buyer_id: string;
-    automator_buyer_id: string | null;
-}
-
 export interface ImportResult {
     batch_id: number;
     row_count: number;
@@ -41,21 +18,11 @@ export interface ImportBatch {
 class ReconciliationService {
     constructor(private readonly api: AxiosProvider) {}
 
-    async previewFile(file: File): Promise<PreviewResult> {
+    async importFile(automatorBuyerId: string, file: File): Promise<ImportResult> {
         const form = new FormData();
+        form.append('automator_buyer_id', automatorBuyerId);
         form.append('file', file);
-        const res = await this.api.getApi().post('/api/reconciliation/import/preview', form);
-        return res.data;
-    }
-
-    async confirmImport(
-        fileToken: string,
-        buyerMappings: BuyerMapping[]
-    ): Promise<ImportResult> {
-        const res = await this.api.getApi().post('/api/reconciliation/import/confirm', {
-            file_token: fileToken,
-            buyer_mappings: buyerMappings,
-        });
+        const res = await this.api.getApi().post('/api/reconciliation/import', form);
         return res.data;
     }
 

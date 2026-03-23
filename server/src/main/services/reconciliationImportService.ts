@@ -1,39 +1,9 @@
 import { injectable } from 'tsyringe';
 import * as XLSX from 'xlsx';
-import { v4 as uuidv4 } from 'uuid';
 import PlatformImportBatchDAO from '../data/platformImportBatchDAO';
 import PlatformLeadRecordDAO from '../data/platformLeadRecordDAO';
 import PlatformBuyerMappingDAO from '../data/platformBuyerMappingDAO';
-import {
-    BuyerMapping,
-    ImportResult,
-    ParsedPlatformRow,
-    Platform,
-    PlatformBuyerSummary,
-    PreviewResult,
-} from '../types/reconciliationTypes';
-// Platform is used in derivePlatform return type and TempEntry
-
-// ---------------------------------------------------------------------------
-// Temp file store — holds parsed rows between preview and confirm calls.
-// Entries expire after 30 minutes.
-// ---------------------------------------------------------------------------
-
-type TempEntry = {
-    platform: Platform;
-    filename: string;
-    rows: ParsedPlatformRow[];
-    expiresAt: number;
-};
-
-const tempStore = new Map<string, TempEntry>();
-
-setInterval(() => {
-    const now = Date.now();
-    for (const [token, entry] of tempStore.entries()) {
-        if (entry.expiresAt < now) tempStore.delete(token);
-    }
-}, 5 * 60 * 1000);
+import { ImportResult, ParsedPlatformRow, Platform } from '../types/reconciliationTypes';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -90,16 +60,14 @@ function parsePrice(val: unknown): number | null {
     return isNaN(n) ? null : Math.round(n * 100);
 }
 
-function derivePlatform(rows: Array<{ platform_buyer_products: string[] }>): Platform {
-    for (const row of rows) {
-        for (const product of row.platform_buyer_products) {
-            const p = product.toLowerCase();
-            if (p.includes('compass')) return 'compass';
-            if (p.includes('pickle')) return 'pickle';
-            if (p.includes('seller')) return 'sellers';
-        }
+function derivePlatform(products: string[]): Platform {
+    for (const p of products) {
+        const s = p.toLowerCase();
+        if (s.includes('compass')) return 'compass';
+        if (s.includes('pickle')) return 'pickle';
+        if (s.includes('seller')) return 'sellers';
     }
-    return 'sellers'; // fallback
+    return 'sellers';
 }
 
 // ---------------------------------------------------------------------------
@@ -114,93 +82,40 @@ export default class ReconciliationImportService {
         private readonly mappingDAO: PlatformBuyerMappingDAO
     ) {}
 
-    async previewFile(
+    async importFile(
         buffer: Buffer,
-        filename: string
-    ): Promise<PreviewResult> {
-        const rows = this.parseFile(buffer);
+        filename: string,
+        automatorBuyerId: string,
+        userId: string
+    ): Promise<ImportResult> {
+        const rows = this.parseFile(buffer, automatorBuyerId);
 
         if (rows.length === 0) {
             throw new Error('No valid rows found in file');
         }
 
-        const platform = derivePlatform(rows);
-
-        // Load saved buyer mappings for this platform so we can pre-fill dropdowns
-        const savedMappings = await this.mappingDAO.getByPlatform(platform);
-        const savedMap = new Map(savedMappings.map(m => [m.platform_buyer_id, m.automator_buyer_id]));
-
-        // Collect unique platform buyers
-        const buyerMap = new Map<string, PlatformBuyerSummary>();
-        for (const row of rows) {
-            if (!row.platform_buyer_id) continue;
-            if (!buyerMap.has(row.platform_buyer_id)) {
-                buyerMap.set(row.platform_buyer_id, {
-                    platform_buyer_id: row.platform_buyer_id,
-                    platform_buyer_name: row.platform_buyer_name,
-                    platform_buyer_email: row.platform_buyer_email,
-                    platform_buyer_products: row.platform_buyer_products,
-                    row_count: 0,
-                    saved_automator_buyer_id: savedMap.get(row.platform_buyer_id) ?? null,
-                });
-            }
-            buyerMap.get(row.platform_buyer_id)!.row_count++;
-        }
-
-        const fileToken = uuidv4();
-        tempStore.set(fileToken, {
-            platform,
-            filename,
-            rows,
-            expiresAt: Date.now() + 30 * 60 * 1000,
-        });
-
-        return {
-            row_count: rows.length,
-            platform,
-            platform_buyers: Array.from(buyerMap.values()),
-            file_token: fileToken,
-        };
-    }
-
-    async confirmImport(
-        fileToken: string,
-        buyerMappings: BuyerMapping[],
-        userId: string
-    ): Promise<ImportResult> {
-        const entry = tempStore.get(fileToken);
-        if (!entry) throw new Error('Import session expired or not found — please re-upload the file');
-
-        tempStore.delete(fileToken);
-
-        const { platform, filename, rows } = entry;
-        const mappingLookup = new Map(buyerMappings.map(m => [m.platform_buyer_id, m.automator_buyer_id]));
-
-        // Apply buyer mappings to rows
-        const mappedRows = rows.map(row => ({
-            ...row,
-            automator_buyer_id: row.platform_buyer_id
-                ? (mappingLookup.get(row.platform_buyer_id) ?? row.automator_buyer_id)
-                : row.automator_buyer_id,
-        }));
+        // Derive platform from the first row that has buyer_products
+        const platform = derivePlatform(rows.flatMap(r => r.platform_buyer_products));
 
         const batch = await this.batchDAO.insert({
             platform,
             filename,
-            row_count: mappedRows.length,
+            row_count: rows.length,
             imported_by: userId,
         });
 
-        await this.recordDAO.bulkUpsert(mappedRows, batch.id);
+        await this.recordDAO.bulkUpsert(rows, batch.id);
 
-        // Persist buyer mappings for future imports
-        for (const mapping of buyerMappings) {
-            const summary = entry.rows.find(r => r.platform_buyer_id === mapping.platform_buyer_id);
+        // Persist platform buyer → automator buyer mappings for audit/matching engine
+        const seen = new Set<string>();
+        for (const row of rows) {
+            if (!row.platform_buyer_id || seen.has(row.platform_buyer_id)) continue;
+            seen.add(row.platform_buyer_id);
             await this.mappingDAO.upsert({
                 platform,
-                platform_buyer_id: mapping.platform_buyer_id,
-                platform_buyer_name: summary?.platform_buyer_name ?? null,
-                automator_buyer_id: mapping.automator_buyer_id,
+                platform_buyer_id: row.platform_buyer_id,
+                platform_buyer_name: row.platform_buyer_name,
+                automator_buyer_id: automatorBuyerId,
                 mapped_by: userId,
             });
         }
@@ -208,10 +123,10 @@ export default class ReconciliationImportService {
         console.info('Reconciliation import complete', {
             platform,
             batch_id: batch.id,
-            row_count: mappedRows.length,
+            row_count: rows.length,
         });
 
-        return { batch_id: batch.id, row_count: mappedRows.length };
+        return { batch_id: batch.id, row_count: rows.length };
     }
 
     async getLastBatchesPerPlatform(): Promise<ReturnType<PlatformImportBatchDAO['getLastPerPlatform']>> {
@@ -222,7 +137,7 @@ export default class ReconciliationImportService {
     // Private: parse CSV/XLSX buffer into ParsedPlatformRow[]
     // -------------------------------------------------------------------------
 
-    private parseFile(buffer: Buffer): ParsedPlatformRow[] {
+    private parseFile(buffer: Buffer, automatorBuyerId: string): ParsedPlatformRow[] {
         const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
@@ -230,21 +145,20 @@ export default class ReconciliationImportService {
         const results: ParsedPlatformRow[] = [];
 
         for (const raw of rawRows) {
-            // Normalize headers
             const row: Record<string, unknown> = {};
             for (const [key, val] of Object.entries(raw)) {
                 row[normalizeHeader(key)] = val;
             }
 
             const buyerLeadId = row['northstar_buyer_lead_id'];
-            if (!buyerLeadId) continue; // skip rows without the upsert key
+            if (!buyerLeadId) continue;
 
             const disputeStatus = parseTimestamp(row['dispute_status']) ?? null;
             const phoneDigits = row['phone_digits'] ? String(row['phone_digits']) : null;
             const buyerProducts = parseArrayField(row['buyer_products']);
 
             results.push({
-                platform: derivePlatform([{ platform_buyer_products: buyerProducts }]),
+                platform:               derivePlatform(buyerProducts),
                 platform_lead_id:       (row['northstar_lead_id'] as string) ?? null,
                 platform_buyer_lead_id: String(buyerLeadId),
                 platform_buyer_id:      (row['northstar_buyer_id'] as string) ?? null,
@@ -267,7 +181,7 @@ export default class ReconciliationImportService {
                 dispute_status:         disputeStatus,
                 dispute_date:           parseTimestamp(row['dispute_date']),
                 disputed_at:            parseTimestamp(row['disputed_at']),
-                automator_buyer_id:     null, // set during confirmImport
+                automator_buyer_id:     automatorBuyerId,
             });
         }
 
