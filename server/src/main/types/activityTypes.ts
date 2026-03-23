@@ -134,8 +134,10 @@ export enum ZoeAction {
 }
 
 // TICKET-137: Reconciliation importer
+// TICKET-138: Reconciliation matching engine
 export enum ReconciliationAction {
     IMPORTED = 'reconciliation_imported',
+    MATCHED  = 'reconciliation_matched',
 }
 
 export type ActivityAction =

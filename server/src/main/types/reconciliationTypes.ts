@@ -1,7 +1,7 @@
 export type Platform = 'sellers' | 'compass' | 'pickle';
 
 export type PlatformImportBatch = {
-    id: number;
+    id: string;
     platform: string;
     filename: string | null;
     row_count: number | null;
@@ -10,8 +10,8 @@ export type PlatformImportBatch = {
 };
 
 export type PlatformLeadRecord = {
-    id: number;
-    import_batch_id: number;
+    id: string;
+    import_batch_id: string;
     platform: string;
     platform_lead_id: string | null;
     platform_buyer_lead_id: string;
@@ -44,7 +44,7 @@ export type PlatformLeadRecord = {
 };
 
 export type PlatformBuyerMapping = {
-    id: number;
+    id: string;
     platform: string;
     platform_buyer_id: string;
     platform_buyer_name: string | null;
@@ -54,7 +54,7 @@ export type PlatformBuyerMapping = {
 };
 
 export type ImportResult = {
-    batch_id: number;
+    batch_id: string;
     row_count: number;
 };
 
