@@ -81,7 +81,7 @@ BEGIN
             source_id, campaign_id,
             external_lead_id, external_ad_id, external_ad_name,
             created,
-            verified, worker_enabled
+            verified
         ) VALUES (
             COALESCE(first_nm, ''),
             COALESCE(last_nm, ''),
@@ -94,7 +94,7 @@ BEGIN
             rec.fb_ad_id,
             rec.fb_ad_name,
             COALESCE(rec.fb_created_time, NOW()),
-            false, false
+            false
         )
         ON CONFLICT (phone) DO NOTHING
         RETURNING id INTO new_lead_id;
