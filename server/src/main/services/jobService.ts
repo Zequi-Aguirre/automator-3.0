@@ -3,6 +3,7 @@ import JobDAO from '../data/jobDAO';
 import { Job } from "../types/jobTypes.ts";
 import SendLeadsJob from '../worker/jobs/SendLeadsJob';
 import TrashExpireLeadsJob from "../worker/jobs/TrashExpireLeadsJob.ts";
+import PlatformSyncJob from "../worker/jobs/PlatformSyncJob.ts";
 
 interface JobHandler {
     execute: () => Promise<void>;
@@ -16,7 +17,7 @@ export default class JobService {
     private readonly handlers: Record<string, JobHandlerConstructor> = {
         'sendLeads': SendLeadsJob,
         'trashExpireLeads': TrashExpireLeadsJob,
-        // Add other job handlers here as needed
+        'platformSync': PlatformSyncJob,
     };
 
     constructor(
