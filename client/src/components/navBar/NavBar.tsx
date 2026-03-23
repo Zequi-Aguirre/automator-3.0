@@ -26,6 +26,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SyncAltIcon from "@mui/icons-material/SyncAlt";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import GroupIcon from "@mui/icons-material/Group";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -85,6 +86,7 @@ export default function NavBar() {
         { label: "Users", icon: <GroupIcon />, path: "/users", pathMatch: "/users", permission: Permission.USERS_MANAGE },
         { label: "Zoe AI", icon: <AutoAwesomeIcon />, path: "/zoe", pathMatch: "/zoe", permission: Permission.ZOE_MANAGE_KEYS },
         { label: "Reconciliation", icon: <SyncAltIcon />, path: "/reconciliation", pathMatch: "/reconciliation", permission: Permission.RECONCILIATION_VIEW },
+        { label: "Platform Connections", icon: <CloudSyncIcon />, path: "/platform-connections", pathMatch: "/platform-connections", permission: Permission.PLATFORM_CONNECTIONS_MANAGE },
     ], []);
 
     const visibleItems = useMemo(() => {

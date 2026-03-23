@@ -84,6 +84,11 @@ export enum ReconciliationPermission {
     MANAGE = 'reconciliation.manage',
 }
 
+// TICKET-140: Platform connections (encrypted external DB credentials for platformSync)
+export enum PlatformConnectionPermission {
+    MANAGE = 'platform_connections.manage',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerSettingsPermission
@@ -99,7 +104,8 @@ export type Permission =
     | CallOutcomePermission
     | DisputePermission
     | ZoePermission
-    | ReconciliationPermission;
+    | ReconciliationPermission
+    | PlatformConnectionPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
@@ -155,6 +161,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         ZoePermission.MANAGE_CONFIG,
         ReconciliationPermission.VIEW,
         ReconciliationPermission.MANAGE,
+        PlatformConnectionPermission.MANAGE,
         LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,

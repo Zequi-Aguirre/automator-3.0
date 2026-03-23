@@ -40,6 +40,8 @@ export enum Permission {
     // TICKET-137: Reconciliation importer
     RECONCILIATION_VIEW = 'reconciliation.view',
     RECONCILIATION_MANAGE = 'reconciliation.manage',
+    // TICKET-140: Platform connections
+    PLATFORM_CONNECTIONS_MANAGE = 'platform_connections.manage',
 }
 
 export type User = {
