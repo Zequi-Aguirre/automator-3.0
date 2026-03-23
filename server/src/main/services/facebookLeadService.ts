@@ -92,8 +92,9 @@ export default class FacebookLeadService {
                 );
                 totalFetched += fetched;
                 totalMatched += matched;
-            } catch (err) {
-                console.error(`[FacebookLeadService] Failed form ${campaign.external_form_id}:`, err instanceof Error ? err.message : err);
+            } catch (err: unknown) {
+                const axiosErr = err as { response?: { data?: unknown }; message?: string };
+                console.error(`[FacebookLeadService] Failed form ${campaign.external_form_id}:`, axiosErr?.response?.data ?? axiosErr?.message ?? err);
             }
         }
 
