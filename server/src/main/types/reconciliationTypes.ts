@@ -53,33 +53,6 @@ export type PlatformBuyerMapping = {
     mapped_at: string;
 };
 
-// Unique platform buyer detected in a CSV file
-export type PlatformBuyerSummary = {
-    platform_buyer_id: string;
-    platform_buyer_name: string | null;
-    platform_buyer_email: string | null;
-    platform_buyer_products: string[];
-    row_count: number;
-    saved_automator_buyer_id: string | null; // pre-filled from previous import
-};
-
-export type BuyerMapping = {
-    platform_buyer_id: string;
-    automator_buyer_id: string | null; // null = skip / unknown
-};
-
-export type PreviewResult = {
-    row_count: number;
-    platform: Platform;           // detected from buyer_products in the CSV
-    platform_buyers: PlatformBuyerSummary[];
-    file_token: string;
-};
-
-export type ConfirmImportDTO = {
-    file_token: string;
-    buyer_mappings: BuyerMapping[];
-};
-
 export type ImportResult = {
     batch_id: number;
     row_count: number;

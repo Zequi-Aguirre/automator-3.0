@@ -6,7 +6,6 @@ import ActivityService from '../services/activityService';
 import { requirePermission } from '../middleware/requirePermission';
 import { ReconciliationPermission } from '../types/permissionTypes';
 import { ReconciliationAction } from '../types/activityTypes';
-import { ConfirmImportDTO } from '../types/reconciliationTypes';
 
 const upload = multer();
 
@@ -24,10 +23,10 @@ export default class ReconciliationResource {
 
     private initializeRoutes() {
 
-        // POST /api/reconciliation/import/preview
-        // Parse file and return detected platform buyers. Does not insert anything.
+        // POST /api/reconciliation/import
+        // Multipart form: automator_buyer_id (field) + file (field)
         this.router.post(
-            '/import/preview',
+            '/import',
             requirePermission(ReconciliationPermission.MANAGE),
             upload.single('file'),
             async (req: Request, res: Response) => {
@@ -36,41 +35,15 @@ export default class ReconciliationResource {
                         return res.status(400).send({ message: 'No file uploaded' });
                     }
 
-                    const result = await this.importService.previewFile(
+                    const { automator_buyer_id } = req.body;
+                    if (!automator_buyer_id) {
+                        return res.status(400).send({ message: 'automator_buyer_id is required' });
+                    }
+
+                    const result = await this.importService.importFile(
                         req.file.buffer,
-                        req.file.originalname
-                    );
-
-                    return res.status(200).send(result);
-                } catch (error) {
-                    console.error('Reconciliation preview error:', error);
-                    return res.status(500).send({
-                        message: 'Failed to preview file',
-                        error: error instanceof Error ? error.message : 'Unknown error',
-                    });
-                }
-            }
-        );
-
-        // POST /api/reconciliation/import/confirm
-        // Apply buyer mappings and insert records.
-        this.router.post(
-            '/import/confirm',
-            requirePermission(ReconciliationPermission.MANAGE),
-            async (req: Request, res: Response) => {
-                try {
-                    const { file_token, buyer_mappings } = req.body as ConfirmImportDTO;
-
-                    if (!file_token) {
-                        return res.status(400).send({ message: 'file_token is required' });
-                    }
-                    if (!buyer_mappings || !Array.isArray(buyer_mappings)) {
-                        return res.status(400).send({ message: 'buyer_mappings must be an array' });
-                    }
-
-                    const result = await this.importService.confirmImport(
-                        file_token,
-                        buyer_mappings,
+                        req.file.originalname,
+                        automator_buyer_id,
                         req.user!.id
                     );
 
@@ -80,6 +53,7 @@ export default class ReconciliationResource {
                         action_details: {
                             batch_id: result.batch_id,
                             row_count: result.row_count,
+                            automator_buyer_id,
                         },
                     });
 
@@ -95,7 +69,6 @@ export default class ReconciliationResource {
         );
 
         // GET /api/reconciliation/batches
-        // Last import batch per platform — used to show "last imported" in UI.
         this.router.get(
             '/batches',
             requirePermission(ReconciliationPermission.VIEW),
