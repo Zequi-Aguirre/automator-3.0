@@ -9,6 +9,9 @@ export type Source = {
     campaign_count?: number;
     buyer_filter_mode: SourceBuyerFilterMode | null;
     buyer_filter_buyer_ids: string[];
+    // TICKET-143: Facebook Lead Ads
+    fb_page_id: string | null;
+    fb_page_token: string | null;
     created: string;
     modified: string;
     deleted: string | null;
@@ -26,6 +29,9 @@ export type SourceCreateDTO = {
 export type SourceUpdateDTO = {
     name?: string;
     lead_manager_id?: string | null;
+    // TICKET-143: Facebook Lead Ads
+    fb_page_id?: string | null;
+    fb_page_token?: string | null;
 };
 
 export type SourceResponse = {

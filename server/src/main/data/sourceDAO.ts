@@ -154,6 +154,8 @@ export default class SourceDAO {
                 name = $[name],
                 token = $[token],
                 lead_manager_id = $[lead_manager_id],
+                fb_page_id = $[fb_page_id],
+                fb_page_token = $[fb_page_token],
                 modified = NOW()
             WHERE id = $[id]
                 AND deleted IS NULL
@@ -165,7 +167,9 @@ export default class SourceDAO {
             id,
             name: 'name' in data ? data.name : existing.name,
             token: 'token' in data ? data.token : existing.token,
-            lead_manager_id: 'lead_manager_id' in data ? (data as SourceUpdateDTO).lead_manager_id ?? null : existing.lead_manager_id ?? null
+            lead_manager_id: 'lead_manager_id' in data ? (data as SourceUpdateDTO).lead_manager_id ?? null : existing.lead_manager_id ?? null,
+            fb_page_id: 'fb_page_id' in data ? (data as SourceUpdateDTO).fb_page_id ?? null : existing.fb_page_id ?? null,
+            fb_page_token: 'fb_page_token' in data ? (data as SourceUpdateDTO).fb_page_token ?? null : existing.fb_page_token ?? null,
         };
 
         return await this.db.one<Source>(query, updateData);

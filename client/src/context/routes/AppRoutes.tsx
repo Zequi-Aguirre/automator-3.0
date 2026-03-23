@@ -20,6 +20,7 @@ import ChangePasswordView from "../../views/ChangePasswordView";
 import AdminZoeView from "../../views/adminViews/AdminZoeView.tsx";
 import AdminReconciliationView from "../../views/adminViews/AdminReconciliationView.tsx";
 import AdminPlatformConnectionsView from "../../views/adminViews/AdminPlatformConnectionsView.tsx";
+import AdminFacebookLeadsView from "../../views/adminViews/AdminFacebookLeadsView.tsx";
 
 const AppRoutes = () => {
     return (
@@ -44,6 +45,7 @@ const AppRoutes = () => {
             <Route path="/zoe" element={<RequireAuth><AdminZoeView /></RequireAuth>} />
             <Route path="/reconciliation" element={<RequireAuth><AdminReconciliationView /></RequireAuth>} />
             <Route path="/platform-connections" element={<RequireAuth><AdminPlatformConnectionsView /></RequireAuth>} />
+            <Route path="/facebook" element={<RequireAuth><AdminFacebookLeadsView /></RequireAuth>} />
         </Routes>
     );
 };
