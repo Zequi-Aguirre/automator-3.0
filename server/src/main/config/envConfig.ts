@@ -14,7 +14,6 @@ export class EnvConfig {
     // TICKET-143: Facebook Lead Ads
     public readonly fbAppSecret: string;
     public readonly fbVerifyToken: string;
-    // TICKET-151: client base URL for magic-link emails
     public readonly clientUrl: string;
     constructor() {
         this.dbConfig = new DBConfig();
@@ -27,7 +26,7 @@ export class EnvConfig {
         this.platformSyncEncryptionKey = process.env.PLATFORM_SYNC_ENCRYPTION_KEY ?? '';
         this.fbAppSecret = process.env.FB_APP_SECRET ?? '';
         this.fbVerifyToken = process.env.FB_VERIFY_TOKEN ?? '';
-        this.clientUrl = process.env.CLIENT_URL ?? 'https://app.automator.io';
+        this.clientUrl = process.env.VITE_CLIENT_URL ?? 'https://app.automator.io';
     }
 }
 
