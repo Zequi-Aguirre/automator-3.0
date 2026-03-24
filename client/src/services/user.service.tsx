@@ -76,6 +76,18 @@ class UserService {
         await this.api.getApi(false).post('/api/authenticate/request-account', dto);
     }
 
+    forgotPassword = async (email: string): Promise<void> => {
+        await this.api.getApi(false).post('/api/authenticate/forgot-password', { email });
+    }
+
+    setPasswordWithToken = async (token: string, newPassword: string): Promise<void> => {
+        await this.api.getApi(false).post('/api/authenticate/set-password-token', { token, new_password: newPassword });
+    }
+
+    adminSetPassword = async (userId: string, newPassword: string): Promise<void> => {
+        await this.api.getApi().post(`/api/users/users/${userId}/set-password`, { new_password: newPassword });
+    }
+
     denyAccount = async (userId: string): Promise<void> => {
         await this.api.getApi().post(`/api/users/users/${userId}/deny`);
     }

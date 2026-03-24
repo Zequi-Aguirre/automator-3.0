@@ -7,11 +7,15 @@ import {
     Chip,
     CircularProgress,
     Container,
+    Divider,
+    InputAdornment,
+    IconButton,
     Paper,
     Stack,
+    TextField,
     Typography,
 } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { ArrowBack, Visibility, VisibilityOff } from '@mui/icons-material';
 import userService from '../../../services/user.service';
 import activityService from '../../../services/activity.service';
 import { User, UserRole } from '../../../types/userTypes';
@@ -35,6 +39,14 @@ const AdminUserDetailsSection = () => {
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [activityLoading, setActivityLoading] = useState(true);
+
+    // Reset password (magic link)
+    const [resetStatus, setResetStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+    // Admin set password
+    const [adminPassword, setAdminPassword] = useState('');
+    const [showAdminPassword, setShowAdminPassword] = useState(false);
+    const [setPasswordStatus, setSetPasswordStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
     useEffect(() => {
         if (!id) return;
@@ -67,6 +79,29 @@ const AdminUserDetailsSection = () => {
         void loadActivity();
     }, [id]);
 
+    const handleResetPassword = async () => {
+        if (!id) return;
+        setResetStatus('loading');
+        try {
+            await userService.resetPassword(id);
+            setResetStatus('success');
+        } catch {
+            setResetStatus('error');
+        }
+    };
+
+    const handleAdminSetPassword = async () => {
+        if (!id || adminPassword.length < 6) return;
+        setSetPasswordStatus('loading');
+        try {
+            await userService.adminSetPassword(id, adminPassword);
+            setAdminPassword('');
+            setSetPasswordStatus('success');
+        } catch {
+            setSetPasswordStatus('error');
+        }
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
@@ -79,7 +114,7 @@ const AdminUserDetailsSection = () => {
         return (
             <Container sx={{ p: 4 }}>
                 <Alert severity="error">User not found.</Alert>
-                <Button startIcon={<ArrowBack />} onClick={() => navigate('/users')} sx={{ mt: 2 }}>
+                <Button startIcon={<ArrowBack />} onClick={() => { navigate('/users'); }} sx={{ mt: 2 }}>
                     Back to Users
                 </Button>
             </Container>
@@ -90,7 +125,7 @@ const AdminUserDetailsSection = () => {
         <Container maxWidth={false} disableGutters sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <Box sx={{ px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-                <Button startIcon={<ArrowBack />} onClick={() => navigate('/users')} variant="outlined" size="small">
+                <Button startIcon={<ArrowBack />} onClick={() => { navigate('/users'); }} variant="outlined" size="small">
                     Users
                 </Button>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
@@ -102,7 +137,7 @@ const AdminUserDetailsSection = () => {
             {/* 2-column body */}
             <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-                {/* Left: Info + Permissions */}
+                {/* Left: Info + Permissions + Password */}
                 <Box sx={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider', overflow: 'auto', p: 3, gap: 3 }}>
                     {/* Info card */}
                     <Paper sx={{ p: 3 }}>
@@ -142,6 +177,70 @@ const AdminUserDetailsSection = () => {
                                 </Stack>
                             )
                         }
+                    </Paper>
+
+                    {/* Password management card */}
+                    <Paper sx={{ p: 3 }}>
+                        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Password</Typography>
+
+                        {/* Send reset link */}
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            Send the user a magic link to set their own password.
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            disabled={resetStatus === 'loading'}
+                            onClick={() => { void handleResetPassword(); }}
+                        >
+                            {resetStatus === 'loading' ? 'Sending…' : 'Send Reset Link'}
+                        </Button>
+                        {resetStatus === 'success' && (
+                            <Alert severity="success" sx={{ mt: 1 }}>Reset link sent.</Alert>
+                        )}
+                        {resetStatus === 'error' && (
+                            <Alert severity="error" sx={{ mt: 1 }}>Failed to send link.</Alert>
+                        )}
+
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* Admin set password */}
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            Or set their password directly (no email sent).
+                        </Typography>
+                        <Stack spacing={1}>
+                            <TextField
+                                label="New Password"
+                                type={showAdminPassword ? 'text' : 'password'}
+                                size="small"
+                                fullWidth
+                                value={adminPassword}
+                                onChange={e => { setAdminPassword(e.target.value); setSetPasswordStatus('idle'); }}
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => { setShowAdminPassword(v => !v); }}>
+                                                {showAdminPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                disabled={adminPassword.length < 6 || setPasswordStatus === 'loading'}
+                                onClick={() => { void handleAdminSetPassword(); }}
+                            >
+                                {setPasswordStatus === 'loading' ? 'Saving…' : 'Set Password'}
+                            </Button>
+                            {setPasswordStatus === 'success' && (
+                                <Alert severity="success">Password updated.</Alert>
+                            )}
+                            {setPasswordStatus === 'error' && (
+                                <Alert severity="error">Failed to set password.</Alert>
+                            )}
+                        </Stack>
                     </Paper>
                 </Box>
 

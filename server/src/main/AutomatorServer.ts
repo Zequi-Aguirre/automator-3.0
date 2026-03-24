@@ -34,6 +34,7 @@ import ReconciliationResource from "./resources/reconciliationResource.ts";
 import PlatformConnectionResource from "./resources/platformConnectionResource.ts";
 import FacebookLeadResource from "./resources/facebookLeadResource.ts";
 import FacebookWebhookResource from "./resources/facebookWebhookResource.ts";
+import UserService from "./services/userService.ts";
 
 dotenv.config();
 
@@ -103,6 +104,13 @@ export class AutomatorServer {
         } else {
             console.log("Worker is disabled (from DB settings)");
         }
+
+        // TICKET-151: Clean expired password reset tokens every hour
+        setInterval(() => {
+            cont.resolve(UserService).cleanExpiredResetTokens().catch((err: unknown) => {
+                console.error('Failed to clean expired reset tokens:', err);
+            });
+        }, 60 * 60 * 1000);
 
         // catch all unhandled errors in the application
         process

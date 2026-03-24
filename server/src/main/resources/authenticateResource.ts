@@ -44,6 +44,47 @@ export default class AuthenticateResource {
             res.status(200).json(response);
         });
 
+        // Public: user-initiated forgot-password — sends magic-link email (TICKET-151)
+        this.router.post('/forgot-password', async (req: Request, res: Response) => {
+            const { email } = req.body;
+            if (!email || typeof email !== 'string') {
+                return res.status(400).json({ message: 'email is required' });
+            }
+            // Always 200 — don't reveal whether the email exists
+            try {
+                await this.userService.requestPasswordReset(email);
+                await this.activityService.log({
+                    action: AuthAction.LOGIN_FAILED, // reuse closest action; details clarify intent
+                    action_details: { type: 'password_reset_requested', email },
+                });
+            } catch (err) {
+                console.error('Error in forgot-password:', err);
+            }
+            return res.status(200).json({ success: true });
+        });
+
+        // Public: set password using a magic-link token (TICKET-151)
+        this.router.post('/set-password-token', async (req: Request, res: Response) => {
+            const { token, new_password } = req.body;
+            if (!token || typeof token !== 'string') {
+                return res.status(400).json({ message: 'token is required' });
+            }
+            if (!new_password || typeof new_password !== 'string' || new_password.length < 6) {
+                return res.status(400).json({ message: 'new_password must be at least 6 characters' });
+            }
+            try {
+                await this.userService.setPasswordWithToken(token, new_password);
+                await this.activityService.log({
+                    action: AuthAction.LOGIN,
+                    action_details: { type: 'password_set_by_token' },
+                });
+                return res.status(200).json({ success: true });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Failed to set password';
+                return res.status(400).json({ message });
+            }
+        });
+
         // Public: request an account (creates pending user + notifies approvers)
         this.router.post('/request-account', async (req: Request, res: Response) => {
             try {
