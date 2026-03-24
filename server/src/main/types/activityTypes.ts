@@ -83,6 +83,10 @@ export enum UserAction {
     USER_ACCOUNT_DENIED = 'user_account_denied',
     PASSWORD_RESET = 'user_password_reset',
     PASSWORD_CHANGED = 'user_password_changed',
+    // TICKET-151
+    PASSWORD_RESET_REQUESTED = 'user_password_reset_requested',
+    PASSWORD_SET_BY_TOKEN = 'user_password_set_by_token',
+    PASSWORD_SET_BY_ADMIN = 'user_password_set_by_admin',
 }
 
 export enum TrashReasonAction {

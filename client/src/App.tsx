@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
 import 'react-toastify/dist/ReactToastify.css';
 import LoginPage from "./views/LoginPage";
+import SetPasswordView from "./views/SetPasswordView";
 import AppRoutes from "./context/routes/AppRoutes";
 import NavBar from "./components/navBar/NavBar.tsx";
 import EnvBanner, { ENV_BANNER_HEIGHT } from "./components/common/EnvBanner.tsx";
@@ -59,6 +60,7 @@ const App: React.FC = () => {
                     <Routes>
                         <Route path="/" element={<LoginPage/>}/>
                         <Route path="/login" element={<LoginPage/>}/>
+                        <Route path="/set-password" element={<SetPasswordView/>}/>
                     </Routes>
                     <AppRoutes />
                 </Box>
