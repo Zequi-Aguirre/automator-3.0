@@ -4,6 +4,9 @@
 -- Then link both facebook_lead_records and platform_lead_records to the new lead.
 -- Uses EXECUTE to handle envs where worker_enabled column may or may not exist.
 
+-- FB leads have no county data — make county_id nullable if it isn't already
+ALTER TABLE leads ALTER COLUMN county_id DROP NOT NULL;
+
 DO $$
 DECLARE
     rec            RECORD;
