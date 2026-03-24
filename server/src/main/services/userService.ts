@@ -1,5 +1,7 @@
+import { randomBytes } from 'crypto';
 import UserDAO from '../data/userDAO';
 import RoleDAO from '../data/roleDAO';
+import PasswordResetTokenDAO from '../data/passwordResetTokenDAO';
 import EmailService from './emailService';
 import { injectable } from "tsyringe";
 import { AuthTokenResponse, User, UserCreateDTO, UserUpdateDTO, UserWithPermissions, AccountRequestDTO } from "../types/userTypes.ts";
@@ -8,6 +10,7 @@ import { Permission, UserRole, ROLE_DEFAULT_PERMISSIONS, UserPermission } from '
 import { userInviteEmail } from '../templates/emails/userInviteEmail';
 import { passwordResetEmail } from '../templates/emails/passwordResetEmail';
 import { accountRequestEmail } from '../templates/emails/accountRequestEmail';
+import { EnvConfig } from '../config/envConfig';
 
 @injectable()
 export default class UserService {
@@ -17,6 +20,8 @@ export default class UserService {
         private readonly roleDAO: RoleDAO,
         private readonly authUtils: AuthUtils,
         private readonly emailService: EmailService,
+        private readonly passwordResetTokenDAO: PasswordResetTokenDAO,
+        private readonly config: EnvConfig,
     ) {}
 
     async authenticate(email: string, password: string): Promise<AuthTokenResponse | null> {
@@ -69,23 +74,22 @@ export default class UserService {
         return this.userDAO.getOneById(targetId);
     }
 
-    async createUser(dto: UserCreateDTO): Promise<{ user: User; tempPassword: string }> {
+    async createUser(dto: UserCreateDTO): Promise<{ user: User }> {
         const email = dto.email.toLowerCase().trim();
 
         const role = await this.roleDAO.getById(dto.role_id);
         if (!role) throw new Error('Role not found');
 
-        const tempPassword = this.generateTempPassword();
-        const hashedPassword = await this.authUtils.hashPassword(tempPassword);
-
-        // Create with base role 'user' — permissions are driven by permission_role
-        const user = await this.userDAO.create(email, dto.name, 'user', hashedPassword);
+        // Locked placeholder — user must set password via magic link
+        const lockedHash = await this.authUtils.hashPassword(randomBytes(32).toString('hex'));
+        const user = await this.userDAO.create(email, dto.name, 'user', lockedHash);
         await this.userDAO.assignRole(user.id, dto.role_id, role.permissions);
 
-        const { subject, html } = userInviteEmail({ name: dto.name, email, tempPassword });
+        const setPasswordUrl = await this.generateResetToken(user.id);
+        const { subject, html } = userInviteEmail({ name: dto.name, setPasswordUrl });
         await this.emailService.send({ to: email, subject, html });
 
-        return { user, tempPassword };
+        return { user };
     }
 
     async requestAccount(dto: AccountRequestDTO): Promise<{ user: User; priorDenials: number }> {
@@ -122,14 +126,14 @@ export default class UserService {
         const role = await this.roleDAO.getById(roleId);
         if (!role) throw new Error('Role not found');
 
-        const tempPassword = this.generateTempPassword();
-        const hashedPassword = await this.authUtils.hashPassword(tempPassword);
-
-        await this.userDAO.updatePassword(targetId, hashedPassword, true);
+        // Locked placeholder — user must set password via magic link
+        const lockedHash = await this.authUtils.hashPassword(randomBytes(32).toString('hex'));
+        await this.userDAO.updatePassword(targetId, lockedHash, false);
         await this.userDAO.updateStatus(targetId, 'active');
         await this.userDAO.assignRole(targetId, roleId, role.permissions);
 
-        const { subject, html } = userInviteEmail({ name: user.name, email: user.email, tempPassword });
+        const setPasswordUrl = await this.generateResetToken(targetId);
+        const { subject, html } = userInviteEmail({ name: user.name, setPasswordUrl });
         await this.emailService.send({ to: user.email, subject, html });
 
         return this.userDAO.getOneById(targetId);
@@ -140,17 +144,45 @@ export default class UserService {
         return this.userDAO.update(userId, dto);
     }
 
+    // Admin-initiated reset: send magic-link email
     async resetPassword(userId: string): Promise<void> {
         const user = await this.userDAO.getOneById(userId);
         if (!user) throw new Error('User not found');
 
-        const tempPassword = this.generateTempPassword();
-        const hashedPassword = await this.authUtils.hashPassword(tempPassword);
-
-        await this.userDAO.updatePassword(userId, hashedPassword, true);
-
-        const { subject, html } = passwordResetEmail({ name: user.name, email: user.email, tempPassword });
+        const setPasswordUrl = await this.generateResetToken(userId);
+        const { subject, html } = passwordResetEmail({ name: user.name, setPasswordUrl });
         await this.emailService.send({ to: user.email, subject, html });
+    }
+
+    // Admin directly sets a user's password (no email sent)
+    async adminSetPassword(userId: string, newPassword: string): Promise<void> {
+        const hashedPassword = await this.authUtils.hashPassword(newPassword);
+        await this.userDAO.updatePassword(userId, hashedPassword, false);
+    }
+
+    // User-initiated forgot-password: send magic-link email (silently does nothing if email not found)
+    async requestPasswordReset(email: string): Promise<void> {
+        email = email.toLowerCase().trim();
+        const user = await this.userDAO.getUserByEmail(email);
+        if (!user) return; // Don't reveal whether email exists
+
+        const setPasswordUrl = await this.generateResetToken(user.id);
+        const { subject, html } = passwordResetEmail({ name: user.name, setPasswordUrl });
+        await this.emailService.send({ to: user.email, subject, html });
+    }
+
+    // Validate a reset token and set a new password
+    async setPasswordWithToken(token: string, newPassword: string): Promise<void> {
+        const record = await this.passwordResetTokenDAO.getByToken(token);
+        if (!record) throw new Error('Invalid or expired reset link.');
+        if (new Date() > record.expires) {
+            await this.passwordResetTokenDAO.deleteByToken(token);
+            throw new Error('Invalid or expired reset link.');
+        }
+
+        const hashedPassword = await this.authUtils.hashPassword(newPassword);
+        await this.userDAO.updatePassword(record.user_id, hashedPassword, false);
+        await this.passwordResetTokenDAO.deleteByToken(token);
     }
 
     async changePassword(userId: string, newPassword: string): Promise<void> {
@@ -166,12 +198,14 @@ export default class UserService {
         await this.userDAO.updateNavbarOpen(userId, value);
     }
 
-    private generateTempPassword(): string {
-        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-        let result = '';
-        for (let i = 0; i < 10; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
+    async cleanExpiredResetTokens(): Promise<number> {
+        return this.passwordResetTokenDAO.deleteExpired();
+    }
+
+    private async generateResetToken(userId: string): Promise<string> {
+        const token = randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await this.passwordResetTokenDAO.create(userId, token, expires);
+        return `${this.config.clientUrl}/set-password?token=${token}`;
     }
 }

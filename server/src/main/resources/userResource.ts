@@ -147,6 +147,28 @@ export default class UserResource {
             }
         });
 
+        // Admin directly sets a user's password without sending an email (TICKET-151)
+        this.router.post('/users/:id/set-password', requirePermission(UserPermission.MANAGE), async (req: Request, res: Response) => {
+            try {
+                const { new_password } = req.body;
+                if (!new_password || typeof new_password !== 'string' || new_password.length < 6) {
+                    return res.status(400).json({ message: 'new_password must be at least 6 characters' });
+                }
+                await this.userService.adminSetPassword(req.params.id, new_password);
+                await this.activityService.log({
+                    user_id: req.user.id,
+                    entity_type: EntityType.USER,
+                    entity_id: req.params.id,
+                    action: UserAction.PASSWORD_SET_BY_ADMIN,
+                    action_details: { target_user_id: req.params.id, set_by: req.user.id },
+                });
+                return res.status(200).json({ success: true });
+            } catch (error) {
+                console.error('Error setting password:', error);
+                return res.status(500).json({ message: 'Failed to set password' });
+            }
+        });
+
         // User changes their own password (clears must_change_password)
         this.router.post('/change-password', async (req: Request, res: Response) => {
             try {
