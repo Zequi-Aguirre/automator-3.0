@@ -69,6 +69,10 @@ BEGIN
             END IF;
         END IF;
 
+        CONTINUE WHEN rec.phone IS NOT NULL AND EXISTS (
+            SELECT 1 FROM leads WHERE phone = rec.phone
+        );
+
         INSERT INTO leads (
             first_name, last_name, phone, email,
             address, city, state, zipcode,
@@ -90,7 +94,6 @@ BEGIN
             COALESCE(rec.fb_created_time, NOW()),
             false
         )
-        ON CONFLICT (phone) DO NOTHING
         RETURNING id INTO new_lead_id;
 
         IF new_lead_id IS NOT NULL THEN

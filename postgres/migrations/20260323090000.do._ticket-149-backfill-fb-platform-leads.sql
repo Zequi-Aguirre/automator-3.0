@@ -77,6 +77,11 @@ BEGIN
             END IF;
         END IF;
 
+        -- Skip if a lead with this phone already exists
+        CONTINUE WHEN rec.phone IS NOT NULL AND EXISTS (
+            SELECT 1 FROM leads WHERE phone = rec.phone
+        );
+
         IF has_worker_col THEN
             EXECUTE $q$
                 INSERT INTO leads (
@@ -86,7 +91,6 @@ BEGIN
                     external_lead_id, external_ad_id, external_ad_name,
                     created, verified, worker_enabled
                 ) VALUES ($1,$2,$3,$4,'','','','',$5,$6,$7,$8,$9,$10,false,false)
-                ON CONFLICT (phone) DO NOTHING
                 RETURNING id
             $q$
             INTO new_lead_id
@@ -104,7 +108,6 @@ BEGIN
                     external_lead_id, external_ad_id, external_ad_name,
                     created, verified
                 ) VALUES ($1,$2,$3,$4,'','','','',$5,$6,$7,$8,$9,$10,false)
-                ON CONFLICT (phone) DO NOTHING
                 RETURNING id
             $q$
             INTO new_lead_id
