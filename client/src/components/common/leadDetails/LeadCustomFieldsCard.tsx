@@ -49,7 +49,7 @@ export default function LeadCustomFieldsCard({ lead }: Props) {
         return def ? !def.active : false;
     };
 
-    const formatValue = (key: string, value: unknown): string => {
+    const formatValue = (_key: string, value: unknown): string => {
         if (value === null || value === undefined) return '—';
         if (Array.isArray(value)) return value.join(', ');
         return String(value);
