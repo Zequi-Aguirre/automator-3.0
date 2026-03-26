@@ -95,6 +95,11 @@ export enum FacebookPermission {
     SYNC = 'facebook.sync',
 }
 
+// TICKET-152: Lead Custom Fields
+export enum LeadCustomFieldPermission {
+    MANAGE = 'lead_custom_fields.manage',
+}
+
 export type Permission =
     | LeadPermission
     | WorkerSettingsPermission
@@ -112,7 +117,8 @@ export type Permission =
     | ZoePermission
     | ReconciliationPermission
     | PlatformConnectionPermission
-    | FacebookPermission;
+    | FacebookPermission
+    | LeadCustomFieldPermission;
 
 export type UserRole = 'user' | 'admin' | 'superadmin' | 'worker';
 
@@ -134,6 +140,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         DisputePermission.CREATE,
     ],
     admin: [
+        LeadCustomFieldPermission.MANAGE,
         LeadPermission.READ,
         LeadPermission.VERIFY,
         LeadPermission.QUEUE,
@@ -164,6 +171,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
         BuyerPermission.HOLD,
     ],
     superadmin: [
+        LeadCustomFieldPermission.MANAGE,
         ZoePermission.MANAGE_KEYS,
         ZoePermission.MANAGE_CONFIG,
         ReconciliationPermission.VIEW,
