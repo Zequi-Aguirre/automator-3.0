@@ -39,6 +39,7 @@ import {
     colorForUrgency
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
+import LeadCustomFieldsCard from "./LeadCustomFieldsCard.tsx";
 import workingsService from "../../../services/settings.service.tsx";
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Permission } from '../../../types/userTypes';
@@ -407,6 +408,9 @@ const LeadDetails = () => {
                             </Stack>
                         </CardContent>
                     </Card>
+
+                    {/* TICKET-152: Custom fields — shown when lead has custom_fields data */}
+                    <LeadCustomFieldsCard lead={lead} />
 
                     {/* Activity feed — fills remaining left height */}
                     <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

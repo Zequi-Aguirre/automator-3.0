@@ -8,9 +8,11 @@ import {
     CircularProgress,
     Divider,
     FormControl,
+    FormControlLabel,
     InputLabel,
     MenuItem,
     Stack,
+    Switch,
     TextField,
     Alert,
     Select,
@@ -32,6 +34,7 @@ import leadsService from "../../../../services/lead.service";
 import callRequestReasonService, { CallRequestReason } from "../../../../services/callRequestReason.service";
 import { usePermissions } from "../../../../hooks/usePermissions.ts";
 import { Permission } from "../../../../types/userTypes.ts";
+import leadCustomFieldService, { LeadCustomField } from "../../../../services/leadCustomField.service";
 
 import {
     TYPE_OF_HOUSE_OPTIONS,
@@ -78,6 +81,11 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     const [callRequestReasons, setCallRequestReasons] = useState<CallRequestReason[]>([]);
     const selectedReason = callRequestReasons.find(r => r.label === callReason) ?? null;
     const navigate = useNavigate();
+    // TICKET-152: Custom fields state
+    const [customFieldDefs, setCustomFieldDefs] = useState<LeadCustomField[]>([]);
+    const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
+    const [customFieldsDirty, setCustomFieldsDirty] = useState(false);
+    const [customFieldsSaving, setCustomFieldsSaving] = useState(false);
     const isVerified = lead.verified;
     const isLocked = isVerified;
 
@@ -109,6 +117,41 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
     useEffect(() => {
         fetchForm();
     }, [fetchForm]);
+
+    // TICKET-152: Load custom field definitions and seed values from lead
+    useEffect(() => {
+        leadCustomFieldService.getActive()
+            .then(defs => {
+                setCustomFieldDefs(defs);
+                // Seed from lead.custom_fields
+                const existing = lead.custom_fields ?? {};
+                const seeded: Record<string, unknown> = {};
+                for (const def of defs) {
+                    seeded[def.key] = existing[def.key] ?? '';
+                }
+                setCustomFieldValues(seeded);
+            })
+            .catch(() => { setCustomFieldDefs([]); });
+    }, [lead.id]);
+
+    // TICKET-152: Save custom fields
+    const handleSaveCustomFields = async () => {
+        setCustomFieldsSaving(true);
+        try {
+            // Only save keys that have non-empty values
+            const toSave: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(customFieldValues)) {
+                if (v !== '' && v !== null && v !== undefined) toSave[k] = v;
+            }
+            await leadCustomFieldService.updateLeadCustomFields(lead.id, toSave);
+            setCustomFieldsDirty(false);
+            await refreshLead();
+        } catch {
+            // error is non-critical — don't block user
+        } finally {
+            setCustomFieldsSaving(false);
+        }
+    };
 
     const handleStart = () => {
         if (isLocked) return;
@@ -643,6 +686,126 @@ const LeadVerificationForm = ({ lead, refreshLead, refreshActivity }: Props) => 
                     )}
                 </CardContent>
             </Card>
+
+            {/* ── TICKET-152: Custom Fields ───────────────────────────────── */}
+            {customFieldDefs.length > 0 && (
+                <Card sx={{ mt: 2 }}>
+                    <CardHeader
+                        title="Custom Fields"
+                        titleTypographyProps={{ variant: 'subtitle2', fontWeight: 700 }}
+                        sx={{ pb: 0.5, pt: 1.5, px: 2 }}
+                    />
+                    <Divider />
+                    <CardContent>
+                        <Stack spacing={2}>
+                            {customFieldDefs.map(def => {
+                                const value = customFieldValues[def.key];
+
+                                if (def.field_type === 'select') {
+                                    return (
+                                        <FormControl key={def.key} size="small" fullWidth>
+                                            <InputLabel>{def.label}{def.required ? ' *' : ''}</InputLabel>
+                                            <Select
+                                                label={`${def.label}${def.required ? ' *' : ''}`}
+                                                value={value ?? ''}
+                                                onChange={e => {
+                                                    setCustomFieldValues(prev => ({ ...prev, [def.key]: e.target.value }));
+                                                    setCustomFieldsDirty(true);
+                                                }}
+                                                disabled={!canEdit}
+                                            >
+                                                <MenuItem value=""><em>— none —</em></MenuItem>
+                                                {(def.options ?? []).map(opt => (
+                                                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    );
+                                }
+
+                                if (def.field_type === 'multiselect') {
+                                    const selected = Array.isArray(value) ? value as string[] : (value ? [String(value)] : []);
+                                    return (
+                                        <FormControl key={def.key} size="small" fullWidth>
+                                            <InputLabel>{def.label}{def.required ? ' *' : ''}</InputLabel>
+                                            <Select
+                                                multiple
+                                                label={`${def.label}${def.required ? ' *' : ''}`}
+                                                value={selected}
+                                                onChange={e => {
+                                                    setCustomFieldValues(prev => ({ ...prev, [def.key]: e.target.value }));
+                                                    setCustomFieldsDirty(true);
+                                                }}
+                                                renderValue={s => (s as string[]).join(', ')}
+                                                disabled={!canEdit}
+                                            >
+                                                {(def.options ?? []).map(opt => (
+                                                    <MenuItem key={opt} value={opt}>
+                                                        <Checkbox size="small" checked={selected.includes(opt)} />
+                                                        <ListItemText primary={opt} />
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    );
+                                }
+
+                                if (def.field_type === 'boolean') {
+                                    return (
+                                        <FormControlLabel
+                                            key={def.key}
+                                            control={
+                                                <Switch
+                                                    checked={Boolean(value)}
+                                                    onChange={e => {
+                                                        setCustomFieldValues(prev => ({ ...prev, [def.key]: e.target.checked }));
+                                                        setCustomFieldsDirty(true);
+                                                    }}
+                                                    disabled={!canEdit}
+                                                />
+                                            }
+                                            label={def.label}
+                                        />
+                                    );
+                                }
+
+                                return (
+                                    <TextField
+                                        key={def.key}
+                                        label={`${def.label}${def.required ? ' *' : ''}`}
+                                        size="small"
+                                        fullWidth
+                                        multiline={def.field_type === 'textarea'}
+                                        rows={def.field_type === 'textarea' ? 3 : 1}
+                                        type={def.field_type === 'number' ? 'number' : 'text'}
+                                        value={value ?? ''}
+                                        onChange={e => {
+                                            setCustomFieldValues(prev => ({ ...prev, [def.key]: e.target.value }));
+                                            setCustomFieldsDirty(true);
+                                        }}
+                                        disabled={!canEdit}
+                                        InputProps={{ readOnly: !canEdit }}
+                                        helperText={def.description ?? undefined}
+                                    />
+                                );
+                            })}
+
+                            {canEdit && customFieldsDirty && (
+                                <Box>
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        onClick={() => { void handleSaveCustomFields(); }}
+                                        disabled={customFieldsSaving}
+                                    >
+                                        {customFieldsSaving ? 'Saving…' : 'Save Custom Fields'}
+                                    </Button>
+                                </Box>
+                            )}
+                        </Stack>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* ── Is listed? dialog ───────────────────────────────────────── */}
             <Dialog open={askListedModalOpen} onClose={() => { setAskListedModalOpen(false); }}>
