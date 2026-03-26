@@ -142,9 +142,11 @@ export default class LeadDAO {
     // Get lead by ID (active only)
     async getById(id: string): Promise<Lead | null> {
         const query = `
-            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform
+            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform,
+                   s.name AS source_name
             FROM leads l
             LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            LEFT JOIN sources s ON s.id = l.source_id
             WHERE l.id = $[id]
             AND l.deleted IS NULL;
         `;
@@ -154,9 +156,11 @@ export default class LeadDAO {
     // Get lead by ID including deleted/trashed leads
     async getByIdAny(id: string): Promise<Lead | null> {
         const query = `
-            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform
+            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform,
+                   s.name AS source_name
             FROM leads l
             LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            LEFT JOIN sources s ON s.id = l.source_id
             WHERE l.id = $[id];
         `;
         return await this.db.oneOrNone<Lead>(query, { id });
@@ -302,13 +306,15 @@ export default class LeadDAO {
         const baseQuery = `
             FROM leads l
             LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            LEFT JOIN sources s ON s.id = l.source_id
             ${whereSQL}
         `;
 
         const leadsQuery = `
             SELECT l.*,
                    c.name AS campaign_name,
-                   c.platform AS campaign_platform
+                   c.platform AS campaign_platform,
+                   s.name AS source_name
             ${baseQuery}
             ORDER BY l.modified DESC
             LIMIT $[limit]

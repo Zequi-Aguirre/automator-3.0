@@ -405,6 +405,28 @@ const LeadDetails = () => {
                                     disabled
                                     InputProps={{ readOnly: true }}
                                 />
+                                {(lead.source_id ?? lead.campaign_id) && (
+                                    <Stack direction="row" spacing={1}>
+                                        {lead.source_id && (
+                                            <Chip
+                                                label={`Source: ${lead.source_name ?? lead.source_id}`}
+                                                size="small"
+                                                variant="outlined"
+                                                clickable
+                                                onClick={() => { navigate(`/sources/${lead.source_id}`); }}
+                                            />
+                                        )}
+                                        {lead.campaign_id && (
+                                            <Chip
+                                                label={`Campaign: ${lead.campaign_name ?? lead.campaign_id}`}
+                                                size="small"
+                                                variant="outlined"
+                                                clickable
+                                                onClick={() => { navigate(`/campaigns/${lead.campaign_id}`); }}
+                                            />
+                                        )}
+                                    </Stack>
+                                )}
                             </Stack>
                         </CardContent>
                     </Card>

@@ -14,6 +14,8 @@ export type Lead = {
     verified: boolean;
     investor_id: string | null;
     campaign_id: string | null;
+    source_id: string | null;
+    source_name: string | null;
     queued: boolean;
     deleted: string | null;
     deleted_reason: string | null;
