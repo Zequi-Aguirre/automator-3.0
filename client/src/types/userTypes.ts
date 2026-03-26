@@ -45,6 +45,8 @@ export enum Permission {
     // TICKET-143: Facebook Lead Ads
     FACEBOOK_VIEW = 'facebook.view',
     FACEBOOK_SYNC = 'facebook.sync',
+    // TICKET-152: Lead Custom Fields
+    LEAD_CUSTOM_FIELDS_MANAGE = 'lead_custom_fields.manage',
 }
 
 export type User = {

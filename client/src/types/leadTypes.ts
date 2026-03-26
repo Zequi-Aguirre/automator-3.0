@@ -30,4 +30,6 @@ export type Lead = {
     call_outcome: string | null;
     call_outcome_notes: string | null;
     call_attempts: number;
+    // TICKET-152: Dynamic custom fields
+    custom_fields: Record<string, unknown> | null;
 }
