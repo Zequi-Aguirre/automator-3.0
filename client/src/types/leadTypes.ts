@@ -13,6 +13,8 @@ export type Lead = {
     verified: boolean;
     investor_id: string | null;
     campaign_id: string | null;
+    source_id: string | null;
+    source_name: string | null;
     queued: boolean;
     deleted: string | null;
     deleted_reason: string | null;
@@ -30,4 +32,6 @@ export type Lead = {
     call_outcome: string | null;
     call_outcome_notes: string | null;
     call_attempts: number;
+    // TICKET-152: Dynamic custom fields
+    custom_fields: Record<string, unknown> | null;
 }

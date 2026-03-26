@@ -142,9 +142,11 @@ export default class LeadDAO {
     // Get lead by ID (active only)
     async getById(id: string): Promise<Lead | null> {
         const query = `
-            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform
+            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform,
+                   s.name AS source_name
             FROM leads l
             LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            LEFT JOIN sources s ON s.id = l.source_id
             WHERE l.id = $[id]
             AND l.deleted IS NULL;
         `;
@@ -154,9 +156,11 @@ export default class LeadDAO {
     // Get lead by ID including deleted/trashed leads
     async getByIdAny(id: string): Promise<Lead | null> {
         const query = `
-            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform
+            SELECT l.*, c.name AS campaign_name, c.platform AS campaign_platform,
+                   s.name AS source_name
             FROM leads l
             LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            LEFT JOIN sources s ON s.id = l.source_id
             WHERE l.id = $[id];
         `;
         return await this.db.oneOrNone<Lead>(query, { id });
@@ -302,13 +306,15 @@ export default class LeadDAO {
         const baseQuery = `
             FROM leads l
             LEFT JOIN campaigns c ON c.id = l.campaign_id AND c.deleted IS NULL
+            LEFT JOIN sources s ON s.id = l.source_id
             ${whereSQL}
         `;
 
         const leadsQuery = `
             SELECT l.*,
                    c.name AS campaign_name,
-                   c.platform AS campaign_platform
+                   c.platform AS campaign_platform,
+                   s.name AS source_name
             ${baseQuery}
             ORDER BY l.modified DESC
             LIMIT $[limit]
@@ -518,7 +524,8 @@ export default class LeadDAO {
                         external_ad_name: lead.external_ad_name ?? null,
                         raw_payload: lead.raw_payload ?? null,
                         needs_review: lead.needs_review ?? false,
-                        needs_review_reason: lead.needs_review_reason ?? null
+                        needs_review_reason: lead.needs_review_reason ?? null,
+                        custom_fields: lead.custom_fields ?? null
                     };
 
                     const postedLead: Lead = await t.one(
@@ -527,13 +534,13 @@ export default class LeadDAO {
                             first_name, last_name, email, phone, address, city, state, zipcode,
                             county, county_id, source_id, campaign_id,
                             external_lead_id, external_ad_id, external_ad_name, raw_payload,
-                            needs_review, needs_review_reason
+                            needs_review, needs_review_reason, custom_fields
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
                             $[county], $[county_id], $[source_id], $[campaign_id],
                             $[external_lead_id], $[external_ad_id], $[external_ad_name], $[raw_payload],
-                            $[needs_review], $[needs_review_reason]
+                            $[needs_review], $[needs_review_reason], $[custom_fields]
                           )
                           RETURNING *;
                         `,
@@ -595,6 +602,20 @@ export default class LeadDAO {
             RETURNING *;
         `, { ...lead, reason }
         );
+    }
+
+    // TICKET-152: Merge custom fields into the lead's JSONB blob (does not wipe existing keys)
+    async updateCustomFields(id: string, customFields: Record<string, unknown>): Promise<Lead> {
+        const result = await this.db.oneOrNone<Lead>(`
+            UPDATE leads
+            SET custom_fields = COALESCE(custom_fields, '{}'::jsonb) || $[customFields]::jsonb,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `, { id, customFields: JSON.stringify(customFields) });
+        if (!result) throw new Error('Lead not found');
+        return result;
     }
 
     async resolveNeedsReview(id: string): Promise<Lead> {

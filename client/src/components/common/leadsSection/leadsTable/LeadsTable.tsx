@@ -274,9 +274,8 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
         address: { address: lead.address, city: lead.city, zipcode: lead.zipcode },
         countyState: `${lead.county ?? "—"}, ${lead.state}`,
         created: parseUtcToZone(lead.created),
-        campaign: lead.campaign_name
-            ? [platformLabel(lead.campaign_platform), lead.campaign_name].filter(Boolean).join(" - ")
-            : null,
+        source: { id: lead.source_id, name: lead.source_name },
+        campaign: { id: lead.campaign_id, label: lead.campaign_name ? [platformLabel(lead.campaign_platform), lead.campaign_name].filter(Boolean).join(" - ") : null },
     }));
 
     const columns: GridColDef[] = [
@@ -327,13 +326,42 @@ const LeadsTable = ({ leads, setLeads, currentStatus }: LeadsTableProps) => {
             flex: 0.9,
         },
         {
+            field: "source",
+            headerName: "Source",
+            flex: 1,
+            sortable: false,
+            renderCell: (params) => (
+                params.value?.name
+                    ? (
+                        <Typography
+                            variant="body2"
+                            color="primary"
+                            sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/sources/${params.value.id}`); }}
+                        >
+                            {params.value.name}
+                        </Typography>
+                    )
+                    : <Typography variant="caption" color="text.disabled">—</Typography>
+            ),
+        },
+        {
             field: "campaign",
             headerName: "Campaign",
             flex: 1.1,
             sortable: false,
             renderCell: (params) => (
-                params.value
-                    ? <Typography variant="body2" color="text.secondary">{params.value}</Typography>
+                params.value?.label
+                    ? (
+                        <Typography
+                            variant="body2"
+                            color="primary"
+                            sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/campaigns/${params.value.id}`); }}
+                        >
+                            {params.value.label}
+                        </Typography>
+                    )
                     : <Typography variant="caption" color="text.disabled">—</Typography>
             ),
         },

@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import LeadService from '../services/leadService';
 import CampaignService from '../services/campaignService';
 import CountyService from '../services/countyService';
+import LeadCustomFieldService from '../services/leadCustomFieldService';
 
 const REQUIRED_FIELDS = ['address', 'city', 'state', 'zip'];
 
@@ -23,7 +24,8 @@ export default class LeadIntakeResource {
     constructor(
         private readonly leadService: LeadService,
         private readonly campaignService: CampaignService,
-        private readonly countyService: CountyService
+        private readonly countyService: CountyService,
+        private readonly leadCustomFieldService: LeadCustomFieldService
     ) {
         this.router = express.Router();
         this.initializeRoutes();
@@ -52,7 +54,7 @@ export default class LeadIntakeResource {
                     return res.status(400).json({ message: "Request body must include a 'lead' object" });
                 }
 
-                const { lead, campaign: campaignInput, metadata, raw_payload } = item;
+                const { lead, campaign: campaignInput, metadata, raw_payload, custom_fields } = item;
                 let normalizedLead: { leadData: any; campaignKey: string; campaignData: any; rawPayload: any; };
 
                 try {
@@ -126,12 +128,22 @@ export default class LeadIntakeResource {
                     )
                     : await this.campaignService.getOrCreate(source.id, campaignKey);
 
+                // TICKET-152: Auto-discover any unknown custom field keys
+                let processedCustomFields: Record<string, unknown> | null = null;
+                if (custom_fields && typeof custom_fields === 'object' && !Array.isArray(custom_fields)) {
+                    processedCustomFields = custom_fields as Record<string, unknown>;
+                    for (const key of Object.keys(processedCustomFields)) {
+                        await this.leadCustomFieldService.autoDiscoverKey(key);
+                    }
+                }
+
                 const result = await this.leadService.importLeadsFromApi(
                     [{
                         ...normalizedLead.leadData,
                         source_id: source.id,
                         campaign_id: resolvedCampaign.id,
-                        raw_payload: normalizedLead.rawPayload
+                        raw_payload: normalizedLead.rawPayload,
+                        custom_fields: processedCustomFields
                     }],
                     source.id,
                     resolvedCampaign.id

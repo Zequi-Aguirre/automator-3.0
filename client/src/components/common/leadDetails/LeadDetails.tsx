@@ -39,6 +39,7 @@ import {
     colorForUrgency
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
+import LeadCustomFieldsCard from "./LeadCustomFieldsCard.tsx";
 import workingsService from "../../../services/settings.service.tsx";
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Permission } from '../../../types/userTypes';
@@ -404,9 +405,34 @@ const LeadDetails = () => {
                                     disabled
                                     InputProps={{ readOnly: true }}
                                 />
+                                {(lead.source_id ?? lead.campaign_id) && (
+                                    <Stack direction="row" spacing={1}>
+                                        {lead.source_id && (
+                                            <Chip
+                                                label={`Source: ${lead.source_name ?? lead.source_id}`}
+                                                size="small"
+                                                variant="outlined"
+                                                clickable
+                                                onClick={() => { navigate(`/sources/${lead.source_id}`); }}
+                                            />
+                                        )}
+                                        {lead.campaign_id && (
+                                            <Chip
+                                                label={`Campaign: ${lead.campaign_name ?? lead.campaign_id}`}
+                                                size="small"
+                                                variant="outlined"
+                                                clickable
+                                                onClick={() => { navigate(`/campaigns/${lead.campaign_id}`); }}
+                                            />
+                                        )}
+                                    </Stack>
+                                )}
                             </Stack>
                         </CardContent>
                     </Card>
+
+                    {/* TICKET-152: Custom fields — shown when lead has custom_fields data */}
+                    <LeadCustomFieldsCard lead={lead} />
 
                     {/* Activity feed — fills remaining left height */}
                     <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
