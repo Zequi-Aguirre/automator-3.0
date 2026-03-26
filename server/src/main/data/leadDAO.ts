@@ -518,7 +518,8 @@ export default class LeadDAO {
                         external_ad_name: lead.external_ad_name ?? null,
                         raw_payload: lead.raw_payload ?? null,
                         needs_review: lead.needs_review ?? false,
-                        needs_review_reason: lead.needs_review_reason ?? null
+                        needs_review_reason: lead.needs_review_reason ?? null,
+                        custom_fields: lead.custom_fields ?? null
                     };
 
                     const postedLead: Lead = await t.one(
@@ -527,13 +528,13 @@ export default class LeadDAO {
                             first_name, last_name, email, phone, address, city, state, zipcode,
                             county, county_id, source_id, campaign_id,
                             external_lead_id, external_ad_id, external_ad_name, raw_payload,
-                            needs_review, needs_review_reason
+                            needs_review, needs_review_reason, custom_fields
                           )
                           VALUES (
                             $[first_name], $[last_name], $[email], $[phone], $[address], $[city], $[state], $[zipcode],
                             $[county], $[county_id], $[source_id], $[campaign_id],
                             $[external_lead_id], $[external_ad_id], $[external_ad_name], $[raw_payload],
-                            $[needs_review], $[needs_review_reason]
+                            $[needs_review], $[needs_review_reason], $[custom_fields]
                           )
                           RETURNING *;
                         `,
@@ -595,6 +596,20 @@ export default class LeadDAO {
             RETURNING *;
         `, { ...lead, reason }
         );
+    }
+
+    // TICKET-152: Merge custom fields into the lead's JSONB blob (does not wipe existing keys)
+    async updateCustomFields(id: string, customFields: Record<string, unknown>): Promise<Lead> {
+        const result = await this.db.oneOrNone<Lead>(`
+            UPDATE leads
+            SET custom_fields = COALESCE(custom_fields, '{}'::jsonb) || $[customFields]::jsonb,
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `, { id, customFields: JSON.stringify(customFields) });
+        if (!result) throw new Error('Lead not found');
+        return result;
     }
 
     async resolveNeedsReview(id: string): Promise<Lead> {

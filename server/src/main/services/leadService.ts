@@ -89,6 +89,13 @@ export default class LeadService {
         return updated;
     }
 
+    // TICKET-152: Merge custom fields into the lead (does not wipe existing keys)
+    async updateCustomFields(leadId: string, customFields: Record<string, unknown>, userId?: string | null): Promise<Lead> {
+        const updated = await this.leadDAO.updateCustomFields(leadId, customFields);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UPDATED, action_details: { custom_fields_updated: Object.keys(customFields) } });
+        return updated;
+    }
+
     async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null, userReason?: string | null): Promise<Lead> {
         try {
             const lead = await this.leadDAO.getById(leadId);
