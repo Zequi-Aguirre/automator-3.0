@@ -424,8 +424,8 @@ const LeadDetails = () => {
                                     disabled
                                     InputProps={{ readOnly: true }}
                                 />
-                                {/* TICKET-155: Show "Find County" button when no county is attached (county_id is null) */}
-                                {!lead.county_id && !isTrashed && canEdit && (
+                                {/* TICKET-155: Always show "Find County" so team can re-attach after fixing zip */}
+                                {!isTrashed && canEdit && (
                                     <Button
                                         size="small"
                                         variant="outlined"
