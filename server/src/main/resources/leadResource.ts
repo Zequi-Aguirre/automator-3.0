@@ -91,6 +91,21 @@ export default class LeadResource {
             }
         });
 
+        // TICKET-152: Update a lead's custom fields (merges, does not overwrite all keys)
+        this.router.patch("/custom-fields/:leadId", requirePermission(LeadPermission.EDIT), async (req: Request, res: Response) => {
+            try {
+                const { custom_fields } = req.body;
+                if (!custom_fields || typeof custom_fields !== 'object' || Array.isArray(custom_fields)) {
+                    return res.status(400).json({ message: 'custom_fields must be an object' });
+                }
+                const lead = await this.leadService.updateCustomFields(req.params.leadId, custom_fields as Record<string, unknown>, req.user?.id);
+                return res.status(200).json(lead);
+            } catch (error) {
+                console.error('Error updating custom fields:', error);
+                return res.status(500).json({ message: 'Failed to update custom fields', error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        });
+
         // Send lead with oldDatabase support
         this.router.patch("/send/:leadId", requirePermission(LeadPermission.SEND), async (req: Request, res: Response) => {
             try {
@@ -293,6 +308,24 @@ export default class LeadResource {
 
                 return res.status(500).send({
                     message: 'Failed to unmark lead as sold',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // TICKET-155: Re-run zip → county lookup and attach result to the lead
+        this.router.patch("/:leadId/resolve-county", requirePermission(LeadPermission.EDIT), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const lead = await this.leadService.resolveCounty(leadId, req.user?.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                if (error instanceof Error && error.message.startsWith('No county found')) {
+                    return res.status(404).send({ message: error.message });
+                }
+                console.error('Error resolving county:', error);
+                return res.status(500).send({
+                    message: 'Failed to resolve county',
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

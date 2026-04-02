@@ -35,6 +35,7 @@ import PlatformConnectionResource from "./resources/platformConnectionResource.t
 import FacebookLeadResource from "./resources/facebookLeadResource.ts";
 import FacebookWebhookResource from "./resources/facebookWebhookResource.ts";
 import UserService from "./services/userService.ts";
+import LeadCustomFieldResource from "./resources/leadCustomFieldResource.ts";
 
 dotenv.config();
 
@@ -92,6 +93,8 @@ export class AutomatorServer {
         // TICKET-143: Facebook — webhook has no auth, lead admin requires auth
         this.app.use("/api/facebook/webhook", cont.resolve(FacebookWebhookResource).routes());
         this.app.use("/api/facebook", authFunc, cont.resolve(FacebookLeadResource).routes());
+        // TICKET-152: Lead Custom Fields
+        this.app.use("/api/lead-custom-fields", authFunc, cont.resolve(LeadCustomFieldResource).routes());
         this.app.use('/static', express.static('public'));
 
         // Initialize worker if IS_WORKER is true

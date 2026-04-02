@@ -14,6 +14,8 @@ export type Lead = {
     verified: boolean;
     investor_id: string | null;
     campaign_id: string | null;
+    source_id: string | null;
+    source_name: string | null;
     queued: boolean;
     deleted: string | null;
     deleted_reason: string | null;
@@ -37,6 +39,8 @@ export type Lead = {
     call_outcome: string | null;
     call_outcome_notes: string | null;
     call_attempts: number;
+    // TICKET-152: Dynamic custom fields — keyed by field key (e.g. { time_to_sell: "ASAP" })
+    custom_fields: Record<string, unknown> | null;
 }
 
 export type LeadUpdateAllowedFieldsType = {
@@ -137,6 +141,8 @@ export type ApiLeadPayload = {
     };
     metadata?: ExternalLeadMetadata;
     raw_payload?: Record<string, unknown>;
+    // TICKET-152: Dynamic custom fields from external source
+    custom_fields?: Record<string, unknown>;
 };
 
 export type parsedLeadFromCSV = {
@@ -162,4 +168,6 @@ export type parsedLeadFromCSV = {
     // TICKET-064: Needs review flag (set before insert if required fields are missing)
     needs_review?: boolean;
     needs_review_reason?: string | null;
+    // TICKET-152: Dynamic custom fields
+    custom_fields?: Record<string, unknown> | null;
 };

@@ -39,6 +39,7 @@ import {
     colorForUrgency
 } from '../../../utils/leadExpiry';
 import LeadVerificationForm from "./leadVerificationForm/leadVerificationForm.tsx";
+import LeadCustomFieldsCard from "./LeadCustomFieldsCard.tsx";
 import workingsService from "../../../services/settings.service.tsx";
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Permission } from '../../../types/userTypes';
@@ -73,6 +74,8 @@ const LeadDetails = () => {
         message: '',
         severity: 'success' as 'success' | 'error'
     });
+
+    const [resolvingCounty, setResolvingCounty] = useState(false);
 
     const [now, setNow] = useState(DateTime.utc());
     const [leadExpireHours, setLeadExpireHours] = useState(18);
@@ -213,6 +216,25 @@ const LeadDetails = () => {
             showNotification('Lead updated', 'success');
         } catch {
             showNotification('Failed to update lead', 'error');
+        }
+    };
+
+    // TICKET-155: Re-run zip → county lookup for this lead
+    const handleResolveCounty = async () => {
+        if (!id || !lead) return;
+        setResolvingCounty(true);
+        try {
+            const updated = await leadsService.resolveCounty(id);
+            // Use fetchLead instead of setLead(updated) — the UPDATE RETURNING * doesn't
+            // include joined fields (source_name, campaign_name), so we reload the full lead
+            await fetchLead();
+            void fetchActivity();
+            showNotification(`County resolved: ${updated.county}`, 'success');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to find county';
+            showNotification(message, 'error');
+        } finally {
+            setResolvingCounty(false);
         }
     };
 
@@ -404,9 +426,47 @@ const LeadDetails = () => {
                                     disabled
                                     InputProps={{ readOnly: true }}
                                 />
+                                {/* TICKET-155: Always show "Find County" so team can re-attach after fixing zip */}
+                                {!isTrashed && canEdit && (
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={handleResolveCounty}
+                                        disabled={resolvingCounty}
+                                        startIcon={resolvingCounty ? <CircularProgress size={14} /> : null}
+                                        sx={{ alignSelf: 'flex-start' }}
+                                    >
+                                        {resolvingCounty ? 'Finding...' : 'Find County'}
+                                    </Button>
+                                )}
+                                {(lead.source_id ?? lead.campaign_id) && (
+                                    <Stack direction="row" spacing={1}>
+                                        {lead.source_id && (
+                                            <Chip
+                                                label={`Source: ${lead.source_name ?? lead.source_id}`}
+                                                size="small"
+                                                variant="outlined"
+                                                clickable
+                                                onClick={() => { navigate(`/sources/${lead.source_id}`); }}
+                                            />
+                                        )}
+                                        {lead.campaign_id && (
+                                            <Chip
+                                                label={`Campaign: ${lead.campaign_name ?? lead.campaign_id}`}
+                                                size="small"
+                                                variant="outlined"
+                                                clickable
+                                                onClick={() => { navigate(`/campaigns/${lead.campaign_id}`); }}
+                                            />
+                                        )}
+                                    </Stack>
+                                )}
                             </Stack>
                         </CardContent>
                     </Card>
+
+                    {/* TICKET-152: Custom fields — shown when lead has custom_fields data */}
+                    <LeadCustomFieldsCard lead={lead} />
 
                     {/* Activity feed — fills remaining left height */}
                     <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

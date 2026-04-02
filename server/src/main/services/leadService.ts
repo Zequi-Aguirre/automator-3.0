@@ -89,6 +89,13 @@ export default class LeadService {
         return updated;
     }
 
+    // TICKET-152: Merge custom fields into the lead (does not wipe existing keys)
+    async updateCustomFields(leadId: string, customFields: Record<string, unknown>, userId?: string | null): Promise<Lead> {
+        const updated = await this.leadDAO.updateCustomFields(leadId, customFields);
+        await this.activityService.log({ user_id: userId, lead_id: leadId, action: LeadAction.UPDATED, action_details: { custom_fields_updated: Object.keys(customFields) } });
+        return updated;
+    }
+
     async trashLead(leadId: string, reason: LeadTrashReason = "MANUAL_USER_DELETE", userId?: string | null, userReason?: string | null): Promise<Lead> {
         try {
             const lead = await this.leadDAO.getById(leadId);
@@ -222,7 +229,16 @@ export default class LeadService {
 
         for (const lead of leads) {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
-            const county = countyMap.get(countyKey);
+            let county = countyMap.get(countyKey);
+
+            // TICKET-156: Zip fallback — if fuzzy match failed, try zip lookup
+            if (!county && lead.zipcode) {
+                const countyByZip = await this.countyService.getByZipCode(lead.zipcode);
+                if (countyByZip) {
+                    county = countyByZip;
+                    lead.state = countyByZip.state; // correct wrong state (e.g. "Missouri" → "CA")
+                }
+            }
 
             // County is required - reject leads with no county match
             if (!county) {
@@ -385,7 +401,16 @@ export default class LeadService {
         for (let i = 0; i < leads.length; i++) {
             const lead = leads[i];
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
-            const county = countyMap.get(countyKey);
+            let county = countyMap.get(countyKey);
+
+            // TICKET-156: Zip fallback — if fuzzy match failed, try zip lookup
+            if (!county && lead.zipcode) {
+                const countyByZip = await this.countyService.getByZipCode(lead.zipcode);
+                if (countyByZip) {
+                    county = countyByZip;
+                    lead.state = countyByZip.state; // correct wrong state (e.g. "Missouri" → "CA")
+                }
+            }
 
             if (county) {
                 lead.county_id = county.id;
@@ -531,6 +556,55 @@ export default class LeadService {
             action: LeadAction.NEEDS_REVIEW_RESOLVED
         });
         return lead;
+    }
+
+    /**
+     * TICKET-155: Look up the county for a lead's current zip code and attach it.
+     * Also clears needs_review if county was the only (or last) missing field.
+     */
+    async resolveCounty(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) throw new Error('Lead not found');
+
+        const county = await this.countyService.getByZipCode(lead.zipcode);
+        if (!county) throw new Error(`No county found for zip ${lead.zipcode}`);
+
+        // Remove 'county' from the missing-fields reason and recalculate needs_review
+        let needsReview = lead.needs_review;
+        let needsReviewReason = lead.needs_review_reason ?? null;
+
+        if (lead.needs_review_reason) {
+            const missingPrefix = 'Missing: ';
+            if (lead.needs_review_reason.startsWith(missingPrefix)) {
+                // API intake format: "Missing: county" or "Missing: first_name, county"
+                const remaining = lead.needs_review_reason
+                    .slice(missingPrefix.length)
+                    .split(', ')
+                    .filter(field => field !== 'county');
+                if (remaining.length === 0) {
+                    needsReview = false;
+                    needsReviewReason = null;
+                } else {
+                    needsReviewReason = missingPrefix + remaining.join(', ');
+                }
+            } else if (lead.needs_review_reason.startsWith('Unknown county')) {
+                // API import format: 'Unknown county "San Bernardino, Missouri" (no match found)'
+                // County was the only flagged issue — resolving it clears needs_review
+                needsReview = false;
+                needsReviewReason = null;
+            }
+        }
+
+        const updated = await this.leadDAO.resolveCounty(leadId, county.id, county.name, county.state, needsReview, needsReviewReason);
+
+        await this.activityService.log({
+            user_id: userId ?? null,
+            lead_id: leadId,
+            action: LeadAction.COUNTY_RESOLVED,
+            action_details: { county: county.name, zipcode: lead.zipcode }
+        });
+
+        return updated;
     }
 
     /**

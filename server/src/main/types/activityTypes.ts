@@ -6,6 +6,7 @@ export enum EntityType {
     COUNTY = 'county',
     LEAD_MANAGER = 'lead_manager',
     USER = 'user',
+    LEAD_CUSTOM_FIELD = 'lead_custom_field',
 }
 
 export enum LeadAction {
@@ -21,6 +22,8 @@ export enum LeadAction {
     AUTO_QUEUED = 'lead_auto_queued',
     UNQUEUED = 'lead_unqueued',
     NEEDS_REVIEW_RESOLVED = 'lead_needs_review_resolved',
+    // TICKET-155: County resolution
+    COUNTY_RESOLVED = 'lead_county_resolved',
     // TICKET-065: Call tracking
     CALL_REQUESTED = 'lead_call_requested',
     CALL_REQUEST_CANCELLED = 'lead_call_request_cancelled',
@@ -144,6 +147,14 @@ export enum ReconciliationAction {
     MATCHED  = 'reconciliation_matched',
 }
 
+// TICKET-152: Lead Custom Fields
+export enum LeadCustomFieldAction {
+    CREATED = 'lead_custom_field_created',
+    UPDATED = 'lead_custom_field_updated',
+    ACTIVATED = 'lead_custom_field_activated',
+    DEACTIVATED = 'lead_custom_field_deactivated',
+}
+
 // TICKET-140: Platform connections
 export enum PlatformConnectionAction {
     CREATED = 'platform_connection_created',
@@ -169,7 +180,8 @@ export type ActivityAction =
     | RoleAction
     | ZoeAction
     | ReconciliationAction
-    | PlatformConnectionAction;
+    | PlatformConnectionAction
+    | LeadCustomFieldAction;
 
 export type ActivityLog = {
     id: string;
