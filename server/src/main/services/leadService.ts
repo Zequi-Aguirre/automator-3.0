@@ -556,18 +556,24 @@ export default class LeadService {
         let needsReviewReason = lead.needs_review_reason ?? null;
 
         if (lead.needs_review_reason) {
-            const prefix = 'Missing: ';
-            if (lead.needs_review_reason.startsWith(prefix)) {
+            const missingPrefix = 'Missing: ';
+            if (lead.needs_review_reason.startsWith(missingPrefix)) {
+                // API intake format: "Missing: county" or "Missing: first_name, county"
                 const remaining = lead.needs_review_reason
-                    .slice(prefix.length)
+                    .slice(missingPrefix.length)
                     .split(', ')
                     .filter(field => field !== 'county');
                 if (remaining.length === 0) {
                     needsReview = false;
                     needsReviewReason = null;
                 } else {
-                    needsReviewReason = prefix + remaining.join(', ');
+                    needsReviewReason = missingPrefix + remaining.join(', ');
                 }
+            } else if (lead.needs_review_reason.startsWith('Unknown county')) {
+                // API import format: 'Unknown county "San Bernardino, Missouri" (no match found)'
+                // County was the only flagged issue — resolving it clears needs_review
+                needsReview = false;
+                needsReviewReason = null;
             }
         }
 
