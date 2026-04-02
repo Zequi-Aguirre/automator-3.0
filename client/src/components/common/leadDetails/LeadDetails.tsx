@@ -75,6 +75,8 @@ const LeadDetails = () => {
         severity: 'success' as 'success' | 'error'
     });
 
+    const [resolvingCounty, setResolvingCounty] = useState(false);
+
     const [now, setNow] = useState(DateTime.utc());
     const [leadExpireHours, setLeadExpireHours] = useState(18);
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -214,6 +216,23 @@ const LeadDetails = () => {
             showNotification('Lead updated', 'success');
         } catch {
             showNotification('Failed to update lead', 'error');
+        }
+    };
+
+    // TICKET-155: Re-run zip → county lookup for this lead
+    const handleResolveCounty = async () => {
+        if (!id || !lead) return;
+        setResolvingCounty(true);
+        try {
+            const updated = await leadsService.resolveCounty(id);
+            setLead(updated);
+            void fetchActivity();
+            showNotification(`County resolved: ${updated.county}`, 'success');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to find county';
+            showNotification(message, 'error');
+        } finally {
+            setResolvingCounty(false);
         }
     };
 
@@ -405,6 +424,19 @@ const LeadDetails = () => {
                                     disabled
                                     InputProps={{ readOnly: true }}
                                 />
+                                {/* TICKET-155: Show "Find County" button when county is missing */}
+                                {!lead.county && !isTrashed && canEdit && (
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={handleResolveCounty}
+                                        disabled={resolvingCounty}
+                                        startIcon={resolvingCounty ? <CircularProgress size={14} /> : null}
+                                        sx={{ alignSelf: 'flex-start' }}
+                                    >
+                                        {resolvingCounty ? 'Finding...' : 'Find County'}
+                                    </Button>
+                                )}
                                 {(lead.source_id ?? lead.campaign_id) && (
                                     <Stack direction="row" spacing={1}>
                                         {lead.source_id && (

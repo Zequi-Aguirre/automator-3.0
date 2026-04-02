@@ -157,6 +157,12 @@ class LeadService {
         return response.data;
     }
 
+    // TICKET-155: Re-run zip → county lookup and attach result to the lead
+    async resolveCounty(leadId: string): Promise<Lead> {
+        const response = await this.api.getApi().patch(`/api/leads/${leadId}/resolve-county`);
+        return response.data;
+    }
+
     // TICKET-064: Resolve needs_review flag once missing info is filled in
     async resolveNeedsReview(leadId: string): Promise<Lead> {
         const response = await this.api.getApi().patch(`/api/leads/resolve-review/${leadId}`);

@@ -635,6 +635,30 @@ export default class LeadDAO {
         return result;
     }
 
+    // TICKET-155: Attach a resolved county to a lead, and clear needs_review if county was the last issue
+    async resolveCounty(
+        id: string,
+        countyId: string,
+        countyName: string,
+        needsReview: boolean,
+        needsReviewReason: string | null
+    ): Promise<Lead> {
+        const query = `
+            UPDATE leads
+            SET county = $[countyName],
+                county_id = $[countyId],
+                needs_review = $[needsReview],
+                needs_review_reason = $[needsReviewReason],
+                modified = NOW()
+            WHERE id = $[id]
+            AND deleted IS NULL
+            RETURNING *;
+        `;
+        const result = await this.db.oneOrNone<Lead>(query, { id, countyId, countyName, needsReview, needsReviewReason });
+        if (!result) throw new Error('Lead not found');
+        return result;
+    }
+
     async requestCall(id: string, reason: string, requestedBy: string, note?: string | null): Promise<Lead> {
         const query = `
             UPDATE leads
