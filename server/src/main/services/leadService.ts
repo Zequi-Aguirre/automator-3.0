@@ -229,7 +229,16 @@ export default class LeadService {
 
         for (const lead of leads) {
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
-            const county = countyMap.get(countyKey);
+            let county = countyMap.get(countyKey);
+
+            // TICKET-156: Zip fallback — if fuzzy match failed, try zip lookup
+            if (!county && lead.zipcode) {
+                const countyByZip = await this.countyService.getByZipCode(lead.zipcode);
+                if (countyByZip) {
+                    county = countyByZip;
+                    lead.state = countyByZip.state; // correct wrong state (e.g. "Missouri" → "CA")
+                }
+            }
 
             // County is required - reject leads with no county match
             if (!county) {
@@ -392,7 +401,16 @@ export default class LeadService {
         for (let i = 0; i < leads.length; i++) {
             const lead = leads[i];
             const countyKey = `${lead.county.toLowerCase()}_${lead.state.toLowerCase()}`;
-            const county = countyMap.get(countyKey);
+            let county = countyMap.get(countyKey);
+
+            // TICKET-156: Zip fallback — if fuzzy match failed, try zip lookup
+            if (!county && lead.zipcode) {
+                const countyByZip = await this.countyService.getByZipCode(lead.zipcode);
+                if (countyByZip) {
+                    county = countyByZip;
+                    lead.state = countyByZip.state; // correct wrong state (e.g. "Missouri" → "CA")
+                }
+            }
 
             if (county) {
                 lead.county_id = county.id;
