@@ -22,6 +22,8 @@ export enum LeadAction {
     AUTO_QUEUED = 'lead_auto_queued',
     UNQUEUED = 'lead_unqueued',
     NEEDS_REVIEW_RESOLVED = 'lead_needs_review_resolved',
+    // TICKET-155: County resolution
+    COUNTY_RESOLVED = 'lead_county_resolved',
     // TICKET-065: Call tracking
     CALL_REQUESTED = 'lead_call_requested',
     CALL_REQUEST_CANCELLED = 'lead_call_request_cancelled',

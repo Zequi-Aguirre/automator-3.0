@@ -541,6 +541,49 @@ export default class LeadService {
     }
 
     /**
+     * TICKET-155: Look up the county for a lead's current zip code and attach it.
+     * Also clears needs_review if county was the only (or last) missing field.
+     */
+    async resolveCounty(leadId: string, userId?: string | null): Promise<Lead> {
+        const lead = await this.leadDAO.getById(leadId);
+        if (!lead) throw new Error('Lead not found');
+
+        const county = await this.countyService.getByZipCode(lead.zipcode);
+        if (!county) throw new Error(`No county found for zip ${lead.zipcode}`);
+
+        // Remove 'county' from the missing-fields reason and recalculate needs_review
+        let needsReview = lead.needs_review;
+        let needsReviewReason = lead.needs_review_reason ?? null;
+
+        if (lead.needs_review_reason) {
+            const prefix = 'Missing: ';
+            if (lead.needs_review_reason.startsWith(prefix)) {
+                const remaining = lead.needs_review_reason
+                    .slice(prefix.length)
+                    .split(', ')
+                    .filter(field => field !== 'county');
+                if (remaining.length === 0) {
+                    needsReview = false;
+                    needsReviewReason = null;
+                } else {
+                    needsReviewReason = prefix + remaining.join(', ');
+                }
+            }
+        }
+
+        const updated = await this.leadDAO.resolveCounty(leadId, county.id, county.name, needsReview, needsReviewReason);
+
+        await this.activityService.log({
+            user_id: userId ?? null,
+            lead_id: leadId,
+            action: LeadAction.COUNTY_RESOLVED,
+            action_details: { county: county.name, zipcode: lead.zipcode }
+        });
+
+        return updated;
+    }
+
+    /**
      * TICKET-065: Flag a lead as needing a phone call.
      */
     async requestCall(leadId: string, reason: string, userId: string, note?: string | null): Promise<Lead> {

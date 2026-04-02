@@ -313,6 +313,24 @@ export default class LeadResource {
             }
         });
 
+        // TICKET-155: Re-run zip → county lookup and attach result to the lead
+        this.router.patch("/:leadId/resolve-county", requirePermission(LeadPermission.EDIT), async (req: Request, res: Response) => {
+            try {
+                const { leadId } = req.params;
+                const lead = await this.leadService.resolveCounty(leadId, req.user?.id);
+                return res.status(200).send(lead);
+            } catch (error) {
+                if (error instanceof Error && error.message.startsWith('No county found')) {
+                    return res.status(404).send({ message: error.message });
+                }
+                console.error('Error resolving county:', error);
+                return res.status(500).send({
+                    message: 'Failed to resolve county',
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
         // TICKET-064: Resolve needs_review flag (staff filled in missing info)
         this.router.patch("/resolve-review/:leadId", requirePermission(LeadPermission.EDIT), async (req: Request, res: Response) => {
             try {
