@@ -577,7 +577,7 @@ export default class LeadService {
             }
         }
 
-        const updated = await this.leadDAO.resolveCounty(leadId, county.id, county.name, needsReview, needsReviewReason);
+        const updated = await this.leadDAO.resolveCounty(leadId, county.id, county.name, county.state, needsReview, needsReviewReason);
 
         await this.activityService.log({
             user_id: userId ?? null,
