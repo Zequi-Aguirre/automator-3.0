@@ -5,6 +5,7 @@ export type Lead = {
     state: string;
     zipcode: string;
     county: string | null;
+    county_id: string | null;
     first_name: string;
     last_name: string;
     phone: string;
