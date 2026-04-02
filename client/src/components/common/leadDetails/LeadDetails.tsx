@@ -225,7 +225,9 @@ const LeadDetails = () => {
         setResolvingCounty(true);
         try {
             const updated = await leadsService.resolveCounty(id);
-            setLead(updated);
+            // Use fetchLead instead of setLead(updated) — the UPDATE RETURNING * doesn't
+            // include joined fields (source_name, campaign_name), so we reload the full lead
+            await fetchLead();
             void fetchActivity();
             showNotification(`County resolved: ${updated.county}`, 'success');
         } catch (err) {
