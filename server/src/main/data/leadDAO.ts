@@ -828,4 +828,18 @@ export default class LeadDAO {
             { email }
         );
     }
+
+    // TICKET-157: Count active leads for a source in a given calendar month
+    async getLeadCountBySourceAndMonth(sourceId: string, year: number, month: number): Promise<number> {
+        const result = await this.db.one<{ count: number }>(
+            `SELECT COUNT(*)::int AS count
+             FROM leads
+             WHERE source_id = $[sourceId]
+               AND deleted IS NULL
+               AND EXTRACT(YEAR FROM created) = $[year]
+               AND EXTRACT(MONTH FROM created) = $[month]`,
+            { sourceId, year, month }
+        );
+        return result.count;
+    }
 }
