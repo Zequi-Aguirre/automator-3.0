@@ -65,6 +65,11 @@ class SourceService {
         return res.data;
     }
 
+    async getLeadStats(id: string, year: number, month: number): Promise<{ count: number; year: number; month: number }> {
+        const res = await this.api.getApi().get(`/api/sources/${id}/lead-stats`, { params: { year, month } });
+        return res.data;
+    }
+
     /**
      * Soft delete source
      */

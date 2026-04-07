@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import { injectable } from "tsyringe";
 import SourceService from "../services/sourceService";
 import ActivityService from "../services/activityService";
+import LeadDAO from "../data/leadDAO";
 import { SourceAction, EntityType } from "../types/activityTypes";
 import { SourceCreateDTO, SourceUpdateDTO, SourceFilterUpdateDTO, Source, SourceResponse, CreateSourceResponse, RefreshTokenResponse } from "../types/sourceTypes";
 import { requirePermission } from '../middleware/requirePermission';
@@ -22,7 +23,8 @@ export default class SourceResource {
 
     constructor(
         private readonly sourceService: SourceService,
-        private readonly activityService: ActivityService
+        private readonly activityService: ActivityService,
+        private readonly leadDAO: LeadDAO
     ) {
         this.router = express.Router();
         this.initializeRoutes();
@@ -73,6 +75,23 @@ export default class SourceResource {
                 console.error('Error fetching source:', error);
                 res.status(500).json({
                     error: 'Failed to fetch source',
+                    message: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+
+        // GET /api/sources/:id/lead-stats - Lead count for a source in a given month
+        this.router.get('/:id/lead-stats', async (req: Request, res: Response) => {
+            try {
+                const { id } = req.params;
+                const year = Number(req.query.year) || new Date().getFullYear();
+                const month = Number(req.query.month) || (new Date().getMonth() + 1);
+                const count = await this.leadDAO.getLeadCountBySourceAndMonth(id, year, month);
+                res.status(200).json({ count, year, month });
+            } catch (error) {
+                console.error('Error fetching lead stats:', error);
+                res.status(500).json({
+                    error: 'Failed to fetch lead stats',
                     message: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

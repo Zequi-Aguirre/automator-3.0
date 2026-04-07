@@ -15,9 +15,13 @@ import {
     DialogContent,
     DialogTitle,
     Divider,
+    FormControl,
     FormControlLabel,
     IconButton,
+    InputLabel,
+    MenuItem,
     Paper,
+    Select,
     Snackbar,
     Alert,
     Stack,
@@ -42,6 +46,14 @@ import buyerService from '../../services/buyer.service';
 import { Source, SourceBuyerFilterMode } from '../../types/sourceTypes';
 import { Campaign, CampaignCreateDTO, CampaignUpdateDTO } from '../../types/campaignTypes';
 import { Buyer } from '../../types/buyerTypes';
+
+const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = [currentYear - 2, currentYear - 1, currentYear];
 
 const AdminSourceDetailsView = () => {
     const { id } = useParams<{ id: string }>();
@@ -81,6 +93,12 @@ const AdminSourceDetailsView = () => {
 
     const [activeTab, setActiveTab] = useState(0);
 
+    // Lead stats
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [leadCount, setLeadCount] = useState<number | null>(null);
+    const [leadCountLoading, setLeadCountLoading] = useState(false);
+
     const [snack, setSnack] = useState({
         open: false,
         message: '',
@@ -94,6 +112,10 @@ const AdminSourceDetailsView = () => {
         }
         buyerService.getAll({ page: 1, limit: 200 }).then(res => setBuyers(res.items)).catch(() => {});
     }, [id]);
+
+    useEffect(() => {
+        if (id) fetchLeadCount();
+    }, [id, selectedYear, selectedMonth]);
 
     const fetchSourceDetails = async () => {
         if (!id) return;
@@ -119,6 +141,19 @@ const AdminSourceDetailsView = () => {
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
             setSnack({ open: true, message: `Failed to fetch campaigns: ${errorMessage}`, severity: 'error' });
+        }
+    };
+
+    const fetchLeadCount = async () => {
+        if (!id) return;
+        setLeadCountLoading(true);
+        try {
+            const data = await sourceService.getLeadStats(id, selectedYear, selectedMonth);
+            setLeadCount(data.count);
+        } catch {
+            setLeadCount(null);
+        } finally {
+            setLeadCountLoading(false);
         }
     };
 
@@ -354,6 +389,51 @@ const AdminSourceDetailsView = () => {
                                         </Typography>
                                     </Box>
                                 </Stack>
+                            </Paper>
+
+                            {/* Lead Count by Month */}
+                            <Paper sx={{ p: 3, mb: 3 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                    <Typography variant="subtitle1" fontWeight={600}>Leads Received</Typography>
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <FormControl size="small" sx={{ minWidth: 130 }}>
+                                            <InputLabel>Month</InputLabel>
+                                            <Select
+                                                value={selectedMonth}
+                                                label="Month"
+                                                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                                            >
+                                                {MONTH_NAMES.map((name, index) => (
+                                                    <MenuItem key={index + 1} value={index + 1}>{name}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <FormControl size="small" sx={{ minWidth: 90 }}>
+                                            <InputLabel>Year</InputLabel>
+                                            <Select
+                                                value={selectedYear}
+                                                label="Year"
+                                                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                            >
+                                                {YEAR_OPTIONS.map(year => (
+                                                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    </Box>
+                                </Box>
+                                <Box sx={{ textAlign: 'center', py: 1 }}>
+                                    {leadCountLoading ? (
+                                        <CircularProgress size={32} />
+                                    ) : (
+                                        <Typography variant="h3" fontWeight="bold">
+                                            {leadCount ?? '—'}
+                                        </Typography>
+                                    )}
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                        leads in {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+                                    </Typography>
+                                </Box>
                             </Paper>
 
                             {/* Buyer Filter Section */}
