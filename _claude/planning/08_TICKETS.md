@@ -1,10 +1,10 @@
-# All Tickets (41 Total)
+# All Tickets
 
-> **Note**: This document contains all 41 implementation tickets organized by sprint. Each ticket includes acceptance criteria, files affected, and testing requirements. See `09_IMPLEMENTATION_ORDER.md` for sprint breakdown and deployment strategies.
+> **Note**: This document contains all implementation tickets organized by sprint. Each ticket includes acceptance criteria, files affected, and testing requirements. See `09_IMPLEMENTATION_ORDER.md` for sprint breakdown and deployment strategies.
 
 ---
 
-## 📊 Sprint Status (Last Updated: 2026-03-12)
+## 📊 Sprint Status (Last Updated: 2026-03-27)
 
 | Sprint | Status | Tickets | Progress |
 |--------|--------|---------|----------|
@@ -16,12 +16,492 @@
 | **Sprint 6** | 🟢 COMPLETE | #32-38 | 7/7 (100%) |
 | **Sprint 7** | 🟢 COMPLETE | TICKET-046 | 1/1 (100%) |
 | **Sprint 8** | 🟡 IN PROGRESS | #048-061 | 5/14 (36%) |
+| **Sprint 9** | ⬜ PLANNED | #153-167 | 0/15 (0%) |
 | **Backlog** | ⬜ TODO | #39-41 | 0/3 (0%) |
 
-**Overall Progress:** 43/61 tickets complete
+**Overall Progress:** 43/61 tickets complete (Sprint 8 tickets), 15 new planned in Sprint 9
 
 **Current Status:** TICKET-061 (leads table redesign) — PR open
-**Next Up:** TICKET-053 (trash reasons), TICKET-058 (disputes), TICKET-059 (dynamic blob)
+**Next Up (after 061 merges):** Sprint 9 — see below
+
+---
+
+## Sprint 9: Buyer Outcomes Refactor + Custom Fields + All Leads View (2026-03-27)
+
+> **Epic order:** 1 → 3 → 2 → 4 → 5 → 6
+> All tickets target `develop` branch.
+
+### Sprint 9 Ticket Status
+| Ticket | Title | Epic | Status |
+|--------|-------|------|--------|
+| TICKET-153 | Snapshot `allow_resell` to send_log at dispatch time | Epic 1 | 🔲 TODO |
+| TICKET-154 | Replace dispatch Rule 3 with send_log-based check | Epic 1 | 🔲 TODO |
+| TICKET-155 | Derive sold/disputed status from platform_lead_records | Epic 1 | 🔲 TODO |
+| TICKET-156 | Drop `lead_buyer_outcomes` table + remove dead code | Epic 1 | 🔲 TODO |
+| TICKET-157 | Add `requires_verification` to buyers + update tab SQL | Epic 3 | 🔲 TODO |
+| TICKET-158 | Add `require_for_verification` to custom fields + UI | Epic 2 | 🔲 TODO |
+| TICKET-159 | Replace hardcoded required-field checks with custom fields | Epic 2 | 🔲 TODO |
+| TICKET-160 | Buyer-level required fields (which fields needed to dispatch) | Epic 2 | 🔲 TODO |
+| TICKET-161 | Source-level custom field overrides | Epic 2 | 🔲 TODO |
+| TICKET-162 | Source field mapping table (incoming payload → internal fields) | Epic 4 | 🔲 TODO |
+| TICKET-163 | Apply source field mapping at intake | Epic 4 | 🔲 TODO |
+| TICKET-164 | Enforce buyer field requirements before dispatch | Epic 4 | 🔲 TODO |
+| TICKET-165 | All Leads backend — query + filters + speed-to-lead calc | Epic 5 | 🔲 TODO |
+| TICKET-166 | All Leads frontend — page, table, filters, hover details | Epic 5 | 🔲 TODO |
+| TICKET-167 | Analytics dashboard (placeholder — requirements TBD) | Epic 6 | ⏸ ON HOLD |
+
+---
+
+## TICKET-153: Snapshot `allow_resell` to send_log at dispatch time
+
+**Status:** 🔲 TODO
+**Epic:** 1 — Drop buyer outcomes
+**Depends on:** TICKET-061 merged
+
+### Summary
+Add `allow_resell` column to `send_log`. When a lead is dispatched to a buyer, copy `buyer.allow_resell` into the send_log row. This creates a permanent, immutable snapshot of the resell policy at the moment of the send — independent of future changes to the buyer's settings.
+
+### Tasks
+- Migration: `ALTER TABLE send_log ADD COLUMN allow_resell BOOLEAN`
+- Update `buyerDispatchService.sendLeadToBuyer()` — include `allow_resell` from buyer when creating send_log
+- Update `SendLogCreateDTO` type to include `allow_resell`
+- Update `sendLogDAO.create()` to write the column
+
+### Acceptance Criteria
+- [ ] Migration runs clean
+- [ ] New send_log rows have `allow_resell` populated from buyer at send time
+- [ ] Existing rows (backfilled or NULL) handled gracefully — NULL = unknown, treated as false for safety
+
+**Files:** `postgres/migrations/`, `server/src/main/types/sendLogTypes.ts`, `server/src/main/data/sendLogDAO.ts`, `server/src/main/services/buyerDispatchService.ts`
+
+---
+
+## TICKET-154: Replace dispatch Rule 3 with send_log-based check
+
+**Status:** 🔲 TODO
+**Epic:** 1 — Drop buyer outcomes
+**Depends on:** TICKET-153
+
+### Summary
+Rule 3 in `buyerDispatchService.isLeadEligibleForBuyer()` currently checks `lead_buyer_outcomes` to block sending to lower-priority buyers if the lead was already sold to a higher-priority buyer with `allow_resell=false`. Replace this with a check against `send_log`: if the lead was successfully sent to a higher-priority buyer where `send_log.allow_resell = false`, block it.
+
+"Successfully sent" = HTTP 2xx response code in send_log.
+
+### Tasks
+- Update `isLeadBlockedByHigherPriorityBuyer()` — query `send_log` instead of `lead_buyer_outcomes`
+  - Join on `buyers` table to get priority
+  - Filter: `response_code BETWEEN 200 AND 299` AND `allow_resell = false`
+  - Block if any such row exists for a higher-priority buyer
+- Remove `leadBuyerOutcomeDAO` injection from `BuyerDispatchService`
+- Add `sendLogDAO.wasSuccessfullySentToHigherPriorityBuyerWithNoResell(leadId, priority)` helper
+
+### Acceptance Criteria
+- [ ] Dispatch correctly blocks leads already sent (2xx) to higher-priority buyer with `allow_resell=false`
+- [ ] Dispatch still allows leads for buyers where `allow_resell=true` (wholesalers can get the same lead)
+- [ ] No reference to `lead_buyer_outcomes` in `buyerDispatchService.ts`
+
+**Files:** `server/src/main/services/buyerDispatchService.ts`, `server/src/main/data/sendLogDAO.ts`
+
+---
+
+## TICKET-155: Derive sold/disputed status from platform_lead_records
+
+**Status:** 🔲 TODO
+**Epic:** 1 — Drop buyer outcomes
+**Depends on:** TICKET-153
+
+### Summary
+Replace all reads from `lead_buyer_outcomes` for display/filtering purposes with queries against `platform_lead_records`. The external platform CSV sync is the source of truth for "was this lead sold."
+
+- "Sold" = matched `platform_lead_records` row where `buyer_confirmed = true`
+- "Disputed" = matched row where `disputed = true`
+- Price = `price_cents` from `platform_lead_records`
+
+### Tasks
+- Update `leadDAO.getMany()`:
+  - "Sold" tab filter: replace `EXISTS (lead_buyer_outcomes WHERE status='sold')` with `EXISTS (platform_lead_records WHERE automator_lead_id = l.id AND buyer_confirmed = true AND match_status = 'matched')`
+- Update `leadService.getBuyerSendHistory()`:
+  - Remove outcomes query
+  - Add `platform_lead_records` query — find all matched records for this lead
+  - Map into the history response: `sold`, `sold_price`, `disputed`, `dispute_reason` per buyer
+- Update `BuyerSendModal` / send history UI to show data from the new source
+- Remove `markSoldToBuyer` / `unmarkSoldToBuyer` endpoints (manual sold marking no longer needed — platform sync is the truth)
+
+### Acceptance Criteria
+- [ ] "Sold" tab in leads view shows correct leads (matched + buyer_confirmed)
+- [ ] Send history UI shows sold/disputed/price from platform_lead_records
+- [ ] No manual "Mark Sold" toggle in UI (replaced by platform sync data)
+- [ ] No reference to `lead_buyer_outcomes` in leadDAO or leadService
+
+**Files:** `server/src/main/data/leadDAO.ts`, `server/src/main/services/leadService.ts`, `server/src/main/resources/leadResource.ts`, `client/src/components/common/leadDetails/buyerSendModal/BuyerSendModal.tsx`
+
+---
+
+## TICKET-156: Drop `lead_buyer_outcomes` table + remove dead code
+
+**Status:** 🔲 TODO
+**Epic:** 1 — Drop buyer outcomes
+**Depends on:** TICKET-154, TICKET-155
+
+### Summary
+Final cleanup. After all reads/writes to `lead_buyer_outcomes` are gone, drop the table and remove all dead code.
+
+### Tasks
+- Migration: `DROP TABLE lead_buyer_outcomes`
+- Delete `server/src/main/data/leadBuyerOutcomeDAO.ts`
+- Delete `server/src/main/types/leadBuyerOutcomeTypes.ts`
+- Remove all remaining imports and references
+- Lint check — no orphaned references
+
+### Acceptance Criteria
+- [ ] Migration runs clean — table dropped
+- [ ] Zero references to `lead_buyer_outcomes`, `LeadBuyerOutcomeDAO`, `LeadBuyerOutcome` in codebase
+- [ ] Lint passes
+
+**Files:** `postgres/migrations/`, `server/src/main/data/`, `server/src/main/types/`, `server/src/main/services/`
+
+---
+
+## TICKET-157: Add `requires_verification` to buyers + dynamic Needs Verification SQL
+
+**Status:** 🔲 TODO
+**Epic:** 3 — Dynamic verification logic
+
+### Summary
+The "Needs Verification" tab should only show leads that actually need to be verified — meaning there exists at least one buyer who (1) requires verification and (2) is not blocking this lead's source/campaign.
+
+If every buyer that requires verification has blocked the lead's source, the lead doesn't need verification — there's no buyer that will ever want it in verified form.
+
+### Tasks
+- Migration: `ALTER TABLE buyers ADD COLUMN requires_verification BOOLEAN DEFAULT FALSE`
+- Add `requires_verification` to buyer types, DAO, create/edit forms
+- Update "Needs Verification" tab SQL in `leadDAO.getMany()`:
+  ```sql
+  -- Lead needs verification if there EXISTS a buyer where:
+  -- 1. buyer.requires_verification = true
+  -- 2. buyer is NOT blocking the lead's source (not in source.buyer_filter_buyer_ids w/ mode='exclude', etc.)
+  -- 3. buyer.deleted IS NULL
+  EXISTS (
+    SELECT 1 FROM buyers b
+    WHERE b.requires_verification = true
+      AND b.deleted IS NULL
+      AND NOT (
+        -- source has blocked this buyer
+        b.id = ANY(source.buyer_filter_buyer_ids) AND source.buyer_filter_mode = 'exclude'
+        -- or source includes only specific buyers and this isn't one
+        OR (source.buyer_filter_mode = 'include' AND NOT (b.id = ANY(source.buyer_filter_buyer_ids)))
+      )
+  )
+  ```
+- Remove the campaign-level `needs_verification` flag idea — this SQL approach covers it dynamically
+
+### Acceptance Criteria
+- [ ] "Needs Verification" tab only shows leads where an eligible buyer requires verification
+- [ ] Blocking a source from a buyer dynamically removes those leads from the tab
+- [ ] Buyers admin UI shows `requires_verification` toggle
+- [ ] Permission-gated
+
+**Files:** `postgres/migrations/`, `server/src/main/types/buyerTypes.ts`, `server/src/main/data/buyerDAO.ts`, `server/src/main/data/leadDAO.ts`, buyer frontend components
+
+---
+
+## TICKET-158: Add `require_for_verification` to custom fields + UI hierarchy
+
+**Status:** 🔲 TODO
+**Epic:** 2 — Custom Fields Overhaul
+
+### Summary
+Add `require_for_verification` boolean to the `lead_custom_fields` schema. A field can be "required to import" (`required = true`) and additionally "required to verify" (`require_for_verification = true`). Hierarchy rule: `require_for_verification` can only be true if `required` is also true. UI enforces this — unchecking `required` auto-unchecks `require_for_verification`.
+
+### Tasks
+- Migration: `ALTER TABLE lead_custom_fields ADD COLUMN require_for_verification BOOLEAN DEFAULT FALSE`
+- Add to `LeadCustomField` type and DAO
+- Update custom fields admin UI:
+  - Add second toggle "Required for Verification"
+  - Disable it when `required = false`
+  - Auto-uncheck it when `required` is unchecked
+- Backend validation: reject `require_for_verification = true` if `required = false`
+
+### Acceptance Criteria
+- [ ] Migration runs clean
+- [ ] `require_for_verification` persists correctly
+- [ ] UI hierarchy enforced (can't set `require_for_verification` without `required`)
+- [ ] Backend validation rejects invalid combinations
+
+**Files:** `postgres/migrations/`, `server/src/main/types/leadCustomFieldTypes.ts`, `server/src/main/data/leadCustomFieldDAO.ts`, custom fields admin frontend
+
+---
+
+## TICKET-159: Replace hardcoded required-field checks with custom fields config
+
+**Status:** 🔲 TODO
+**Epic:** 2 — Custom Fields Overhaul
+**Depends on:** TICKET-158
+
+### Summary
+Currently, `needs_review` is set based on hardcoded fields (first_name, last_name, phone, email, address). Replace this with a dynamic check against `lead_custom_fields` where `required = true`. Also drive the "ready for verification" check from `require_for_verification = true` fields.
+
+### Tasks
+- Update lead import/intake service:
+  - Fetch all `lead_custom_fields` where `required = true`
+  - Set `needs_review = true` if any required field is missing from the lead's data
+  - Set `needs_review_reason` to list the missing field labels
+- For verification eligibility (used by TICKET-157 logic and UI):
+  - A lead is "ready to verify" when all `require_for_verification` fields are present
+  - Show missing verification fields in the UI (similar to needs_review_reason)
+- Seed default custom field definitions for: first_name, last_name, phone, email, address (mark as `required = true`, standard ones also `require_for_verification = true`)
+
+### Acceptance Criteria
+- [ ] `needs_review` dynamically driven by custom fields config, not hardcoded
+- [ ] Adding/removing `required` from a field type changes import behavior
+- [ ] Seeded defaults match existing hardcoded behavior
+
+**Files:** lead intake/import service, `server/src/main/data/leadCustomFieldDAO.ts`, seed SQL
+
+---
+
+## TICKET-160: Buyer-level required fields
+
+**Status:** 🔲 TODO
+**Epic:** 2 — Custom Fields Overhaul
+
+### Summary
+Buyers can declare which fields they require on a lead before it can be dispatched to them. Not all buyers have the same requirements. If a lead is missing a buyer's required field, dispatch to that buyer is blocked (same as any other eligibility rule).
+
+### Tasks
+- New table: `buyer_required_fields`
+  - `id` (UUID PK)
+  - `buyer_id` (UUID FK to buyers)
+  - `field_key` (VARCHAR, FK to `lead_custom_fields.key`)
+  - `created`, `deleted`
+- DAO + service + resource for managing buyer required fields
+- Add to buyer eligibility check in `buyerDispatchService`:
+  - Fetch buyer's required fields
+  - Check lead's `custom_fields` JSONB for each required key
+  - Block dispatch if any are missing
+- Buyer admin UI: add required fields section (multi-select from active custom fields)
+
+### Acceptance Criteria
+- [ ] Buyer can have a set of required fields configured
+- [ ] Dispatch blocked if lead is missing any of buyer's required fields
+- [ ] UI shows which fields blocked dispatch (for manual send warnings)
+- [ ] Permission-gated
+
+**Files:** `postgres/migrations/`, new DAO/types/service/resource, `server/src/main/services/buyerDispatchService.ts`, buyer frontend
+
+---
+
+## TICKET-161: Source-level custom field overrides
+
+**Status:** 🔲 TODO
+**Epic:** 2 — Custom Fields Overhaul
+
+### Summary
+Sources may have different field requirements than the global config. A source can mark additional fields as required (even if they're not globally required) or override defaults for leads coming from that source.
+
+### Tasks
+- New table: `source_custom_field_overrides`
+  - `id` (UUID PK)
+  - `source_id` (UUID FK to sources)
+  - `field_key` (VARCHAR)
+  - `required` (BOOLEAN)
+  - `require_for_verification` (BOOLEAN)
+  - `created`, `deleted`
+- During intake: merge source-level overrides with global field definitions
+- Source admin UI: custom fields overrides section
+
+### Acceptance Criteria
+- [ ] Source can override `required` / `require_for_verification` per field
+- [ ] Intake respects source overrides when computing `needs_review`
+- [ ] UI shows source-level overrides clearly
+
+**Files:** `postgres/migrations/`, new DAO/types/service, intake service, source frontend
+
+---
+
+## TICKET-162: Source field mapping table
+
+**Status:** 🔲 TODO
+**Epic:** 4 — Payload Mapping
+
+### Summary
+Each external source sends leads in their own payload format. A source's incoming field names may differ from Automator's internal field names (e.g., they send `mobile_number`, we store `phone`). Create a mapping layer that transforms incoming payloads before validation and storage.
+
+### Tasks
+- New table: `source_field_mappings`
+  - `id` (UUID PK)
+  - `source_id` (UUID FK to sources)
+  - `incoming_key` (VARCHAR) — field name in the external payload
+  - `internal_key` (VARCHAR) — Automator field name
+  - `created`, `deleted`
+- Source admin UI: field mapping editor (table of incoming → internal)
+- Document standard internal field names (first_name, last_name, phone, email, address, city, state, zipcode, custom_fields.*)
+
+### Acceptance Criteria
+- [ ] Source can define mappings in admin UI
+- [ ] Mappings persist to DB
+- [ ] No transformation applied yet (done in TICKET-163)
+
+**Files:** `postgres/migrations/`, new DAO/types/service, source frontend
+
+---
+
+## TICKET-163: Apply source field mapping at intake
+
+**Status:** 🔲 TODO
+**Epic:** 4 — Payload Mapping
+**Depends on:** TICKET-162
+
+### Summary
+At lead intake, before validation, apply the source's field mappings to transform the incoming payload into Automator's internal format.
+
+### Tasks
+- In lead intake/import service: after identifying the source, fetch its field mappings
+- Apply transformations: rename keys in the payload before further processing
+- Unknown keys after mapping → go into `custom_fields` JSONB (auto-discovery)
+- Log/warn if a mapped key is missing from the incoming payload
+
+### Acceptance Criteria
+- [ ] Leads from a source with mappings are correctly transformed at intake
+- [ ] Unmapped fields land in `custom_fields`
+- [ ] No existing intake behavior changes for sources without mappings
+
+**Files:** lead intake service, source field mapping DAO
+
+---
+
+## TICKET-164: Enforce buyer field requirements before dispatch
+
+**Status:** 🔲 TODO
+**Epic:** 4 — Payload Mapping
+**Depends on:** TICKET-160
+
+### Summary
+At dispatch time, before sending a lead to a buyer, check the buyer's required fields (from TICKET-160) against the lead's actual data. Extend the eligibility check to include this validation. Show which fields are missing in the manual send modal as a warning.
+
+### Tasks
+- Extend `isLeadEligibleForBuyer()` — add buyer required field check
+- Add "Missing buyer required fields" to `filter_warnings` in `getBuyerSendHistory()`
+- Manual send modal: show per-buyer field warnings alongside the existing source/county filter warnings
+
+### Acceptance Criteria
+- [ ] Worker skips buyers where lead is missing required fields
+- [ ] Manual send modal warns user which fields are missing per buyer
+- [ ] Worker dispatch logs reason when skipping (activity log)
+
+**Files:** `server/src/main/services/buyerDispatchService.ts`, `server/src/main/services/leadService.ts`, `client/src/components/common/leadDetails/buyerSendModal/BuyerSendModal.tsx`
+
+---
+
+## TICKET-165: All Leads backend — query, filters, speed-to-lead
+
+**Status:** 🔲 TODO
+**Epic:** 5 — All Leads Database View
+
+### Summary
+New backend endpoint returning all leads (no status filter) with rich joined data for the "All Leads" database view. Newest first. Supports filters and includes speed-to-lead calculations.
+
+**Speed-to-lead metrics (two legs):**
+1. **Our leg:** `send_log.created` − `leads.created` = time from lead received to we sent it to buyer
+2. **Buyer's leg:** `platform_lead_records.sent_out_at` − `send_log.created` = time from we sent it to buyer sent it to their end buyer
+
+### Tasks
+- New endpoint: `GET /admin/leads/all` (or extend `getMany` with `status=all`)
+- Query: all non-deleted leads, ORDER BY `leads.created DESC`
+- Filters: `search` (name/phone/email), `source_id`, `campaign_id`, `buyer_id`, `sold` (bool), `disputed` (bool)
+- JOINs:
+  - `sources` → source name
+  - `campaigns` → campaign name, platform
+  - `facebook_lead_records` → fb_lead_id, fb_campaign_name, fb_ad_name (for hover)
+  - `send_log` (most recent successful) → buyer name, sent_at
+  - `platform_lead_records` (matched) → sold, price_cents, disputed, dispute_reason, sent_out_at
+- Speed-to-lead computed fields in response:
+  - `speed_to_lead_ours_minutes`: our send time − lead received
+  - `speed_to_lead_buyer_minutes`: buyer's send time − our send time
+- Pagination (page + limit)
+
+### Acceptance Criteria
+- [ ] Endpoint returns all leads with all join data
+- [ ] All filters work correctly
+- [ ] Speed-to-lead fields calculated and returned
+- [ ] Facebook data available (for hover — not required in main columns)
+- [ ] Paginated
+
+**Files:** `server/src/main/data/leadDAO.ts`, `server/src/main/services/leadService.ts`, `server/src/main/resources/leadResource.ts`, new types
+
+---
+
+## TICKET-166: All Leads frontend — page, table, filters, hover details
+
+**Status:** 🔲 TODO
+**Epic:** 5 — All Leads Database View
+**Depends on:** TICKET-165
+
+### Summary
+New "All Leads" page in the admin frontend. Full-width table with filters and rich columns. IDs are never shown directly — hover/tooltip reveals FB/external IDs.
+
+**Table columns:**
+| Column | Content |
+|--------|---------|
+| Name | First + Last |
+| Contact | Phone, Email |
+| County | County, State |
+| Source → Campaign | Source name / Campaign name |
+| Received | Lead created timestamp |
+| Speed to Lead | Our leg (received → sent), Buyer's leg (sent → buyer dispatched) |
+| Sent to Buyer | Buyer name + sent timestamp |
+| Sold | ✓ / — with price |
+| Disputed | Dispute badge + reason |
+
+**Filters (top bar):**
+- Search (name, phone, email)
+- Source dropdown
+- Campaign dropdown (cascades from source)
+- Buyer dropdown
+- Sold filter (yes/no/all)
+- Disputed filter (yes/no/all)
+
+**Hover/tooltip:**
+- Hovering lead row → shows Facebook ID, ad name, campaign ID (from facebook_lead_records)
+- Or a detail expand per row
+
+### Tasks
+- New route/page: `/admin/leads/all`
+- New service method: `getAllLeads(filters)`
+- Table using existing DataGrid pattern
+- Filter bar with dropdowns
+- Hover panel or tooltip for Facebook/external details
+- Permission gate: new `LeadPermission.VIEW_ALL_LEADS`
+
+### Acceptance Criteria
+- [ ] Page renders with all columns
+- [ ] All filters update table results
+- [ ] Speed-to-lead columns show both legs
+- [ ] Hover/tooltip reveals Facebook details without cluttering table
+- [ ] Paginated
+- [ ] Permission-gated
+
+**Files:** new page component, new service method, routing, permissions
+
+---
+
+## TICKET-167: Analytics dashboard (placeholder)
+
+**Status:** ⏸ ON HOLD — requirements TBD
+**Epic:** 6 — Analytics
+
+### Summary
+Main analytics dashboard showing lead cost, revenue, Facebook spend per campaign, and cost-per-lead math. Requirements to be gathered from the numbers team.
+
+### Known requirements so far
+- Facebook ad spend per campaign per month (from `facebook_lead_records` or external FB API)
+- Leads sold per campaign per month (from `platform_lead_records`)
+- Sale price per lead (from `platform_lead_records.price_cents`)
+- Derived: cost per lead = spend ÷ leads sold
+- Derived: margin = revenue − cost
+
+### Status
+On hold. Add requirements here as they come in before implementation begins.
 
 ### Sprint 8 Ticket Status
 | Ticket | Title | Status |
@@ -3167,6 +3647,119 @@ Root cause: `markLeadAsSent()` was defined in leadDAO but never called anywhere.
 
 ---
 
+---
+
+## Sprint 10: Lead Sources, AI Fix, Girls Workflow (2026-04-07)
+
+> From voice session 2026-04-06/07. Talk to Eric, Jason, and the girls before starting implementation.
+> Note: TICKET-148 (Perspective two-step) and TICKET-149 (Direct source intake / Facebook endpoint) already exist in the backlog and cover the core intake work. These tickets layer on top of or complement those.
+
+### Sprint 10 Ticket Status
+
+| Ticket | Title | Status |
+|--------|-------|--------|
+| TICKET-168 | Fix Zoe AI assistant (broken) | 🔲 TODO |
+| TICKET-169 | CSV import — add campaign selection | 🔲 TODO |
+| TICKET-170 | Facebook intake — ping back to FB for conversion tracking | 🔲 TODO |
+| TICKET-171 | Girls workflow — spec API, skip tracing, data access | 🔲 TODO |
+| TICKET-172 | Fix needs-verification query (blocked sources/counties not filtered) | 🔲 TODO |
+
+---
+
+## TICKET-168: Fix Zoe AI assistant (broken)
+
+**Status:** 🔲 TODO
+**Sprint:** 10 | **Priority:** HIGH
+
+### Summary
+The Zoe AI assistant in the Automator is not working. Investigate root cause — likely a broken API key, model config, or system prompt issue (PR #94 was in review as of 2026-03-27 and may not have merged cleanly). Restore to working state.
+
+### Acceptance Criteria
+- [ ] Zoe responds correctly in the admin UI
+- [ ] Queries run against the DB without errors
+- [ ] No hardcoded model or key issues
+
+---
+
+## TICKET-169: CSV import — add campaign selection
+
+**Status:** 🔲 TODO
+**Sprint:** 10 | **Priority:** MEDIUM
+
+### Summary
+CSV-imported leads get a source but no campaign, so source type (FB, IG, etc.) shows as "unknown" in reports. When importing a CSV, the user should be able to select an existing campaign or create a new one inline.
+
+### Acceptance Criteria
+- [ ] CSV import modal shows a campaign dropdown (+ "create new" option)
+- [ ] Imported leads are tagged with the selected campaign
+- [ ] Source type no longer shows as "unknown" for CSV imports
+- [ ] Existing imports without a campaign are unaffected
+
+---
+
+## TICKET-170: Facebook intake — ping back to FB for conversion tracking
+
+**Status:** 🔲 TODO
+**Sprint:** 10 | **Priority:** MEDIUM
+**Depends on:** TICKET-149 (Facebook/direct source endpoint)
+
+### Summary
+When a Facebook lead is received, ping FB back to confirm receipt via the Conversions API. Also report lead stage changes (sold, disputed) back to FB over time. This improves FB's conversion optimization.
+
+### Tasks
+- [ ] On lead receipt: fire a FB Conversions API event
+- [ ] On lead stage change: fire appropriate FB event
+- [ ] Store FB lead ID on lead record for event matching
+- [ ] Pings are async/non-blocking — failure must not block intake
+
+### Acceptance Criteria
+- [ ] FB receives a conversion ping on ingestion
+- [ ] Lead stage events are reported back to FB
+- [ ] Failures logged but do not block lead intake
+
+---
+
+## TICKET-171: Girls workflow — spec API, skip tracing, data access
+
+**Status:** 🔲 TODO
+**Sprint:** 10 | **Priority:** MEDIUM (spec first, build later)
+**Depends on:** Conversation with the girls about what they need
+
+### Summary
+The girls (agents) need better data access while working a lead without leaving the app. Options: skip tracing API, property data lookup, or iFraming an external tool (e.g. Silo — check if they allow iFrame). **Talk to them first before writing any code.**
+
+### Tasks
+- [ ] Meet with girls — what info do they need? What do they leave the app to look up?
+- [ ] Evaluate: skip tracing API vs. iFrame Silo vs. other
+- [ ] Write spec, create follow-up implementation tickets
+
+### Acceptance Criteria
+- [ ] Written spec approved before any code is written
+
+---
+
+## TICKET-172: Fix needs-verification query (blocked sources/counties not filtered)
+
+**Status:** 🔲 TODO
+**Sprint:** 10 | **Priority:** HIGH (bug)
+**Related:** TICKET-157
+
+### Summary
+The needs-verification queue shows too much noise — leads from blocked sources and counties appear when they shouldn't. The query must enforce all four conditions:
+
+1. Lead is not verified
+2. Assigned buyer has `requires_verification = true`
+3. Lead's source is not blocked
+4. Lead's county is not blocked
+
+### Acceptance Criteria
+- [ ] Only leads meeting all 4 conditions appear in the queue
+- [ ] Leads from blocked sources are excluded
+- [ ] Leads from blocked counties are excluded
+- [ ] No regression on normal verified lead flow
+
+---
+
 ### Grand Total (All Tickets)
 
 | Category | Tickets | Hours | Completed |
@@ -3174,4 +3767,6 @@ Root cause: `markLeadAsSent()` was defined in leadDAO but never called anywhere.
 | **Original Refactor** | 47 | ~150 hrs | 38 tickets (81%) |
 | **New Features** | 13 | ~120 hrs | 3 tickets (23%) |
 | **Leads Stages & Filters** | 6 | ~21 hrs | 6 tickets (100%) |
-| **GRAND TOTAL** | **66** | **~291 hrs** | **47 tickets (71%)** |
+| **Sprint 9** | 15 | TBD | 0 tickets (0%) |
+| **Sprint 10** | 5 | TBD | 0 tickets (0%) |
+| **GRAND TOTAL** | **86** | ~291 hrs+ | **47 tickets** |
