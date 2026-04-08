@@ -7,6 +7,7 @@ import LeadBuyerOutcomeDAO from "../data/leadBuyerOutcomeDAO";
 import CampaignDAO from "../data/campaignDAO";
 import SourceDAO from "../data/sourceDAO";
 import WorkerSettingsDAO from "../data/workerSettingsDAO";
+import LeadFormInputDAO from "../data/leadFormInputDAO";
 import CountyService from "../services/countyService";
 import ActivityService from "../services/activityService";
 import BuyerWebhookAdapter, { BuyerWebhookResponse } from "../adapters/buyerWebhookAdapter";
@@ -15,6 +16,7 @@ import { Buyer } from "../types/buyerTypes";
 import { Campaign } from "../types/campaignTypes";
 import { SendLog } from "../types/sendLogTypes";
 import { County } from "../types/countyTypes";
+import { LeadFormInput } from "../types/leadFormInputTypes";
 
 @injectable()
 export default class BuyerDispatchService {
@@ -26,6 +28,7 @@ export default class BuyerDispatchService {
         private readonly campaignDAO: CampaignDAO,
         private readonly sourceDAO: SourceDAO,
         private readonly workerSettingsDAO: WorkerSettingsDAO,
+        private readonly leadFormInputDAO: LeadFormInputDAO,
         private readonly countyService: CountyService,
         private readonly buyerWebhookAdapter: BuyerWebhookAdapter,
         private readonly activityService: ActivityService
@@ -72,7 +75,10 @@ export default class BuyerDispatchService {
         }
 
         // Build payload (map lead fields to buyer's expected format)
-        const payload = this.buildPayload(lead, buyer, campaign);
+        const formInput = buyer.payload_format === 'ispeedtolead'
+            ? await this.leadFormInputDAO.getByLeadId(lead.id)
+            : null;
+        const payload = this.buildPayload(lead, buyer, campaign, formInput);
 
         // Send to actual webhook (Make.com URLs configured per environment)
         const response: BuyerWebhookResponse = await this.buyerWebhookAdapter.sendToBuyer(
@@ -524,8 +530,33 @@ export default class BuyerDispatchService {
      * @param lead - Lead to transform
      * @returns Payload object ready for webhook
      */
-    private buildPayload(lead: Lead, buyer: Buyer, campaign: Campaign | null): Record<string, unknown> {
+    private buildPayload(lead: Lead, buyer: Buyer, campaign: Campaign | null, formInput: LeadFormInput | null = null): Record<string, unknown> {
         const privateNote = buyer.send_private_note ? this.buildPrivateNote(lead, campaign) : undefined;
+
+        if (buyer.payload_format === 'ispeedtolead') {
+            const formFields: Record<string, unknown> = {};
+            if (formInput) {
+                const skipKeys = new Set(['id', 'lead_id', 'created', 'modified', 'deleted', 'activeprospect_certificate_url', 'record_link', 'last_post_status', 'last_post_payload', 'last_post_at']);
+                for (const [key, value] of Object.entries(formInput)) {
+                    if (!skipKeys.has(key) && value !== null) {
+                        formFields[key] = value;
+                    }
+                }
+            }
+            return {
+                form_first_name: lead.first_name,
+                form_last_name: lead.last_name,
+                form_email: lead.email,
+                form_phone: lead.phone,
+                form_address: lead.address,
+                form_city: lead.city,
+                form_state: lead.state,
+                form_zip: lead.zipcode,
+                ...formFields,
+                ...(buyer.send_lead_id ? { lead_id: lead.id } : {}),
+                ...(privateNote !== undefined ? { private_note: privateNote } : {}),
+            };
+        }
 
         if (buyer.payload_format === 'northstar') {
             return {
