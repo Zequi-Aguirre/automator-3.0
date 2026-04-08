@@ -127,6 +127,7 @@ const BuyerFormFields = ({
                 >
                     <MenuItem value="default">Default</MenuItem>
                     <MenuItem value="northstar">Northstar (Compass / SellersDirect)</MenuItem>
+                    <MenuItem value="ispeedtolead">iSpeedToLead</MenuItem>
                 </Select>
             </FormControl>
 
