@@ -22,7 +22,7 @@ export type Buyer = {
     delay_same_state: number;
     enforce_county_cooldown: boolean;
     enforce_state_cooldown: boolean;
-    payload_format: 'default' | 'northstar';
+    payload_format: 'default' | 'northstar' | 'ispeedtolead';
     send_lead_id: boolean;
     send_private_note: boolean;
     on_hold: boolean;
@@ -51,7 +51,7 @@ export type BuyerCreateDTO = {
     delay_same_state?: number;
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
-    payload_format?: 'default' | 'northstar';
+    payload_format?: 'default' | 'northstar' | 'ispeedtolead';
     send_lead_id?: boolean;
     send_private_note?: boolean;
 };
@@ -77,7 +77,7 @@ export type BuyerUpdateDTO = {
     delay_same_state?: number;
     enforce_county_cooldown?: boolean;
     enforce_state_cooldown?: boolean;
-    payload_format?: 'default' | 'northstar';
+    payload_format?: 'default' | 'northstar' | 'ispeedtolead';
     send_lead_id?: boolean;
     send_private_note?: boolean;
 };
