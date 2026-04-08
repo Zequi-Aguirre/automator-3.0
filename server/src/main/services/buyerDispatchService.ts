@@ -544,15 +544,14 @@ export default class BuyerDispatchService {
                 }
             }
             return {
-                first_name: lead.first_name,
-                last_name: lead.last_name,
-                email: lead.email,
-                phone: lead.phone,
-                address: lead.address,
-                city: lead.city,
-                state: lead.state,
-                zip: lead.zipcode,
-                county: lead.county ?? '',
+                form_first_name: lead.first_name,
+                form_last_name: lead.last_name,
+                form_email: lead.email,
+                form_phone: lead.phone,
+                form_address: lead.address,
+                form_city: lead.city,
+                form_state: lead.state,
+                form_zip: lead.zipcode,
                 ...formFields,
                 ...(buyer.send_lead_id ? { lead_id: lead.id } : {}),
                 ...(privateNote !== undefined ? { private_note: privateNote } : {}),
